@@ -118,30 +118,43 @@ const MONTH_NAMES = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio",
 function computeSummary(monthData) {
   const { salaries, familyExpenses, personalExpenses } = monthData;
 
+  // Gastos personales fijos de cada uno
   const personalTotalMarcela = (personalExpenses?.marcela || []).reduce((s, e) => s + (e.amount || 0), 0);
   const personalTotalJonatan = (personalExpenses?.jonatan || []).reduce((s, e) => s + (e.amount || 0), 0);
 
+  // Neto = bruto - personales
   const netoMarcela = Math.max(0, (salaries.marcela || 0) - personalTotalMarcela);
   const netoJonatan = Math.max(0, (salaries.jonatan || 0) - personalTotalJonatan);
   const totalNeto = netoMarcela + netoJonatan;
 
+  // Proporción de aporte de cada uno según su neto
   const ratio = totalNeto > 0
     ? { marcela: netoMarcela / totalNeto, jonatan: netoJonatan / totalNeto }
     : { marcela: 0.5, jonatan: 0.5 };
 
+  // Presupuesto planeado (solo categorías con presupuesto > 0)
   const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
+
+  // Lo que cada uno realmente pagó este mes
   const totalFamilyPaidMarcela = familyExpenses.reduce((s, c) => s + (c.marcela || 0), 0);
   const totalFamilyPaidJonatan = familyExpenses.reduce((s, c) => s + (c.jonatan || 0), 0);
   const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan;
   const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid);
 
+  // Aporte ideal = proporción del presupuesto total
   const aporteFamiliarMarcela = totalFamilyBudget * ratio.marcela;
   const aporteFamiliarJonatan = totalFamilyBudget * ratio.jonatan;
 
+  // Saldo libre = neto - aporte ideal al hogar
   const saldoMarcela = netoMarcela - aporteFamiliarMarcela;
   const saldoJonatan = netoJonatan - aporteFamiliarJonatan;
 
-  const diffMarcela = totalFamilyPaidMarcela - aporteFamiliarMarcela;
+  // Balance real: quién pagó de más o de menos respecto al total pagado hasta ahora
+  // Se compara contra la proporción de lo pagado real (no del presupuesto)
+  const aportePagadoIdealMarcela = totalFamilyPaid * ratio.marcela;
+  const aportePagadoIdealJonatan = totalFamilyPaid * ratio.jonatan;
+  const diffMarcela = totalFamilyPaidMarcela - aportePagadoIdealMarcela;
+  const diffJonatan = totalFamilyPaidJonatan - aportePagadoIdealJonatan;
 
   return {
     ratio,
@@ -150,7 +163,9 @@ function computeSummary(monthData) {
     totalFamilyBudget, totalFamilyPaid, totalFamilyPending,
     totalFamilyPaidMarcela, totalFamilyPaidJonatan,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
-    saldoMarcela, saldoJonatan, diffMarcela,
+    aportePagadoIdealMarcela, aportePagadoIdealJonatan,
+    saldoMarcela, saldoJonatan,
+    diffMarcela, diffJonatan,
   };
 }
 
@@ -264,12 +279,14 @@ function TabDashboard({ monthData, summary }) {
     totalFamilyBudget, totalFamilyPaid, totalFamilyPending,
     totalFamilyPaidMarcela, totalFamilyPaidJonatan,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
-    saldoMarcela, saldoJonatan, diffMarcela } = summary;
+    aportePagadoIdealMarcela, aportePagadoIdealJonatan,
+    saldoMarcela, saldoJonatan, diffMarcela, diffJonatan } = summary;
 
-  const balanceMsg = Math.abs(diffMarcela) >= 1000
+  // Solo mostrar el balance si hay pagos reales registrados
+  const balanceMsg = totalFamilyPaid >= 1000 && Math.abs(diffMarcela) >= 1000
     ? diffMarcela > 0
-      ? `Marcela pagó ${COP(diffMarcela)} más de su aporte ideal`
-      : `Jonatan pagó ${COP(Math.abs(diffMarcela))} más de su aporte ideal`
+      ? `Marcela adelantó ${COP(diffMarcela)} más de su parte proporcional`
+      : `Jonatan adelantó ${COP(Math.abs(diffMarcela))} más de su parte proporcional`
     : null;
 
   return (
@@ -333,8 +350,8 @@ function TabDashboard({ monthData, summary }) {
           ) : null}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-          {[{ label: "Pagó Marcela", val: totalFamilyPaidMarcela, n: "marcela", ideal: aporteFamiliarMarcela },
-            { label: "Pagó Jonatan", val: totalFamilyPaidJonatan, n: "jonatan", ideal: aporteFamiliarJonatan }].map(({ label, val, n, ideal }) => (
+          {[{ label: "Pagó Marcela", val: totalFamilyPaidMarcela, n: "marcela", ideal: aportePagadoIdealMarcela },
+            { label: "Pagó Jonatan", val: totalFamilyPaidJonatan, n: "jonatan", ideal: aportePagadoIdealJonatan }].map(({ label, val, n, ideal }) => (
             <div key={n} style={{ background: "var(--surface2)", borderRadius: 10, padding: "10px 12px" }}>
               <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 17, fontWeight: 800, color: `var(--${n})` }}>{COP(val)}</div>
@@ -1247,6 +1264,23 @@ export default function App() {
   const [data, setData] = useState(() => loadData());
   const [tab, setTab] = useState("dashboard");
   const [synced, setSynced] = useState(false);
+
+  // Auto-advance: if today's month is newer than currentKey, create it automatically
+  useEffect(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const todayKey = getMonthKey(currentYear, currentMonth);
+    if (!data.months[todayKey] && data.currentKey && data.currentKey < todayKey) {
+      // Copy last known salaries as starting point
+      const lastMonth = data.months[data.currentKey];
+      const newMonth = createEmptyMonth(currentYear, currentMonth, lastMonth?.salaries || { marcela: 0, jonatan: 0 });
+      const nd = { ...data, months: { ...data.months, [todayKey]: newMonth }, currentKey: todayKey };
+      setData(nd);
+      saveData(nd);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.currentKey]);
 
   // ── Firestore real-time sync ──────────────────────────────────────────────
   useEffect(() => {
