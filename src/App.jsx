@@ -1,7 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { db } from "./firebase";
+import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "corpos_budget_v4";
+const FIRESTORE_DOC = "corpos/shared";
 
 const defaultPersonalExpenses = {
   jonatan: [
@@ -90,7 +93,15 @@ function loadData() {
   return d;
 }
 
-function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+function saveData(d) {
+  // Always save to localStorage as backup
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  // Save to Firestore if available
+  if (db) {
+    const [col, docId] = FIRESTORE_DOC.split("/");
+    setDoc(doc(db, col, docId), d).catch((e) => console.error("Firestore save error:", e));
+  }
+}
 
 // ─── FORMATTERS ───────────────────────────────────────────────────────────────
 const COP = (n) =>
@@ -1235,6 +1246,42 @@ function ItemCard({ item, lastCompras, onUpdate, onDelete, onComprar }) {
 export default function App() {
   const [data, setData] = useState(() => loadData());
   const [tab, setTab] = useState("dashboard");
+  const [synced, setSynced] = useState(false);
+
+  // ── Firestore real-time sync ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!db) return;
+    const [col, docId] = FIRESTORE_DOC.split("/");
+    const ref = doc(db, col, docId);
+
+    // First load: push local data to Firestore if Firestore is empty
+    getDoc(ref).then((snap) => {
+      if (!snap.exists()) {
+        const local = loadData();
+        setDoc(ref, local).catch(console.error);
+      }
+    });
+
+    // Subscribe to real-time changes
+    const unsub = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const remote = snap.data();
+        // Migrate mercado if empty
+        if (!remote.mercado || !remote.mercado.items || remote.mercado.items.length === 0) {
+          remote.mercado = { items: getSeedItems(), compras: remote.mercado?.compras || [] };
+          setDoc(ref, remote).catch(console.error);
+        }
+        setData(remote);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+        setSynced(true);
+      }
+    }, (err) => {
+      console.error("Firestore listen error:", err);
+      setSynced(false);
+    });
+
+    return () => unsub();
+  }, []);
 
   const updateMercado = useCallback((updated) => {
     const newData = { ...data, mercado: updated };
@@ -1298,7 +1345,10 @@ export default function App() {
               <div style={{ fontSize: 19, fontWeight: 900, fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
                 💼 Cor<span style={{ color: "var(--accent)" }}>Pos</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text2)" }}>Marcela & Jonatan</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: db ? (synced ? "var(--success)" : "#f59e0b") : "var(--text2)" }} />
+                <div style={{ fontSize: 11, color: "var(--text2)" }}>{db ? (synced ? "Sincronizado" : "Conectando...") : "Sin sincronización"}</div>
+              </div>
             </div>
             <div style={{ background: "var(--accent)", color: "#fff", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-display)" }}>
               {MONTH_NAMES[currentMonth.month]} {currentMonth.year}
