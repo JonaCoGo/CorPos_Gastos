@@ -3,7 +3,7 @@ import { db } from "./firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
-const STORAGE_KEY = "corpos_budget_v5";
+const STORAGE_KEY = "corpos_budget_v6";
 const FIRESTORE_DOC = "corpos/shared";
 
 const defaultPersonalExpenses = {
@@ -45,23 +45,35 @@ function getMonthKey(y, m) { return `${y}-${String(m).padStart(2, "0")}`; }
 
 function createEmptyMonth(year, month, salaries = { marcela: 0, jonatan: 0 }, prevMonth = null) {
   // Carry over active/inactive state from previous month
+  // disableNext=true means "disable starting next month"
+  // active=false means "disabled in this month" (set by carry from previous)
   const carryPersonal = (person) => {
     const prev = prevMonth?.personalExpenses?.[person] || defaultPersonalExpenses[person];
-    return prev.map((e) => ({ ...e, paid: false, active: e.active !== false }));
+    return prev.map((e) => ({
+      ...e,
+      paid: false,
+      disableNext: false,           // reset the flag for new month
+      active: e.disableNext ? false : true, // if flagged last month, start inactive
+    }));
   };
   const carryFamily = () => {
     const prev = prevMonth?.familyExpenses || defaultFamilyCategories;
-    return prev.map((c) => ({ ...c, marcela: 0, jonatan: 0, active: c.active !== false }));
+    return prev.map((c) => ({
+      ...c,
+      marcela: 0, jonatan: 0,
+      disableNext: false,
+      active: c.disableNext ? false : true,
+    }));
   };
   return {
     key: getMonthKey(year, month), year, month,
     salaries: { ...salaries },
-    familyExpenses: prevMonth ? carryFamily() : defaultFamilyCategories.map((c) => ({ ...c, marcela: 0, jonatan: 0, active: true })),
+    familyExpenses: prevMonth ? carryFamily() : defaultFamilyCategories.map((c) => ({ ...c, marcela: 0, jonatan: 0, active: true, disableNext: false })),
     personalExpenses: {
       jonatan: carryPersonal("jonatan"),
       marcela: carryPersonal("marcela"),
     },
-    extras: [], // gastos extra del mes: { id, person, amount, category, desc, date }
+    extras: [], // always empty — extras are not carried over
   };
 }
 
@@ -128,9 +140,10 @@ function computeSummary(monthData) {
   const { salaries, familyExpenses, personalExpenses } = monthData;
 
   const extras = monthData.extras || [];
-  // Solo gastos activos
-  const personalTotalMarcela = (personalExpenses?.marcela || []).filter(e => e.active !== false).reduce((s, e) => s + (e.amount || 0), 0);
-  const personalTotalJonatan = (personalExpenses?.jonatan || []).filter(e => e.active !== false).reduce((s, e) => s + (e.amount || 0), 0);
+  // Include ALL personal expenses — active=false only means "inactive next month when carried over"
+  // disableNext=true means "will be inactive next month" — neither affects current month calculations
+  const personalTotalMarcela = (personalExpenses?.marcela || []).reduce((s, e) => s + (e.amount || 0), 0);
+  const personalTotalJonatan = (personalExpenses?.jonatan || []).reduce((s, e) => s + (e.amount || 0), 0);
   // Gastos extra del mes
   const extrasTotalMarcela = extras.filter(e => e.person === "marcela").reduce((s, e) => s + (e.amount || 0), 0);
   const extrasTotalJonatan = extras.filter(e => e.person === "jonatan").reduce((s, e) => s + (e.amount || 0), 0);
@@ -145,11 +158,10 @@ function computeSummary(monthData) {
     ? { marcela: netoMarcela / totalNeto, jonatan: netoJonatan / totalNeto }
     : { marcela: 0.5, jonatan: 0.5 };
 
-  // Solo categorías activas
-  const activeFamilyExpenses = familyExpenses.filter(c => c.active !== false);
-  const totalFamilyBudget = activeFamilyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
-  const totalFamilyPaidMarcela = activeFamilyExpenses.reduce((s, c) => s + (c.marcela || 0), 0);
-  const totalFamilyPaidJonatan = activeFamilyExpenses.reduce((s, c) => s + (c.jonatan || 0), 0);
+  // Include ALL family expenses in current month — active flag only used when creating next month
+  const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
+  const totalFamilyPaidMarcela = familyExpenses.reduce((s, c) => s + (c.marcela || 0), 0);
+  const totalFamilyPaidJonatan = familyExpenses.reduce((s, c) => s + (c.jonatan || 0), 0);
   const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan;
   const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid);
 
@@ -436,7 +448,8 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
     setEditCat(null);
   };
   const toggleFamilyActive = (id) => {
-    const updated = monthData.familyExpenses.map((c) => c.id === id ? { ...c, active: c.active === false ? true : false } : c);
+    // Only toggles disableNext — current month calculations unaffected
+    const updated = monthData.familyExpenses.map((c) => c.id === id ? { ...c, disableNext: !c.disableNext } : c);
     onUpdate({ ...monthData, familyExpenses: updated });
   };
 
@@ -488,11 +501,13 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 16, fontWeight: 800, color: over ? "var(--danger)" : "var(--text1)" }}>{COP(total)}</div>
                   {over && <div style={{ fontSize: 10, color: "var(--danger)" }}>⚠ Excedido</div>}
-                  {!isActive && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 700 }}>INACTIVO</div>}
+                  {!isActive && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 700 }}>INACTIVO ESTE MES</div>}
+                  {isActive && cat.disableNext && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>⏸ Próximo mes inactivo</div>}
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }} title={isActive ? "Desactivar" : "Activar"}
+                <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }}
+                  title={!isActive ? "Reactivar próximo mes" : cat.disableNext ? "Cancelar desactivación" : "Desactivar desde próximo mes"}
                   style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "4px", lineHeight: 1 }}>
-                  {isActive ? "⏸️" : "▶️"}
+                  {!isActive ? "▶️" : cat.disableNext ? "↩️" : "⏸️"}
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDel(cat); }}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 16, padding: "4px", lineHeight: 1 }}>🗑</button>
@@ -576,7 +591,8 @@ function TabPersonalExpenses({ monthData, onUpdate }) {
     onUpdate({ ...monthData, personalExpenses: updated });
   };
   const toggleActive = (person, id) => {
-    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e) => e.id === id ? { ...e, active: e.active === false ? true : false } : e) };
+    // Toggles disableNext — affects next month only, not current
+    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e) => e.id === id ? { ...e, disableNext: !e.disableNext } : e) };
     onUpdate({ ...monthData, personalExpenses: updated });
   };
 
@@ -621,15 +637,21 @@ function TabPersonalExpenses({ monthData, onUpdate }) {
                     disabled={e.active === false}
                     style={{ width: 18, height: 18, cursor: e.active === false ? "default" : "pointer", accentColor: person === "marcela" ? "var(--marce)" : "var(--jona)", flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, textDecoration: e.paid ? "line-through" : e.active === false ? "line-through" : "none", color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{e.desc}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, textDecoration: e.paid || e.active === false ? "line-through" : "none", color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{e.desc}</div>
                     {e.day && <div style={{ fontSize: 11, color: "var(--text2)" }}>Día {e.day}</div>}
-                    {e.active === false && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 600 }}>INACTIVO</div>}
+                    {e.active === false && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 600 }}>INACTIVO ESTE MES</div>}
+                    {e.active !== false && e.disableNext && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>⏸ Se desactiva el próximo mes</div>}
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{COP(e.amount)}</div>
-                  <button onClick={() => toggleActive(person, e.id)} title={e.active === false ? "Activar" : "Desactivar"}
-                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>
-                    {e.active === false ? "▶️" : "⏸️"}
-                  </button>
+                  {e.active === false ? (
+                    <button onClick={() => toggleActive(person, e.id)} title="Reactivar el próximo mes"
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>▶️</button>
+                  ) : (
+                    <button onClick={() => toggleActive(person, e.id)} title={e.disableNext ? "Cancelar desactivación" : "Desactivar desde el próximo mes"}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>
+                      {e.disableNext ? "↩️" : "⏸️"}
+                    </button>
+                  )}
                   <button onClick={() => deleteExpense(person, e.id)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 14, padding: "2px 4px" }}>🗑</button>
                 </div>
