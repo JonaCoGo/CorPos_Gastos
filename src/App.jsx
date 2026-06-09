@@ -3,7 +3,7 @@ import { db } from "./firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
-const STORAGE_KEY = "corpos_budget_v4";
+const STORAGE_KEY = "corpos_budget_v5";
 const FIRESTORE_DOC = "corpos/shared";
 
 const defaultPersonalExpenses = {
@@ -43,16 +43,25 @@ const ICONS = ["🏠","🛒","💡","🚌","💳","🎉","🐷","📱","🏦","�
 
 function getMonthKey(y, m) { return `${y}-${String(m).padStart(2, "0")}`; }
 
-function createEmptyMonth(year, month, salaries = { marcela: 0, jonatan: 0 }) {
+function createEmptyMonth(year, month, salaries = { marcela: 0, jonatan: 0 }, prevMonth = null) {
+  // Carry over active/inactive state from previous month
+  const carryPersonal = (person) => {
+    const prev = prevMonth?.personalExpenses?.[person] || defaultPersonalExpenses[person];
+    return prev.map((e) => ({ ...e, paid: false, active: e.active !== false }));
+  };
+  const carryFamily = () => {
+    const prev = prevMonth?.familyExpenses || defaultFamilyCategories;
+    return prev.map((c) => ({ ...c, marcela: 0, jonatan: 0, active: c.active !== false }));
+  };
   return {
     key: getMonthKey(year, month), year, month,
-    // salaries here = neto disponible (ya descontados personales)
     salaries: { ...salaries },
-    familyExpenses: defaultFamilyCategories.map((c) => ({ ...c, marcela: 0, jonatan: 0 })),
+    familyExpenses: prevMonth ? carryFamily() : defaultFamilyCategories.map((c) => ({ ...c, marcela: 0, jonatan: 0, active: true })),
     personalExpenses: {
-      jonatan: defaultPersonalExpenses.jonatan.map((e) => ({ ...e, paid: false })),
-      marcela: defaultPersonalExpenses.marcela.map((e) => ({ ...e, paid: false })),
+      jonatan: carryPersonal("jonatan"),
+      marcela: carryPersonal("marcela"),
     },
+    extras: [], // gastos extra del mes: { id, person, amount, category, desc, date }
   };
 }
 
@@ -118,9 +127,13 @@ const MONTH_NAMES = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio",
 function computeSummary(monthData) {
   const { salaries, familyExpenses, personalExpenses } = monthData;
 
-  // Gastos personales fijos de cada uno
-  const personalTotalMarcela = (personalExpenses?.marcela || []).reduce((s, e) => s + (e.amount || 0), 0);
-  const personalTotalJonatan = (personalExpenses?.jonatan || []).reduce((s, e) => s + (e.amount || 0), 0);
+  const extras = monthData.extras || [];
+  // Solo gastos activos
+  const personalTotalMarcela = (personalExpenses?.marcela || []).filter(e => e.active !== false).reduce((s, e) => s + (e.amount || 0), 0);
+  const personalTotalJonatan = (personalExpenses?.jonatan || []).filter(e => e.active !== false).reduce((s, e) => s + (e.amount || 0), 0);
+  // Gastos extra del mes
+  const extrasTotalMarcela = extras.filter(e => e.person === "marcela").reduce((s, e) => s + (e.amount || 0), 0);
+  const extrasTotalJonatan = extras.filter(e => e.person === "jonatan").reduce((s, e) => s + (e.amount || 0), 0);
 
   // Neto = bruto - personales
   const netoMarcela = Math.max(0, (salaries.marcela || 0) - personalTotalMarcela);
@@ -132,12 +145,11 @@ function computeSummary(monthData) {
     ? { marcela: netoMarcela / totalNeto, jonatan: netoJonatan / totalNeto }
     : { marcela: 0.5, jonatan: 0.5 };
 
-  // Presupuesto planeado (solo categorías con presupuesto > 0)
-  const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
-
-  // Lo que cada uno realmente pagó este mes
-  const totalFamilyPaidMarcela = familyExpenses.reduce((s, c) => s + (c.marcela || 0), 0);
-  const totalFamilyPaidJonatan = familyExpenses.reduce((s, c) => s + (c.jonatan || 0), 0);
+  // Solo categorías activas
+  const activeFamilyExpenses = familyExpenses.filter(c => c.active !== false);
+  const totalFamilyBudget = activeFamilyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
+  const totalFamilyPaidMarcela = activeFamilyExpenses.reduce((s, c) => s + (c.marcela || 0), 0);
+  const totalFamilyPaidJonatan = activeFamilyExpenses.reduce((s, c) => s + (c.jonatan || 0), 0);
   const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan;
   const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid);
 
@@ -145,9 +157,9 @@ function computeSummary(monthData) {
   const aporteFamiliarMarcela = totalFamilyBudget * ratio.marcela;
   const aporteFamiliarJonatan = totalFamilyBudget * ratio.jonatan;
 
-  // Saldo libre = neto - aporte ideal al hogar
-  const saldoMarcela = netoMarcela - aporteFamiliarMarcela;
-  const saldoJonatan = netoJonatan - aporteFamiliarJonatan;
+  // Saldo libre = neto - aporte ideal al hogar - gastos extra propios
+  const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela;
+  const saldoJonatan = netoJonatan - aporteFamiliarJonatan - extrasTotalJonatan;
 
   // Balance real: quién pagó de más o de menos respecto al total pagado hasta ahora
   // Se compara contra la proporción de lo pagado real (no del presupuesto)
@@ -160,6 +172,7 @@ function computeSummary(monthData) {
     ratio,
     totalNeto, netoMarcela, netoJonatan,
     personalTotalMarcela, personalTotalJonatan,
+    extrasTotalMarcela, extrasTotalJonatan,
     totalFamilyBudget, totalFamilyPaid, totalFamilyPending,
     totalFamilyPaidMarcela, totalFamilyPaidJonatan,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
@@ -276,6 +289,7 @@ function Btn({ children, onClick, variant = "primary", style = {}, disabled = fa
 function TabDashboard({ monthData, summary }) {
   const { ratio, totalNeto, netoMarcela, netoJonatan,
     personalTotalMarcela, personalTotalJonatan,
+    extrasTotalMarcela, extrasTotalJonatan,
     totalFamilyBudget, totalFamilyPaid, totalFamilyPending,
     totalFamilyPaidMarcela, totalFamilyPaidJonatan,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
@@ -378,7 +392,9 @@ function TabDashboard({ monthData, summary }) {
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", textTransform: "capitalize" }}>{n}</span>
               </div>
               <div style={{ fontSize: 11, color: "var(--text2)" }}>Aporte ideal al hogar</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{COP(aporte)}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{COP(aporte)}</div>
+              <div style={{ fontSize: 11, color: "var(--text2)" }}>Gastos extra</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 8 }}>−{COP(n === "marcela" ? extrasTotalMarcela : extrasTotalJonatan)}</div>
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
                 <div style={{ fontSize: 11, color: "var(--text2)" }}>Queda libre</div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: saldo >= 0 ? "var(--success)" : "var(--danger)", fontFamily: "var(--font-display)" }}>
@@ -419,6 +435,10 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
     onUpdate({ ...monthData, familyExpenses: updated });
     setEditCat(null);
   };
+  const toggleFamilyActive = (id) => {
+    const updated = monthData.familyExpenses.map((c) => c.id === id ? { ...c, active: c.active === false ? true : false } : c);
+    onUpdate({ ...monthData, familyExpenses: updated });
+  };
 
   const addCategory = () => {
     if (!addForm.label) return;
@@ -452,9 +472,10 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
 
       {monthData.familyExpenses.map((cat) => {
         const total = (cat.marcela || 0) + (cat.jonatan || 0);
-        const over = total > cat.budget && cat.budget > 0;
+        const isActive = cat.active !== false;
+        const over = total > cat.budget && cat.budget > 0 && isActive;
         return (
-          <Card key={cat.id} onClick={() => openEdit(cat)} style={{ border: over ? "1.5px solid var(--danger)" : "1px solid var(--border)" }}>
+          <Card key={cat.id} onClick={() => isActive ? openEdit(cat) : null} style={{ border: over ? "1.5px solid var(--danger)" : "1px solid var(--border)", opacity: isActive ? 1 : 0.45 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 24 }}>{cat.icon}</span>
@@ -463,11 +484,16 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
                   <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>Presupuesto: {COP(cat.budget)}</div>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 16, fontWeight: 800, color: over ? "var(--danger)" : "var(--text1)" }}>{COP(total)}</div>
                   {over && <div style={{ fontSize: 10, color: "var(--danger)" }}>⚠ Excedido</div>}
+                  {!isActive && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 700 }}>INACTIVO</div>}
                 </div>
+                <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }} title={isActive ? "Desactivar" : "Activar"}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "4px", lineHeight: 1 }}>
+                  {isActive ? "⏸️" : "▶️"}
+                </button>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDel(cat); }}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 16, padding: "4px", lineHeight: 1 }}>🗑</button>
               </div>
@@ -546,10 +572,11 @@ function TabPersonalExpenses({ monthData, onUpdate }) {
   const [form, setForm] = useState({ desc: "", amount: "", day: "" });
 
   const togglePaid = (person, id) => {
-    const updated = {
-      ...monthData.personalExpenses,
-      [person]: monthData.personalExpenses[person].map((e) => e.id === id ? { ...e, paid: !e.paid } : e),
-    };
+    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e) => e.id === id ? { ...e, paid: !e.paid } : e) };
+    onUpdate({ ...monthData, personalExpenses: updated });
+  };
+  const toggleActive = (person, id) => {
+    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e) => e.id === id ? { ...e, active: e.active === false ? true : false } : e) };
     onUpdate({ ...monthData, personalExpenses: updated });
   };
 
@@ -587,15 +614,22 @@ function TabPersonalExpenses({ monthData, onUpdate }) {
               {expenses.map((e) => (
                 <div key={e.id} style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
-                  background: "var(--surface2)", borderRadius: 10, opacity: e.paid ? 0.55 : 1,
+                  background: "var(--surface2)", borderRadius: 10,
+                  opacity: e.active === false ? 0.4 : e.paid ? 0.6 : 1,
                 }}>
                   <input type="checkbox" checked={!!e.paid} onChange={() => togglePaid(person, e.id)}
-                    style={{ width: 18, height: 18, cursor: "pointer", accentColor: person === "marcela" ? "var(--marce)" : "var(--jona)", flexShrink: 0 }} />
+                    disabled={e.active === false}
+                    style={{ width: 18, height: 18, cursor: e.active === false ? "default" : "pointer", accentColor: person === "marcela" ? "var(--marce)" : "var(--jona)", flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, textDecoration: e.paid ? "line-through" : "none" }}>{e.desc}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, textDecoration: e.paid ? "line-through" : e.active === false ? "line-through" : "none", color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{e.desc}</div>
                     {e.day && <div style={{ fontSize: 11, color: "var(--text2)" }}>Día {e.day}</div>}
+                    {e.active === false && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 600 }}>INACTIVO</div>}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{COP(e.amount)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{COP(e.amount)}</div>
+                  <button onClick={() => toggleActive(person, e.id)} title={e.active === false ? "Activar" : "Desactivar"}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>
+                    {e.active === false ? "▶️" : "⏸️"}
+                  </button>
                   <button onClick={() => deleteExpense(person, e.id)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 14, padding: "2px 4px" }}>🗑</button>
                 </div>
@@ -780,6 +814,156 @@ function TabHistory({ allMonths, currentKey, onSelectMonth, onNewMonth, onDelete
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setShowNew(false)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={create} style={{ flex: 1 }}>Crear</Btn>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+
+// ─── TAB: EXTRAS ──────────────────────────────────────────────────────────────
+const EXTRA_CATS = ["Comida rápida","Restaurante","Mecato","Transporte / InDriver","Salud / Médico","Farmacia","Ropa","Entretenimiento","Regalos","Mascotas","Hogar / Arreglos","Tecnología","Belleza","Deporte","Otros"];
+
+function TabExtras({ monthData, onUpdate }) {
+  const extras = monthData.extras || [];
+  const [showAdd, setShowAdd]   = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [form, setForm] = useState({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10) });
+
+  const addExtra = () => {
+    if (!form.amount) return;
+    const newE = { id: `ex_${Date.now()}`, person: form.person, amount: Number(form.amount), category: form.category, desc: form.desc, date: form.date };
+    onUpdate({ ...monthData, extras: [...extras, newE] });
+    setShowAdd(false);
+    setForm({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10) });
+  };
+
+  const deleteExtra = (id) => {
+    onUpdate({ ...monthData, extras: extras.filter((e) => e.id !== id) });
+    setConfirmDel(null);
+  };
+
+  const totalMarcela = extras.filter((e) => e.person === "marcela").reduce((s, e) => s + e.amount, 0);
+  const totalJonatan = extras.filter((e) => e.person === "jonatan").reduce((s, e) => s + e.amount, 0);
+
+  // Group by category for summary
+  const byCat = extras.reduce((acc, e) => {
+    acc[e.category] = (acc[e.category] || 0) + e.amount;
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+      {/* Header totals */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {[{ n: "marcela", total: totalMarcela }, { n: "jonatan", total: totalJonatan }].map(({ n, total }) => (
+          <Card key={n} style={{ padding: "12px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <Avatar name={n} size={22} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", textTransform: "capitalize" }}>{n}</span>
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "var(--danger)", fontFamily: "var(--font-display)" }}>{COP(total)}</div>
+            <div style={{ fontSize: 10, color: "var(--text2)", marginTop: 2 }}>en extras este mes</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* By category summary */}
+      {Object.keys(byCat).length > 0 && (
+        <Card style={{ padding: "12px 16px" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>Por categoría</div>
+          {Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([cat, total]) => (
+            <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <span style={{ fontSize: 13, color: "var(--text1)" }}>{cat}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text1)" }}>{COP(total)}</span>
+            </div>
+          ))}
+        </Card>
+      )}
+
+      {/* Action button */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)" }}>
+          {extras.length} gasto{extras.length !== 1 ? "s" : ""} extra{extras.length !== 1 ? "s" : ""}
+        </div>
+        <Btn variant="primary" onClick={() => setShowAdd(true)} style={{ fontSize: 13, padding: "8px 14px" }}>+ Añadir</Btn>
+      </div>
+
+      {/* List */}
+      {extras.length === 0 ? (
+        <Card style={{ textAlign: "center", padding: "36px 20px" }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🧾</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Sin gastos extra este mes</div>
+          <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Registra comida rápida, médico, transporte o cualquier gasto que no sea fijo.</div>
+          <Btn variant="primary" onClick={() => setShowAdd(true)}>+ Añadir gasto extra</Btn>
+        </Card>
+      ) : (
+        [...extras].reverse().map((e) => (
+          <Card key={e.id} style={{ padding: "12px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <Avatar name={e.person} size={28} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{e.category}</div>
+                  {e.desc && <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 1 }}>{e.desc}</div>}
+                  <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>{e.date}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "var(--danger)", fontFamily: "var(--font-display)" }}>{COP(e.amount)}</div>
+                <button onClick={() => setConfirmDel(e)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 14, padding: "2px" }}>🗑</button>
+              </div>
+            </div>
+          </Card>
+        ))
+      )}
+
+      {/* Modal: añadir extra */}
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Nuevo gasto extra">
+        <div style={{ marginBottom: 14 }}>
+          <Label>¿Quién pagó?</Label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {["jonatan", "marcela"].map((p) => (
+              <button key={p} onClick={() => setForm({ ...form, person: p })} style={{
+                padding: "10px", borderRadius: 10, border: "2px solid",
+                borderColor: form.person === p ? (p === "marcela" ? "var(--marce)" : "var(--jona)") : "var(--border)",
+                background: form.person === p ? (p === "marcela" ? "var(--marce)" : "var(--jona)") : "var(--surface2)",
+                color: form.person === p ? "#fff" : "var(--text2)",
+                fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}>
+                <Avatar name={p} size={18} />
+                <span style={{ textTransform: "capitalize" }}>{p}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <Field label="Valor (COP)" value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} placeholder="15000" />
+        <div style={{ marginBottom: 14 }}>
+          <Label>Categoría</Label>
+          <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
+            {EXTRA_CATS.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+        <Field label="Descripción (opcional)" value={form.desc} onChange={(v) => setForm({ ...form, desc: v })} type="text" placeholder="Ej: Pizza con Marcela" />
+        <Field label="Fecha" value={form.date} onChange={(v) => setForm({ ...form, date: v })} type="date" />
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <Btn variant="secondary" onClick={() => setShowAdd(false)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={addExtra} disabled={!form.amount} style={{ flex: 1 }}>Guardar</Btn>
+        </div>
+      </Modal>
+
+      {/* Confirm delete */}
+      <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="¿Eliminar gasto?">
+        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
+          Vas a eliminar <strong>{confirmDel?.category}</strong> de {COP(confirmDel?.amount)}.
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn variant="secondary" onClick={() => setConfirmDel(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="danger" onClick={() => deleteExtra(confirmDel.id)} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
       </Modal>
     </div>
@@ -1335,11 +1519,12 @@ export default function App() {
 
   const tabs = [
     { id: "dashboard", label: "Resumen", icon: "📊" },
-    { id: "family", label: "Hogar", icon: "🏠" },
-    { id: "mercado", label: "Mercado", icon: "🛒" },
-    { id: "personal", label: "Personal", icon: "👤" },
-    { id: "salaries", label: "Salarios", icon: "💰" },
-    { id: "history", label: "Historial", icon: "📅" },
+    { id: "family",    label: "Hogar",   icon: "🏠" },
+    { id: "extras",    label: "Extras",  icon: "💸" },
+    { id: "mercado",   label: "Mercado", icon: "🛒" },
+    { id: "personal",  label: "Personal",icon: "👤" },
+    { id: "salaries",  label: "Salarios",icon: "💰" },
+    { id: "history",   label: "Historial",icon:"📅" },
   ];
 
   if (!currentMonth) return <div style={{ padding: 32, textAlign: "center" }}>Sin datos</div>;
@@ -1394,6 +1579,7 @@ export default function App() {
         <div style={{ maxWidth: 600, margin: "0 auto", padding: "18px 14px" }}>
           {tab === "dashboard" && <TabDashboard monthData={currentMonth} summary={summary} />}
           {tab === "family" && <TabFamilyExpenses monthData={currentMonth} onUpdate={updateMonth} />}
+          {tab === "extras" && <TabExtras monthData={currentMonth} onUpdate={updateMonth} />}
           {tab === "mercado" && <TabMercado mercado={data.mercado || { items: [], compras: [] }} onUpdate={updateMercado} />}
           {tab === "personal" && <TabPersonalExpenses monthData={currentMonth} onUpdate={updateMonth} />}
           {tab === "salaries" && <TabSalaries monthData={currentMonth} onUpdate={updateMonth} />}
@@ -1403,7 +1589,8 @@ export default function App() {
               currentKey={data.currentKey}
               onSelectMonth={(key) => { const nd = { ...data, currentKey: key }; setData(nd); saveData(nd); setTab("dashboard"); }}
               onNewMonth={(year, month, salaries) => {
-                const m = createEmptyMonth(year, month, salaries);
+                const prevM = data.months[data.currentKey] || null;
+                const m = createEmptyMonth(year, month, salaries, prevM);
                 const nd = { months: { ...data.months, [m.key]: m }, currentKey: m.key };
                 setData(nd); saveData(nd); setTab("dashboard");
               }}
