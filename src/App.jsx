@@ -1463,7 +1463,7 @@ export default function App() {
       setData(nd);
       saveData(nd);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [data.currentKey]);
 
   // ── Firestore real-time sync ──────────────────────────────────────────────
