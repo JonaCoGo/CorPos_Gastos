@@ -131,13 +131,26 @@ const COP = (n) =>
 const MONTH_NAMES = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio",
   "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
+// Global helper to calculate Mercado totals from compras
+function calculateMercadoTotals(mercado) {
+  if (!mercado || !mercado.compras) return { marcela: 0, jonatan: 0 };
+
+  const marcelaTotal = mercado.compras.reduce((sum, compra) =>
+    sum + (compra.marcelaAmount || 0), 0);
+
+  const jonatanTotal = mercado.compras.reduce((sum, compra) =>
+    sum + (compra.jonatanAmount || 0), 0);
+
+  return { marcela: marcelaTotal, jonatan: jonatanTotal };
+}
+
 // ─── COMPUTE SUMMARY ──────────────────────────────────────────────────────────
 // salaries = salario BRUTO de cada uno
 // neto = bruto - suma de gastos personales fijos registrados
 // Aporte al hogar se reparte proporcionalmente al neto
 // Saldo libre = neto - aporte proporcional al hogar
 function computeSummary(monthData) {
-  const { salaries, familyExpenses, personalExpenses } = monthData;
+  const { salaries, familyExpenses, personalExpenses, mercado } = monthData;
 
   const extras = monthData.extras || [];
   // Include ALL personal expenses — active=false only means "inactive next month when carried over"
@@ -163,14 +176,14 @@ function computeSummary(monthData) {
   const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
   const totalFamilyPaidMarcela = familyExpenses.reduce((sum, cat) => {
     if (cat.id === "mercado") {
-      const mercadoTotals = computeMercadoTotals();
+      const mercadoTotals = calculateMercadoTotals(mercado);
       return sum + mercadoTotals.marcela;
     }
     return sum + (cat.marcela || 0);
   }, 0);
   const totalFamilyPaidJonatan = familyExpenses.reduce((sum, cat) => {
     if (cat.id === "mercado") {
-      const mercadoTotals = computeMercadoTotals();
+      const mercadoTotals = calculateMercadoTotals(mercado);
       return sum + mercadoTotals.jonatan;
     }
     return sum + (cat.jonatan || 0);
@@ -446,24 +459,12 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
   const [showEditIconPicker, setShowEditIconPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
 
-  // Compute totals for Mercado category from compras
-  const computeMercadoTotals = () => {
-    if (!mercado || !mercado.compras) return { marcela: 0, jonatan: 0 };
-
-    const marcelaTotal = mercado.compras.reduce((sum, compra) =>
-      sum + (compra.marcelaAmount || 0), 0);
-
-    const jonatanTotal = mercado.compras.reduce((sum, compra) =>
-      sum + (compra.jonatanAmount || 0), 0);
-
-    return { marcela: marcelaTotal, jonatan: jonatanTotal };
-  };
 
   const openEdit = (cat) => {
     setEditCat(cat);
     // For Mercado category, use computed values from compras
     if (cat.id === "mercado") {
-      const mercadoTotals = computeMercadoTotals();
+      const mercadoTotals = calculateMercadoTotals(mercado);
       setEditForm({
         marcela: mercadoTotals.marcela,
         jonatan: mercadoTotals.jonatan,
@@ -485,7 +486,7 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
   const saveEdit = () => {
     // For Mercado category, preserve the computed marcela/jonatan values from compras
     if (editCat && editCat.id === "mercado") {
-      const mercadoTotals = computeMercadoTotals();
+      const mercadoTotals = calculateMercadoTotals(mercado);
       const updated = monthData.familyExpenses.map((c) =>
         c.id === editCat.id
           ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
@@ -529,7 +530,7 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
   const totalPaid = monthData.familyExpenses.reduce((s, c) => {
     // For Mercado category, use computed values from compras
     if (c.id === "mercado") {
-      const mercadoTotals = computeMercadoTotals();
+      const mercadoTotals = calculateMercadoTotals(mercado);
       return s + mercadoTotals.marcela + mercadoTotals.jonatan;
     }
     return s + (c.marcela || 0) + (c.jonatan || 0);
@@ -548,7 +549,7 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
       {monthData.familyExpenses.map((cat) => {
         // For Mercado category, use computed values from compras for display
         const isMercado = cat.id === "mercado";
-        const mercadoTotals = isMercado ? computeMercadoTotals() : { marcela: cat.marcela || 0, jonatan: cat.jonatan || 0 };
+        const mercadoTotals = isMercado ? calculateMercadoTotals(mercado) : { marcela: cat.marcela || 0, jonatan: cat.jonatan || 0 };
         const total = mercadoTotals.marcela + mercadoTotals.jonatan;
         const isActive = cat.active !== false;
         const over = total > cat.budget && cat.budget > 0 && isActive;
@@ -603,7 +604,7 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
               <Label>Pagado por Marcela (desde compras)</Label>
               <Field
                 label="Pagado por Marcela"
-                value={computeMercadoTotals().marcela}
+                value={calculateMercadoTotals(mercado).marcela}
                 onChange={(v) => {/* Read-only - ignore changes */}}
                 disabled
               />
@@ -612,7 +613,7 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
               <Label>Pagado por Jonatan (desde compras)</Label>
               <Field
                 label="Pagado por Jonatan"
-                value={computeMercadoTotals().jonatan}
+                value={calculateMercadoTotals(mercado).jonatan}
                 onChange={(v) => {/* Read-only - ignore changes */}}
                 disabled
               />
