@@ -333,12 +333,9 @@ function TabDashboard({ monthData, summary }) {
     aportePagadoIdealMarcela, aportePagadoIdealJonatan,
     saldoMarcela, saldoJonatan, diffMarcela, diffJonatan } = summary;
 
-  // Solo mostrar el balance si hay pagos reales registrados
-  const balanceMsg = totalFamilyPaid >= 1000 && Math.abs(diffMarcela) >= 1000
-    ? diffMarcela > 0
-      ? `Marcela adelantó ${COP(diffMarcela)} más de su parte proporcional`
-      : `Jonatan adelantó ${COP(Math.abs(diffMarcela))} más de su parte proporcional`
-    : null;
+  // Calcular faltantes para llegar al ideal
+  const faltanteMarcela = Math.max(0, aporteFamiliarMarcela - totalFamilyPaidMarcela);
+  const faltanteJonatan = Math.max(0, aporteFamiliarJonatan - totalFamilyPaidJonatan);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -410,10 +407,13 @@ function TabDashboard({ monthData, summary }) {
             </div>
           ))}
         </div>
-        {balanceMsg && (
-          <div style={{ marginTop: 10, padding: "8px 12px", background: "var(--surface2)", borderRadius: 8, fontSize: 12, color: "var(--text2)" }}>
-            ⚖️ {balanceMsg}
-          </div>
+        {(faltanteMarcela >= 1000 || faltanteJonatan >= 1000) && (<div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>
+            {faltanteMarcela >= 1000 && (<div style={{ color: "var(--danger)", marginBottom: 4 }}>
+                Marcela le falta pagar {COP(faltanteMarcela)} para llegar al ideal</div>
+            )}
+            {faltanteJonatan >= 1000 && (<div style={{ color: "var(--danger)" }}>
+                Jonatan le falta pagar {COP(faltanteJonatan)} para llegar al ideal</div>
+            )}</div>
         )}
       </Card>
 
