@@ -159,9 +159,22 @@ function computeSummary(monthData) {
     : { marcela: 0.5, jonatan: 0.5 };
 
   // Include ALL family expenses in current month — active flag only used when creating next month
+  // For Mercado category, use computed values from compras
   const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
-  const totalFamilyPaidMarcela = familyExpenses.reduce((s, c) => s + (c.marcela || 0), 0);
-  const totalFamilyPaidJonatan = familyExpenses.reduce((s, c) => s + (c.jonatan || 0), 0);
+  const totalFamilyPaidMarcela = familyExpenses.reduce((sum, cat) => {
+    if (cat.id === "mercado") {
+      const mercadoTotals = computeMercadoTotals();
+      return sum + mercadoTotals.marcela;
+    }
+    return sum + (cat.marcela || 0);
+  }, 0);
+  const totalFamilyPaidJonatan = familyExpenses.reduce((sum, cat) => {
+    if (cat.id === "mercado") {
+      const mercadoTotals = computeMercadoTotals();
+      return sum + mercadoTotals.jonatan;
+    }
+    return sum + (cat.jonatan || 0);
+  }, 0);
   const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan;
   const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid);
 
@@ -173,12 +186,10 @@ function computeSummary(monthData) {
   const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela;
   const saldoJonatan = netoJonatan - aporteFamiliarJonatan - extrasTotalJonatan;
 
-  // Balance real: quién pagó de más o de menos respecto al total pagado hasta ahora
-  // Se compara contra la proporción de lo pagado real (no del presupuesto)
-  const aportePagadoIdealMarcela = totalFamilyPaid * ratio.marcela;
-  const aportePagadoIdealJonatan = totalFamilyPaid * ratio.jonatan;
-  const diffMarcela = totalFamilyPaidMarcela - aportePagadoIdealMarcela;
-  const diffJonatan = totalFamilyPaidJonatan - aportePagadoIdealJonatan;
+  // Balance real: quién pagó de más o de menos respecto al presupuesto total
+  // Se compara contra el aporte ideal basado en el presupuesto y el neto
+  const diffMarcela = totalFamilyPaidMarcela - aporteFamiliarMarcela;
+  const diffJonatan = totalFamilyPaidJonatan - aporteFamiliarJonatan;
 
   return {
     ratio,
@@ -188,7 +199,8 @@ function computeSummary(monthData) {
     totalFamilyBudget, totalFamilyPaid, totalFamilyPending,
     totalFamilyPaidMarcela, totalFamilyPaidJonatan,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
-    aportePagadoIdealMarcela, aportePagadoIdealJonatan,
+    aportePagadoIdealMarcela: aporteFamiliarMarcela,
+    aportePagadoIdealJonatan: aporteFamiliarJonatan,
     saldoMarcela, saldoJonatan,
     diffMarcela, diffJonatan,
   };
@@ -534,14 +546,14 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
       </div>
 
       {monthData.familyExpenses.map((cat) => {
-        // For Mercado category, use computed values from compras
+        // For Mercado category, use computed values from compras for display
         const isMercado = cat.id === "mercado";
         const mercadoTotals = isMercado ? computeMercadoTotals() : { marcela: cat.marcela || 0, jonatan: cat.jonatan || 0 };
         const total = mercadoTotals.marcela + mercadoTotals.jonatan;
         const isActive = cat.active !== false;
         const over = total > cat.budget && cat.budget > 0 && isActive;
         return (
-          <Card key={cat.id} onClick={() => isActive && !isMercado ? openEdit(cat) : null} style={{ border: over ? "1.5px solid var(--danger)" : "1px solid var(--border)", opacity: isActive ? 1 : 0.45 }}>
+          <Card key={cat.id} onClick={() => isActive ? openEdit(cat) : null} style={{ border: over ? "1.5px solid var(--danger)" : "1px solid var(--border)", opacity: isActive ? 1 : 0.45 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 24 }}>{cat.icon}</span>
@@ -557,13 +569,11 @@ function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
                   {!isActive && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 700 }}>INACTIVO ESTE MES</div>}
                   {isActive && cat.disableNext && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>⏸ Próximo mes inactivo</div>}
                 </div>
-                {!isMercado && (
-                  <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }}
-                    title={!isActive ? "Reactivar próximo mes" : cat.disableNext ? "Cancelar desactivación" : "Desactivar desde próximo mes"}
-                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "4px", lineHeight: 1 }}>
-                    {!isActive ? "▶️" : cat.disableNext ? "↩️" : "⏸️"}
-                  </button>
-                )}
+                <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }}
+                  title={!isActive ? "Reactivar próximo mes" : cat.disableNext ? "Cancelar desactivación" : "Desactivar desde próximo mes"}
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "4px", lineHeight: 1 }}>
+                  {!isActive ? "▶️" : cat.disableNext ? "↩️" : "⏸️"}
+                </button>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDel(cat); }}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 16, padding: "4px", lineHeight: 1 }}>🗑</button>
               </div>
