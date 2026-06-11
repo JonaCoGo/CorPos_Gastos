@@ -8,21 +8,21 @@ const FIRESTORE_DOC = "corpos/shared";
 
 const defaultPersonalExpenses = {
   jonatan: [
-    { id: 1, desc: "PAC SURA", amount: 55500, day: 15 },
-    { id: 2, desc: "Cuota Viaje Ari", amount: 50000, day: 15 },
-    { id: 3, desc: "Yinar", amount: 50000, day: 15 },
-    { id: 4, desc: "Cera", amount: 30000, day: 15 },
-    { id: 5, desc: "Cuota Manejo Banco", amount: 11200, day: 15 },
-    { id: 6, desc: "Cuota Seguro Bancolombia", amount: 25000, day: 15 },
-    { id: 7, desc: "Barbería", amount: 20000, day: 30 },
-    { id: 8, desc: "Spotify Jona-Marce", amount: 10200, day: 30 },
-    { id: 9, desc: "Ajuste", amount: 3100, day: null },
+    { id: 1, desc: "PAC SURA", amount: 55500, day: 15, icon: "💊" },
+    { id: 2, desc: "Cuota Viaje Ari", amount: 50000, day: 15, icon: "🚌" },
+    { id: 3, desc: "Yinar", amount: 50000, day: 15, icon: "👶" },
+    { id: 4, desc: "Cera", amount: 30000, day: 15, icon: "💄" },
+    { id: 5, desc: "Cuota Manejo Banco", amount: 11200, day: 15, icon: "🏦" },
+    { id: 6, desc: "Cuota Seguro Bancolombia", amount: 25000, day: 15, icon: "🛡️" },
+    { id: 7, desc: "Barbería", amount: 20000, day: 30, icon: "💈" },
+    { id: 8, desc: "Spotify Jona-Marce", amount: 10200, day: 30, icon: "🎵" },
+    { id: 9, desc: "Ajuste", amount: 3100, day: null, icon: "💰" },
   ],
   marcela: [
-    { id: 1, desc: "Clases de Inglés", amount: 320000, day: null },
-    { id: 2, desc: "Arreglo Uñas", amount: 80000, day: null },
-    { id: 3, desc: "Internet Madre", amount: 100000, day: null },
-    { id: 4, desc: "Ajuste", amount: 600, day: null },
+    { id: 1, desc: "Clases de Inglés", amount: 320000, day: null, icon: "📚" },
+    { id: 2, desc: "Arreglo Uñas", amount: 80000, day: null, icon: "💅" },
+    { id: 3, desc: "Internet Madre", amount: 100000, day: null, icon: "📶" },
+    { id: 4, desc: "Ajuste", amount: 600, day: null, icon: "💰" },
   ],
 };
 
@@ -427,21 +427,28 @@ function TabDashboard({ monthData, summary }) {
 // ─── TAB: HOGAR ───────────────────────────────────────────────────────────────
 function TabFamilyExpenses({ monthData, onUpdate }) {
   const [editCat, setEditCat] = useState(null);
-  const [editForm, setEditForm] = useState({ marcela: "", jonatan: "", budget: "" });
+  const [editForm, setEditForm] = useState({ marcela: "", jonatan: "", budget: "", label: "", icon: "" });
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ label: "", budget: "", icon: "📦" });
   const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showEditIconPicker, setShowEditIconPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
 
   const openEdit = (cat) => {
     setEditCat(cat);
-    setEditForm({ marcela: cat.marcela || 0, jonatan: cat.jonatan || 0, budget: cat.budget || 0 });
+    setEditForm({
+      marcela: cat.marcela || 0,
+      jonatan: cat.jonatan || 0,
+      budget: cat.budget || 0,
+      label: cat.label,
+      icon: cat.icon
+    });
   };
 
   const saveEdit = () => {
     const updated = monthData.familyExpenses.map((c) =>
       c.id === editCat.id
-        ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0 }
+        ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
         : c
     );
     onUpdate({ ...monthData, familyExpenses: updated });
@@ -534,6 +541,26 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
         <Field label="Presupuesto mensual" value={editForm.budget} onChange={(v) => setEditForm({ ...editForm, budget: v })} />
         <Field label="Pagado por Marcela" value={editForm.marcela} onChange={(v) => setEditForm({ ...editForm, marcela: v })} />
         <Field label="Pagado por Jonatan" value={editForm.jonatan} onChange={(v) => setEditForm({ ...editForm, jonatan: v })} />
+        {/* Icon selector */}
+        <div style={{ marginBottom: 14 }}>
+          <Label>Icono</Label>
+          <button onClick={() => setShowEditIconPicker(!showEditIconPicker)}
+            style={{ fontSize: 28, background: "var(--surface2)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "8px 16px", cursor: "pointer" }}>
+            {editForm.icon || "📦"}
+          </button>
+          {showEditIconPicker && (
+            <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, background: "var(--surface2)", borderRadius: 10, padding: 10 }}>
+              {ICONS.map((ic) => (
+                <button key={ic} onClick={() => { setEditForm({ ...editForm, icon: ic }); setShowEditIconPicker(false); }}
+                  style={{ fontSize: 22, background: editForm.icon === ic ? "var(--accent)" : "none", border: "none", borderRadius: 8, padding: "4px 6px", cursor: "pointer" }}>
+                  {ic}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* Label (name) input */}
+        <Field label="Nombre de la categoría" value={editForm.label} onChange={(v) => setEditForm({ ...editForm, label: v })} type="text" placeholder="Ej: Servicios" />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setEditCat(null)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={saveEdit} style={{ flex: 1 }}>Guardar</Btn>
@@ -585,6 +612,9 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
 function TabPersonalExpenses({ monthData, onUpdate }) {
   const [addModal, setAddModal] = useState(null);
   const [form, setForm] = useState({ desc: "", amount: "", day: "" });
+  const [editExpense, setEditExpense] = useState(null);
+  const [editForm, setEditForm] = useState({ desc: "", amount: "", day: "", icon: "" });
+  const [showEditIconPicker, setShowEditIconPicker] = useState(false);
 
   const togglePaid = (person, id) => {
     const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e) => e.id === id ? { ...e, paid: !e.paid } : e) };
@@ -597,10 +627,39 @@ function TabPersonalExpenses({ monthData, onUpdate }) {
   };
 
   const addExpense = () => {
-    const newExp = { id: Date.now(), desc: form.desc, amount: Number(form.amount) || 0, day: Number(form.day) || null, paid: false };
+    const newExp = {
+      id: Date.now(),
+      desc: form.desc,
+      amount: Number(form.amount) || 0,
+      day: Number(form.day) || null,
+      paid: false,
+      icon: form.icon || "💰"
+    };
     onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [addModal]: [...monthData.personalExpenses[addModal], newExp] } });
     setAddModal(null);
-    setForm({ desc: "", amount: "", day: "" });
+    setForm({ desc: "", amount: "", day: "", icon: "" });
+  };
+
+  const openEditExpense = (person, expense) => {
+    setEditExpense({ person, expense });
+    setEditForm({
+      desc: expense.desc,
+      amount: expense.amount || "",
+      day: expense.day || "",
+      icon: expense.icon || ""
+    });
+  };
+
+  const saveEditExpense = () => {
+    const { person, expense } = editExpense;
+    const updatedExpenses = monthData.personalExpenses[person].map((e) =>
+      e.id === expense.id
+        ? { ...e, desc: editForm.desc, amount: Number(editForm.amount) || 0, day: Number(editForm.day) || null, icon: editForm.icon || "💰" }
+        : e
+    );
+    const updatedPersonalExpenses = { ...monthData.personalExpenses, [person]: updatedExpenses };
+    onUpdate({ ...monthData, personalExpenses: updatedPersonalExpenses });
+    setEditExpense(null);
   };
 
   const deleteExpense = (person, id) => {
@@ -628,31 +687,35 @@ function TabPersonalExpenses({ monthData, onUpdate }) {
             <ProgressBar value={paidAmt} max={total} color={person === "marcela" ? "var(--marce)" : "var(--jona)"} height={6} />
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>
               {expenses.map((e) => (
-                <div key={e.id} style={{
+                <div key={e.id} onClick={() => openEditExpense(person, e)} style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
                   background: "var(--surface2)", borderRadius: 10,
                   opacity: e.active === false ? 0.4 : e.paid ? 0.6 : 1,
+                  cursor: "pointer"
                 }}>
                   <input type="checkbox" checked={!!e.paid} onChange={() => togglePaid(person, e.id)}
                     disabled={e.active === false}
                     style={{ width: 18, height: 18, cursor: e.active === false ? "default" : "pointer", accentColor: person === "marcela" ? "var(--marce)" : "var(--jona)", flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, textDecoration: e.paid || e.active === false ? "line-through" : "none", color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{e.desc}</div>
-                    {e.day && <div style={{ fontSize: 11, color: "var(--text2)" }}>Día {e.day}</div>}
-                    {e.active === false && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 600 }}>INACTIVO ESTE MES</div>}
-                    {e.active !== false && e.disableNext && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>⏸ Se desactiva el próximo mes</div>}
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 20 }}>{e.icon || "💰"}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, textDecoration: e.paid || e.active === false ? "line-through" : "none", color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{e.desc}</div>
+                      {e.day && <div style={{ fontSize: 11, color: "var(--text2)" }}>Día {e.day}</div>}
+                      {e.active === false && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 600 }}>INACTIVO ESTE MES</div>}
+                      {e.active !== false && e.disableNext && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 600 }}>⏸ Se desactiva el próximo mes</div>}
+                    </div>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{COP(e.amount)}</div>
                   {e.active === false ? (
-                    <button onClick={() => toggleActive(person, e.id)} title="Reactivar el próximo mes"
+                    <button onClick={(e) => { e.stopPropagation(); toggleActive(person, e.id); }} title="Reactivar el próximo mes"
                       style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>▶️</button>
                   ) : (
-                    <button onClick={() => toggleActive(person, e.id)} title={e.disableNext ? "Cancelar desactivación" : "Desactivar desde el próximo mes"}
+                    <button onClick={(e) => { e.stopPropagation(); toggleActive(person, e.id); }} title={e.disableNext ? "Cancelar desactivación" : "Desactivar desde el próximo mes"}
                       style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>
                       {e.disableNext ? "↩️" : "⏸️"}
                     </button>
                   )}
-                  <button onClick={() => deleteExpense(person, e.id)}
+                  <button onClick={(e) => { e.stopPropagation(); deleteExpense(person, e.id); }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 14, padding: "2px 4px" }}>🗑</button>
                 </div>
               ))}
@@ -668,6 +731,35 @@ function TabPersonalExpenses({ monthData, onUpdate }) {
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setAddModal(null)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={addExpense} disabled={!form.desc || !form.amount} style={{ flex: 1 }}>Guardar</Btn>
+        </div>
+      </Modal>
+
+      {/* Edit modal */}
+      <Modal open={!!editExpense} onClose={() => setEditExpense(null)} title={`Editar gasto — ${editExpense?.person === "marcela" ? "Marcela" : "Jonatan"}`}>
+        <Field label="Descripción" value={editForm.desc} onChange={(v) => setEditForm({ ...editForm, desc: v })} type="text" placeholder="Ej: Gym" />
+        <Field label="Valor (COP)" value={editForm.amount} onChange={(v) => setEditForm({ ...editForm, amount: v })} placeholder="50000" />
+        <Field label="Día del mes (opcional)" value={editForm.day} onChange={(v) => setEditForm({ ...editForm, day: v })} placeholder="15" />
+        {/* Icon selector */}
+        <div style={{ marginBottom: 14 }}>
+          <Label>Icono</Label>
+          <button onClick={() => setShowEditIconPicker(!showEditIconPicker)}
+            style={{ fontSize: 28, background: "var(--surface2)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "8px 16px", cursor: "pointer" }}>
+            {editForm.icon || "💰"}
+          </button>
+          {showEditIconPicker && (
+            <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, background: "var(--surface2)", borderRadius: 10, padding: 10 }}>
+              {ICONS.map((ic) => (
+                <button key={ic} onClick={() => { setEditForm({ ...editForm, icon: ic }); setShowEditIconPicker(false); }}
+                  style={{ fontSize: 22, background: editForm.icon === ic ? "var(--accent)" : "none", border: "none", borderRadius: 8, padding: "4px 6px", cursor: "pointer" }}>
+                  {ic}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <Btn variant="secondary" onClick={() => setEditExpense(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={saveEditExpense} style={{ flex: 1 }}>Guardar</Btn>
         </div>
       </Modal>
     </div>
