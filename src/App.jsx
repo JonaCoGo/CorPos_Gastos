@@ -425,7 +425,7 @@ function TabDashboard({ monthData, summary }) {
 }
 
 // ─── TAB: HOGAR ───────────────────────────────────────────────────────────────
-function TabFamilyExpenses({ monthData, onUpdate }) {
+function TabFamilyExpenses({ monthData, mercado, onUpdate }) {
   const [editCat, setEditCat] = useState(null);
   const [editForm, setEditForm] = useState({ marcela: "", jonatan: "", budget: "", label: "", icon: "" });
   const [showAdd, setShowAdd] = useState(false);
@@ -434,24 +434,60 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
   const [showEditIconPicker, setShowEditIconPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
 
+  // Compute totals for Mercado category from compras
+  const computeMercadoTotals = () => {
+    if (!mercado || !mercado.compras) return { marcela: 0, jonatan: 0 };
+
+    const marcelaTotal = mercado.compras.reduce((sum, compra) =>
+      sum + (compra.marcelaAmount || 0), 0);
+
+    const jonatanTotal = mercado.compras.reduce((sum, compra) =>
+      sum + (compra.jonatanAmount || 0), 0);
+
+    return { marcela: marcelaTotal, jonatan: jonatanTotal };
+  };
+
   const openEdit = (cat) => {
     setEditCat(cat);
-    setEditForm({
-      marcela: cat.marcela || 0,
-      jonatan: cat.jonatan || 0,
-      budget: cat.budget || 0,
-      label: cat.label,
-      icon: cat.icon
-    });
+    // For Mercado category, use computed values from compras
+    if (cat.id === "mercado") {
+      const mercadoTotals = computeMercadoTotals();
+      setEditForm({
+        marcela: mercadoTotals.marcela,
+        jonatan: mercadoTotals.jonatan,
+        budget: cat.budget || 0,
+        label: cat.label,
+        icon: cat.icon
+      });
+    } else {
+      setEditForm({
+        marcela: cat.marcela || 0,
+        jonatan: cat.jonatan || 0,
+        budget: cat.budget || 0,
+        label: cat.label,
+        icon: cat.icon
+      });
+    }
   };
 
   const saveEdit = () => {
-    const updated = monthData.familyExpenses.map((c) =>
-      c.id === editCat.id
-        ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
-        : c
-    );
-    onUpdate({ ...monthData, familyExpenses: updated });
+    // For Mercado category, preserve the computed marcela/jonatan values from compras
+    if (editCat && editCat.id === "mercado") {
+      const mercadoTotals = computeMercadoTotals();
+      const updated = monthData.familyExpenses.map((c) =>
+        c.id === editCat.id
+          ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
+          : c
+      );
+      onUpdate({ ...monthData, familyExpenses: updated });
+    } else {
+      const updated = monthData.familyExpenses.map((c) =>
+        c.id === editCat.id
+          ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
+          : c
+      );
+      onUpdate({ ...monthData, familyExpenses: updated });
+    }
     setEditCat(null);
   };
   const toggleFamilyActive = (id) => {
@@ -478,7 +514,14 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
   };
 
   const totalBudget = monthData.familyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
-  const totalPaid = monthData.familyExpenses.reduce((s, c) => s + (c.marcela || 0) + (c.jonatan || 0), 0);
+  const totalPaid = monthData.familyExpenses.reduce((s, c) => {
+    // For Mercado category, use computed values from compras
+    if (c.id === "mercado") {
+      const mercadoTotals = computeMercadoTotals();
+      return s + mercadoTotals.marcela + mercadoTotals.jonatan;
+    }
+    return s + (c.marcela || 0) + (c.jonatan || 0);
+  }, 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -491,11 +534,14 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
       </div>
 
       {monthData.familyExpenses.map((cat) => {
-        const total = (cat.marcela || 0) + (cat.jonatan || 0);
+        // For Mercado category, use computed values from compras
+        const isMercado = cat.id === "mercado";
+        const mercadoTotals = isMercado ? computeMercadoTotals() : { marcela: cat.marcela || 0, jonatan: cat.jonatan || 0 };
+        const total = mercadoTotals.marcela + mercadoTotals.jonatan;
         const isActive = cat.active !== false;
         const over = total > cat.budget && cat.budget > 0 && isActive;
         return (
-          <Card key={cat.id} onClick={() => isActive ? openEdit(cat) : null} style={{ border: over ? "1.5px solid var(--danger)" : "1px solid var(--border)", opacity: isActive ? 1 : 0.45 }}>
+          <Card key={cat.id} onClick={() => isActive && !isMercado ? openEdit(cat) : null} style={{ border: over ? "1.5px solid var(--danger)" : "1px solid var(--border)", opacity: isActive ? 1 : 0.45 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 24 }}>{cat.icon}</span>
@@ -511,11 +557,13 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
                   {!isActive && <div style={{ fontSize: 10, color: "var(--text2)", fontWeight: 700 }}>INACTIVO ESTE MES</div>}
                   {isActive && cat.disableNext && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>⏸ Próximo mes inactivo</div>}
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }}
-                  title={!isActive ? "Reactivar próximo mes" : cat.disableNext ? "Cancelar desactivación" : "Desactivar desde próximo mes"}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "4px", lineHeight: 1 }}>
-                  {!isActive ? "▶️" : cat.disableNext ? "↩️" : "⏸️"}
-                </button>
+                {!isMercado && (
+                  <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }}
+                    title={!isActive ? "Reactivar próximo mes" : cat.disableNext ? "Cancelar desactivación" : "Desactivar desde próximo mes"}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "4px", lineHeight: 1 }}>
+                    {!isActive ? "▶️" : cat.disableNext ? "↩️" : "⏸️"}
+                  </button>
+                )}
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDel(cat); }}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 16, padding: "4px", lineHeight: 1 }}>🗑</button>
               </div>
@@ -526,7 +574,7 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              {[{ n: "marcela", v: cat.marcela }, { n: "jonatan", v: cat.jonatan }].map(({ n, v }) => (
+              {[{ n: "marcela", v: mercadoTotals.marcela }, { n: "jonatan", v: mercadoTotals.jonatan }].map(({ n, v }) => (
                 <div key={n} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text2)" }}>
                   <Avatar name={n} size={16} />{COP(v)}
                 </div>
@@ -539,8 +587,33 @@ function TabFamilyExpenses({ monthData, onUpdate }) {
       {/* Edit modal */}
       <Modal open={!!editCat} onClose={() => setEditCat(null)} title={editCat ? `${editCat.icon} ${editCat.label}` : ""}>
         <Field label="Presupuesto mensual" value={editForm.budget} onChange={(v) => setEditForm({ ...editForm, budget: v })} />
-        <Field label="Pagado por Marcela" value={editForm.marcela} onChange={(v) => setEditForm({ ...editForm, marcela: v })} />
-        <Field label="Pagado por Jonatan" value={editForm.jonatan} onChange={(v) => setEditForm({ ...editForm, jonatan: v })} />
+        {editCat && editCat.id === "mercado" ? (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              <Label>Pagado por Marcela (desde compras)</Label>
+              <Field
+                label="Pagado por Marcela"
+                value={computeMercadoTotals().marcela}
+                onChange={(v) => {/* Read-only - ignore changes */}}
+                disabled
+              />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <Label>Pagado por Jonatan (desde compras)</Label>
+              <Field
+                label="Pagado por Jonatan"
+                value={computeMercadoTotals().jonatan}
+                onChange={(v) => {/* Read-only - ignore changes */}}
+                disabled
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <Field label="Pagado por Marcela" value={editForm.marcela} onChange={(v) => setEditForm({ ...editForm, marcela: v })} />
+            <Field label="Pagado por Jonatan" value={editForm.jonatan} onChange={(v) => setEditForm({ ...editForm, jonatan: v })} />
+          </>
+        )}
         {/* Icon selector */}
         <div style={{ marginBottom: 14 }}>
           <Label>Icono</Label>
@@ -1107,7 +1180,7 @@ function TabMercado({ mercado, onUpdate }) {
   const [confirmDel, setConfirmDel] = useState(null);
 
   const [addForm, setAddForm] = useState({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
-  const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "" });
+  const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
 
   const saveItem = () => {
     if (!addForm.name || !addForm.pricePer) return;
@@ -1132,10 +1205,25 @@ function TabMercado({ mercado, onUpdate }) {
     if (!item) return;
     const qty   = Number(compraForm.qty);
     const total = item.pricePer * qty;
-    const newC  = { id: `compra_${Date.now()}`, itemId: item.id, itemName: item.name, qty, unit: item.unit, pricePer: item.pricePer, total, supermarket: compraForm.supermarket, date: compraForm.date, notes: compraForm.notes };
+    const marcelaAmount = compraForm.person === "marcela" ? total : compraForm.person === "jonatan" ? 0 : total / 2;
+    const jonatanAmount = compraForm.person === "jonatan" ? total : compraForm.person === "marcela" ? 0 : total / 2;
+    const newC  = {
+      id: `compra_${Date.now()}`,
+      itemId: item.id,
+      itemName: item.name,
+      qty,
+      unit: item.unit,
+      pricePer: item.pricePer,
+      total,
+      supermarket: compraForm.supermarket,
+      date: compraForm.date,
+      notes: compraForm.notes,
+      marcelaAmount,
+      jonatanAmount
+    };
     onUpdate({ ...mercado, compras: [newC, ...compras] });
     setShowCompra(false);
-    setCompraForm({ itemId: "", qty: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "" });
+    setCompraForm({ itemId: "", qty: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
   };
 
   const compraItem = items.find((i) => i.id === compraForm.itemId);
@@ -1244,6 +1332,16 @@ function TabMercado({ mercado, onUpdate }) {
                     <div style={{ fontSize: 14, fontWeight: 700 }}>{c.itemName}</div>
                     <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>{c.qty} {c.unit} · {COP(c.pricePer)}/{c.unit} · {c.supermarket}</div>
                     <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>{c.date}{c.notes ? ` · ${c.notes}` : ""}</div>
+                    {c.marcelaAmount !== undefined || c.jonatanAmount !== undefined && (
+                      <div style={{ marginTop: 6, fontSize: 11, color: "var(--text2)" }}>
+                        {c.marcelaAmount > 0 && (
+                          <div>Marcela: {COP(c.marcelaAmount)}</div>
+                        )}
+                        {c.jonatanAmount > 0 && (
+                          <div>Jonatan: {COP(c.jonatanAmount)}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 18, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(c.total)}</div>
@@ -1302,12 +1400,42 @@ function TabMercado({ mercado, onUpdate }) {
             {items.map((i) => <option key={i.id} value={i.id}>{i.name} · {COP(i.pricePer)}/{i.unit}</option>)}
           </select>
         </div>
+        <div style={{ marginBottom: 14 }}>
+          <Label>¿Quién pagó?</Label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {["jonatan", "marcela", "ambos"].map((p) => (
+              <button key={p} onClick={() => setCompraForm({ ...compraForm, person: p })} style={{
+                padding: "10px", borderRadius: 10, border: "2px solid",
+                borderColor: compraForm.person === p ? (p === "marcela" ? "var(--marce)" : p === "jonatan" ? "var(--jona)" : "var(--accent)") : "var(--border)",
+                background: compraForm.person === p ? (p === "marcela" ? "var(--marce)" : p === "jonatan" ? "var(--jona)" : "var(--accent)") : "var(--surface2)",
+                color: compraForm.person === p ? "#fff" : "var(--text2)",
+                fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              }}>
+                <span>{p === "ambos" ? "Ambos" : p === "marcela" ? "Marcela" : "Jonatan"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <Field label={`Cantidad${compraItem ? ` (${compraItem.unit})` : ""}`} value={compraForm.qty} onChange={(v) => setCompraForm({ ...compraForm, qty: v })} placeholder="1" />
         {compraPreview !== null && (
           <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 16px", marginBottom: 14, textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 4 }}>Total estimado</div>
             <div style={{ fontSize: 26, fontWeight: 900, color: "var(--success)", fontFamily: "var(--font-display)" }}>{COP(compraPreview)}</div>
             <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>{compraForm.qty} {compraItem?.unit} × {COP(compraItem?.pricePer)}</div>
+            {compraForm.person !== "" && (
+              <div style={{ marginTop: 10, fontSize: 11, color: "var(--text2)" }}>
+                {compraForm.person === "marcela" && (
+                  <div>Marcela paga: {COP(compraPreview)}</div>
+                )}
+                {compraForm.person === "jonatan" && (
+                  <div>Jonatan paga: {COP(compraPreview)}</div>
+                )}
+                {compraForm.person === "ambos" && (
+                  <div>Cada uno paga: {COP(compraPreview / 2)}</div>
+                )}
+              </div>
+            )}
           </div>
         )}
         <div style={{ marginBottom: 14 }}>
@@ -1692,7 +1820,7 @@ export default function App() {
         {/* Content */}
         <div style={{ maxWidth: 600, margin: "0 auto", padding: "18px 14px" }}>
           {tab === "dashboard" && <TabDashboard monthData={currentMonth} summary={summary} />}
-          {tab === "family" && <TabFamilyExpenses monthData={currentMonth} onUpdate={updateMonth} />}
+          {tab === "family" && <TabFamilyExpenses monthData={currentMonth} mercado={data.mercado || { items: [], compras: [] }} onUpdate={updateMonth} />}
           {tab === "extras" && <TabExtras monthData={currentMonth} onUpdate={updateMonth} />}
           {tab === "mercado" && <TabMercado mercado={data.mercado || { items: [], compras: [] }} onUpdate={updateMercado} />}
           {tab === "personal" && <TabPersonalExpenses monthData={currentMonth} onUpdate={updateMonth} />}
