@@ -935,7 +935,7 @@ function TabSalaries({ monthData, onUpdate }) {
 
 
 // ─── TAB: HISTORIAL ───────────────────────────────────────────────────────────
-function TabHistory({ allMonths, currentKey, onSelectMonth, onNewMonth, onDeleteMonth }) {
+function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNewMonth, onDeleteMonth }) {
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ year: 2026, month: 7, marcela: "", jonatan: "" });
 
@@ -958,7 +958,7 @@ function TabHistory({ allMonths, currentKey, onSelectMonth, onNewMonth, onDelete
       </div>
 
       {sorted.map((m) => {
-        const s = computeSummary(m);
+        const s = computeSummary({...m, mercado});
         const isActive = m.key === currentKey;
         return (
           <Card key={m.key} onClick={() => onSelectMonth(m.key)}
@@ -1768,7 +1768,7 @@ export default function App() {
     saveData(newData);
   }, [data]);
 
-  const summary = currentMonth ? computeSummary(currentMonth) : null;
+  const summary = currentMonth ? computeSummary({...currentMonth, mercado: data.mercado}) : null;
 
   const tabs = [
     { id: "dashboard", label: "Resumen", icon: "📊" },
@@ -1840,6 +1840,7 @@ export default function App() {
             <TabHistory
               allMonths={data.months}
               currentKey={data.currentKey}
+              mercado={data.mercado}
               onSelectMonth={(key) => { const nd = { ...data, currentKey: key }; setData(nd); saveData(nd); setTab("dashboard"); }}
               onNewMonth={(year, month, salaries) => {
                 const prevM = data.months[data.currentKey] || null;
