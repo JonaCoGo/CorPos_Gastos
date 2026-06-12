@@ -39,11 +39,12 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - [x] Renombrar archivos de `.jsx` a `.tsx`.
 - [x] Crear `src/types/index.ts` con las interfaces principales (`Gasto`, `Salario`, `ItemMercado`, `Usuario`).
 
-### ⚪ FASE 3: Extracción de Servicios y Lógica (Hooks)
+### 🟡 FASE 3: Extracción de Servicios y Lógica (Hooks)
 **Objetivo**: Separar la lógica de negocio de la UI para que sea reutilizable en React Native.
-- [ ] Crear `src/services/firebase.ts` (lógica de conexión y CRUD).
-- [ ] Crear `src/hooks/useFinanzas.ts` (cálculos globales, saldos, proporciones).
-- [ ] Crear `src/hooks/useMercado.ts` (lógica de lista y historial de compras).
+- [x] **Paso 3.1**: Crear `src/constants.ts` y extraer todas las constantes, listas, semillas y configuraciones (`STORAGE_KEY`, `FIRESTORE_DOC`, `defaultPersonalExpenses`, `defaultFamilyCategories`, `ICONS`, `MONTH_NAMES`, `EXTRA_CATS`, `SUPERMARKETS`, `UNITS`, `ALL_CATS`, `SEED_MARKET_ITEMS`).
+- [ ] **Paso 3.2**: Crear `src/services/firebase.ts` (lógica de conexión y CRUD).
+- [ ] **Paso 3.3**: Crear `src/hooks/useFinanzas.ts` (cálculos globales, saldos, proporciones).
+- [ ] **Paso 3.4**: Crear `src/hooks/useMercado.ts` (lógica de lista y historial de compras).
 
 ### ⚪ FASE 4: Descomposición de la UI (Componentes)
 **Objetivo**: Dividir el `App.jsx` en componentes pequeños y manejables.
@@ -85,3 +86,14 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - Se subió exitosamente la nueva configuración a GitHub (`git push origin main`).
 - Vercel detectó los cambios y desplegó la nueva versión impulsada por Vite automáticamente.
 - **Fase 1 completada al 100%. El entorno de desarrollo está modernizado y el flujo de despliegue profesional (Local -> GitHub -> Vercel) está activo.**
+
+### [2026-06-13] - Fase 3.1: Extracción de Constantes y Semillas
+- Se creó el archivo `src/constants.ts`.
+- Se extrajeron de `src/App.tsx` todas las constantes, listas y datos semilla:
+  - `STORAGE_KEY`, `FIRESTORE_DOC`
+  - `defaultPersonalExpenses`, `defaultFamilyCategories`
+  - `ICONS`, `MONTH_NAMES`, `EXTRA_CATS`, `SUPERMARKETS`, `UNITS`, `ALL_CATS`
+  - `SEED_MARKET_ITEMS` (los 70 productos iniciales del mercado).
+- Se actualizó `src/App.tsx` para importar estas constantes desde `./constants` y se eliminaron las definiciones originales.
+- Se eliminó la función interna `getSeedItems()` de `loadData()` y se reemplazó su uso por `SEED_MARKET_ITEMS`.
+- **Paso 3.1 completado. El archivo `App.tsx` se redujo en ~200 líneas de "ruido" (datos estáticos), dejando solo la lógica y la UI.
