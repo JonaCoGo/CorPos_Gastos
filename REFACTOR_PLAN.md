@@ -49,7 +49,7 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 ### ⚪ FASE 4: Descomposición de la UI (Componentes)
 **Objetivo**: Dividir el `App.jsx` en componentes pequeños y manejables.
 - [x] Crear `src/components/ui/` (Avatar, Btn, Card, Field, Label, Modal, ProgressBar).
-- [ ] Crear `src/components/features/` (DashboardView, HogarView, MercadoView, etc.).
+- [x] Crear `src/features/` (TabDashboard, TabFamilyExpenses, TabPersonalExpenses, TabSalaries, TabHistory, TabExtras, TabMercado).
 - [ ] Crear `src/layouts/MainLayout.tsx` (estructura general y navegación inferior).
 
 ### ⚪ FASE 5: Gestión de Estado y Optimización
@@ -129,10 +129,24 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - Se actualizó `src/App.tsx` para importar desde `./components/ui`, eliminando ~200 líneas de código de la UI.
 - **Paso completado. La base de componentes UI está separada, tipada y lista para ser reutilizada.**
 
+### [2026-06-13] - Fase 3.4 (Features): Extracción de Vistas de Pestañas
+- Se creó el directorio `src/features/`.
+- Se extrajeron 7 vistas completas de `src/App.tsx` hacia sus propios archivos, tipándolas con TypeScript:
+  - `TabDashboard.tsx`: Vista de resumen financiero (salarios, gastos hogar, saldo libre).
+  - `TabFamilyExpenses.tsx`: Vista de gastos del hogar con edición, creación y eliminación de categorías.
+  - `TabPersonalExpenses.tsx`: Vista de gastos personales de Marcela y Jonatan.
+  - `TabSalaries.tsx`: Vista de configuración de salarios brutos.
+  - `TabHistory.tsx`: Vista de historial de meses con creación y eliminación.
+  - `TabExtras.tsx`: Vista de gastos extras con categorías y totales por persona.
+  - `TabMercado.tsx`: Vista de lista de productos y historial de compras (incluye `ItemCard` inline).
+- Se creó `src/features/index.ts` como barrel file para importar todas las vistas fácilmente.
+- Se actualizó `src/App.tsx` para importar desde `./features`, eliminando ~1000 líneas de código de las vistas.
+- **Fase 3.4 completada. `App.tsx` ahora solo contiene la lógica de estado, Firebase y el enrutamiento de pestañas. El archivo pasó de ~1500 líneas a menos de 200.**
+
 ---
 
 ## 🚀 Próximos Pasos Inmediatos (Para el siguiente chat)
 
-1. **Fase 3.4 (Feature Views)**: Identificar las vistas de cada pestaña (`TabMercado`, `TabFamilyExpenses`, `TabPersonal`, `TabExtras`, `TabSalarios`, `TabHistorial`, `TabDashboard`) y moverlas a `src/features/`.
-2. **Fase 3.5 (Firebase Service)**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
-3. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.
+1. **Fase 3.5 (Firebase Service)**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
+2. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.
+3. **Fase 5 (Optimization)**: Implementar `useMemo` y `useCallback` en cálculos pesados, lazy loading de vistas.

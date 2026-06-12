@@ -19,7 +19,8 @@ El proyecto ya no es un monolito puro. Se ha refactorizado parcialmente siguiend
 - **`src/types/models.ts`**: Define las interfaces reales de TypeScript que reflejan la estructura de datos guardada en Firestore/LocalStorage (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Extra`, `Mercado`, `Compra`, `ResumenFinanciero`, etc.).
 - **`src/utils/finanzas.ts`**: Contiene **toda la lógica de negocio pura** (funciones matemáticas y de negocio) extraída del `App.tsx`. Incluye `COP` (formatter), `getMonthKey`, `createEmptyMonth`, `calculateMercadoTotals`, y `computeSummary`. Este código no tiene dependencias de React ni Firebase, por lo que es 100% reutilizable en React Native.
 - **`src/components/ui/`**: Contiene los 7 componentes UI "tontos" (primitivas) extraídos de `App.tsx`: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`. Todos están tipados con TypeScript y exportados desde un `index.ts` barrel file.
-- **`src/App.tsx`**: Aún contiene la integración con Firebase/LocalStorage, el estado global (`useState`) y las vistas de las pestañas (TabMercado, TabFamilyExpenses, etc.). Este es el archivo que sigue siendo gigante y que debemos seguir refactorizando.
+- **`src/features/`**: Contiene las 7 vistas de las pestañas extraídas de `App.tsx`: `TabDashboard`, `TabFamilyExpenses`, `TabPersonalExpenses`, `TabSalaries`, `TabHistory`, `TabExtras`, `TabMercado`. Todas están tipadas con TypeScript y exportadas desde un `index.ts` barrel file.
+- **`src/App.tsx`**: Ahora es un archivo ligero (~200 líneas) que solo contiene la integración con Firebase/LocalStorage, el estado global (`useState`), el enrutamiento de pestañas y la estructura general de la app. Toda la lógica de negocio y las vistas están separadas.
 
 ## 🚨 REGLAS DE ORO PARA LA IA (¡LEER ANTES DE ACTUAR!)
 Como CTO virtual y Arquitecto de Software, debes seguir estas reglas estrictamente para evitar errores y pérdida de tiempo del usuario:
@@ -33,9 +34,9 @@ Como CTO virtual y Arquitecto de Software, debes seguir estas reglas estrictamen
 ## 🚀 Próximos Pasos Inmediatos
 Para saber exactamente qué hacer a continuación, **lee el archivo `REFACTOR_PLAN.md`**. 
 Los próximos pasos lógicos son:
-- **Fase 3.4**: Extraer las vistas de las pestañas (`TabMercado`, etc.) a `src/features/`.
 - **Fase 3.5**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
 - **Fase 4**: Evaluar e integrar Zustand para el estado global.
+- **Fase 5**: Implementar optimizaciones de rendimiento (`useMemo`, `useCallback`, lazy loading).
 
 ---
-*Última actualización: 2026-06-13. Fase 3.3 (UI Components) completada.*
+*Última actualización: 2026-06-13. Fase 3.4 (Feature Views) completada.*
