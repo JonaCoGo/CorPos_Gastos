@@ -4,9 +4,9 @@
 Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~1500 líneas con Create React App) en una arquitectura modular, escalable y tipada, preparando el terreno para una futura migración a React Native (Android/iOS).
 
 ## 📋 Estado Actual
-- **Stack**: React 18.2, Firebase Firestore, Create React App (CRA).
-- **Estructura**: Monolito en `src/App.jsx`, lógica de negocio y UI mezcladas.
-- **Deuda Técnica**: Falta de tipado, reglas de Firestore abiertas, sin tests, recálculos sin memoización.
+- **Stack**: React 18.2, Vite, TypeScript, Firebase Firestore, Vercel.
+- **Estructura**: `App.tsx` ya no es un monolito puro. La lógica de negocio pura está en `src/utils/finanzas.ts`, los tipos en `src/types/models.ts`, y las constantes en `src/constants.ts`. 
+- **Deuda Técnica Pendiente**: `App.tsx` aún contiene componentes UI, vistas (tabs) y la integración directa con Firebase/Estado. Reglas de Firestore abiertas, sin tests, recálculos sin memoización.
 
 ---
 
@@ -109,3 +109,17 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
   - `computeSummary(monthData)`: El cerebro financiero (neto, proporciones, aportes, saldos libres).
 - Se actualizó `src/App.tsx` para importar estas funciones desde `./utils/finanzas` y se eliminaron las definiciones originales.
 - **Paso 3.2 completado. Toda la lógica financiera está ahora en un archivo separado, 100% tipado con TypeScript, sin dependencias de React ni Firebase. Esto significa que este código es directamente reutilizable en la futura app de React Native.**
+
+### [2026-06-13] - Actualización de Documentación para Continuidad
+- Se creó `CONTEXTO.md` en la raíz del proyecto para que cualquier nueva instancia de la IA pueda retomar el trabajo inmediatamente.
+- Se añadieron las "Reglas de Oro para la IA" en `CONTEXTO.md` para garantizar que siempre se usen las herramientas de archivos reales y no se alucinen cambios.
+- Se actualizó este `REFACTOR_PLAN.md` con el estado actual de la arquitectura y los próximos pasos exactos.
+
+---
+
+## 🚀 Próximos Pasos Inmediatos (Para el siguiente chat)
+
+1. **Fase 3.3 (UI Components)**: Leer `App.tsx`, identificar los componentes "tontos" (`Avatar`, `Card`, `Modal`, `Btn`, `Field`, `ProgressBar`, `Tabs`, `BottomNav`) y moverlos a `src/components/ui/`.
+2. **Fase 3.4 (Feature Views)**: Identificar las vistas de cada pestaña (`TabMercado`, `TabFamilyExpenses`, `TabPersonal`, `TabExtras`, `TabSalarios`, `TabHistorial`, `TabDashboard`) y moverlas a `src/features/`.
+3. **Fase 3.5 (Firebase Service)**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
+4. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.
