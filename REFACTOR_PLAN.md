@@ -19,7 +19,10 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - [x] Crear `vite.config.js`.
 - [x] Actualizar `package.json` (scripts y dependencias).
 - [x] Renombrar `src/index.js` a `src/index.jsx`.
-- [ ] *Pendiente*: Ejecutar `npm install` y probar que la app arranca correctamente con `npm run dev`.
+- [x] Ejecutar `npm install` y probar que la app arranca correctamente con `npm run dev`.
+- [x] Configurar Git local y conectar con repositorio remoto de GitHub.
+- [x] Resolver conflictos de merge (mantener configuración Vite) y subir cambios a GitHub.
+- [x] Despliegue automático en Vercel con la nueva configuración de Vite.
 
 ### 📝 Bitácora de Cambios
 
@@ -64,6 +67,11 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 
 ## 📝 Bitácora de Cambios
 
-### [Fecha Actual] - Inicio de Fase 1
-- Se crea el plan de refactorización.
-- Se inicia la migración de CRA a Vite.
+### [2026-06-13] - Fase 1: Migración a Vite y Flujo de Git Completada
+- Se ejecutó `npm install` y la app arrancó correctamente en `http://localhost:3000/` usando Vite.
+- Se inicializó Git localmente y se conectó con el repositorio remoto (`JonaCoGo/CorPos_Gastos`).
+- Se realizó `git pull` con `--allow-unrelated-histories` para combinar el historial local (Vite) con el remoto (CRA).
+- Se resolvieron conflictos en `package.json`, `public/index.html` y `src/index.js` usando `git checkout --ours` para mantener la configuración de Vite.
+- Se subió exitosamente la nueva configuración a GitHub (`git push origin main`).
+- Vercel detectó los cambios y desplegó la nueva versión impulsada por Vite automáticamente.
+- **Fase 1 completada al 100%. El entorno de desarrollo está modernizado y el flujo de despliegue profesional (Local -> GitHub -> Vercel) está activo.**
