@@ -51,9 +51,9 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - [x] Crear `src/features/` (TabDashboard, TabFamilyExpenses, TabPersonalExpenses, TabSalaries, TabHistory, TabExtras, TabMercado).
 - [ ] Crear `src/layouts/MainLayout.tsx` (estructura general y navegación inferior).
 
-### ⚪ FASE 5: Gestión de Estado y Optimización
+### 🟡 FASE 5: Gestión de Estado y Optimización
 **Objetivo**: Mejorar el rendimiento y simplificar el flujo de datos.
-- [ ] Evaluar e integrar Zustand para estado global (si aplica).
+- [x] Evaluar e integrar Zustand para estado global.
 - [ ] Implementar `useMemo` y `useCallback` en cálculos pesados.
 - [ ] Lazy loading de vistas (React.lazy + Suspense).
 
@@ -151,10 +151,18 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - Se actualizó `src/App.tsx` para importar desde `./services/firestore`, eliminando toda la lógica directa de Firebase (`doc`, `onSnapshot`, `setDoc`, `getDoc`) y reduciendo el `useEffect` de sincronización a solo 3 líneas.
 - **Paso 3.5 completado. `App.tsx` ahora está completamente desacoplado de la implementación de Firebase. Si en el futuro se cambia a Supabase o AsyncStorage (React Native), solo hay que reescribir `src/services/firestore.ts` sin tocar la UI ni la lógica de negocio.**
 
+### [2026-06-13] - Fase 4 (Estado Global): Integración de Zustand
+- Se instaló la librería `zustand`.
+- Se creó el directorio `src/store/` y el archivo `src/store/useAppStore.ts`.
+- Se centralizó todo el estado global de la aplicación (`data`, `tab`, `synced`) y las acciones (`updateMercado`, `updateMonth`, `selectMonth`, `addMonth`, `deleteMonth`, `checkAndAdvanceMonth`, `initFirestoreSync`).
+- Cada acción que modifica `data` ahora llama automáticamente a `saveData` para persistir en Firestore/localStorage.
+- Se refactorizó `src/App.tsx` eliminando los `useState` y funciones, reemplazándolos por el hook `useAppStore`. El archivo se redujo a ~100 líneas, quedando solo como orquestador de layout y routing.
+- Se actualizaron las vistas en `src/features/` para consumir las acciones directamente del store, eliminando el *prop drilling*.
+- **Fase 4 completada. El estado global está centralizado, desacoplado de React Context y listo para ser reutilizado en React Native.**
+
 ---
 
 ## 🚀 Próximos Pasos Inmediatos (Para el siguiente chat)
 
-1. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.
-2. **Fase 5 (Optimization)**: Implementar `useMemo` y `useCallback` en cálculos pesados, lazy loading de vistas.
-3. **Fase 6 (Security & Deploy)**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).
+1. **Fase 5 (Optimization)**: Implementar `useMemo` y `useCallback` en cálculos pesados, lazy loading de vistas.
+2. **Fase 6 (Security & Deploy)**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).

@@ -21,7 +21,8 @@ El proyecto ya no es un monolito puro. Se ha refactorizado parcialmente siguiend
 - **`src/components/ui/`**: Contiene los 7 componentes UI "tontos" (primitivas) extraídos de `App.tsx`: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`. Todos están tipados con TypeScript y exportados desde un `index.ts` barrel file.
 - **`src/features/`**: Contiene las 7 vistas de las pestañas extraídas de `App.tsx`: `TabDashboard`, `TabFamilyExpenses`, `TabPersonalExpenses`, `TabSalaries`, `TabHistory`, `TabExtras`, `TabMercado`. Todas están tipadas con TypeScript y exportadas desde un `index.ts` barrel file.
 - **`src/services/firestore.ts`**: Contiene **toda la lógica de persistencia y sincronización** extraída de `App.tsx`. Incluye `loadData` (carga desde localStorage con migraciones y semillas), `saveData` (guarda en localStorage y Firestore), y `subscribeToFirestore` (suscripción en tiempo real a Firestore con callbacks para datos y estado de sincronización). Esto desacopla completamente la UI de Firebase, permitiendo cambiar a Supabase o AsyncStorage (React Native) solo reescribiendo este archivo.
-- **`src/App.tsx`**: Ahora es un archivo ligero (~150 líneas) que solo contiene el estado global (`useState`), el enrutamiento de pestañas y la estructura general de la app. Toda la lógica de negocio, las vistas y la persistencia están separadas.
+- **`src/store/useAppStore.ts`**: Contiene **todo el estado global de la aplicación** gestionado con Zustand. Centraliza el estado (`data`, `tab`, `synced`) y las acciones (`updateMercado`, `updateMonth`, etc.). Cada acción que modifica los datos llama automáticamente a `saveData` para persistir en Firestore/localStorage. Esto elimina el *prop drilling* y prepara el estado para ser reutilizado en React Native.
+- **`src/App.tsx`**: Ahora es un archivo ultraligero (~100 líneas) que solo consume el store de Zustand (`useAppStore`), maneja el enrutamiento de pestañas y la estructura general de la app. No tiene `useState` ni lógica de negocio.
 
 ## 🚨 REGLAS DE ORO PARA LA IA (¡LEER ANTES DE ACTUAR!)
 Como CTO virtual y Arquitecto de Software, debes seguir estas reglas estrictamente para evitar errores y pérdida de tiempo del usuario:
@@ -35,9 +36,8 @@ Como CTO virtual y Arquitecto de Software, debes seguir estas reglas estrictamen
 ## 🚀 Próximos Pasos Inmediatos
 Para saber exactamente qué hacer a continuación, **lee el archivo `REFACTOR_PLAN.md`**. 
 Los próximos pasos lógicos son:
-- **Fase 4**: Evaluar e integrar Zustand para el estado global.
 - **Fase 5**: Implementar optimizaciones de rendimiento (`useMemo`, `useCallback`, lazy loading).
 - **Fase 6**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).
 
 ---
-*Última actualización: 2026-06-13. Fase 3.5 (Firebase Service) completada.*
+*Última actualización: 2026-06-13. Fase 4 (Zustand Global State) completada.*

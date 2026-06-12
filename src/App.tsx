@@ -1,68 +1,35 @@
-import { useState, useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { db } from "./firebase";
-import {
-  STORAGE_KEY,
-  FIRESTORE_DOC,
-  defaultPersonalExpenses,
-  defaultFamilyCategories,
-  ICONS,
-  MONTH_NAMES,
-  EXTRA_CATS,
-  SUPERMARKETS,
-  UNITS,
-  ALL_CATS,
-  SEED_MARKET_ITEMS
-} from "./constants";
-import { COP, getMonthKey, createEmptyMonth, calculateMercadoTotals, computeSummary } from './utils/finanzas';
-import { loadData, saveData, subscribeToFirestore } from './services/firestore';
+import { MONTH_NAMES } from "./constants";
+import { computeSummary } from './utils/finanzas';
+import { useAppStore } from './store/useAppStore';
 
 import { TabDashboard, TabFamilyExpenses, TabPersonalExpenses, TabSalaries, TabHistory, TabExtras, TabMercado } from './features';
 
 export default function App() {
-  const [data, setData] = useState(() => loadData());
-  const [tab, setTab] = useState("dashboard");
-  const [synced, setSynced] = useState(false);
+  const data = useAppStore((s) => s.data);
+  const tab = useAppStore((s) => s.tab);
+  const synced = useAppStore((s) => s.synced);
+  
+  const setTab = useAppStore((s) => s.setTab);
+  const updateMercado = useAppStore((s) => s.updateMercado);
+  const updateMonth = useAppStore((s) => s.updateMonth);
+  const selectMonth = useAppStore((s) => s.selectMonth);
+  const addMonth = useAppStore((s) => s.addMonth);
+  const deleteMonth = useAppStore((s) => s.deleteMonth);
+  const checkAndAdvanceMonth = useAppStore((s) => s.checkAndAdvanceMonth);
+  const initFirestoreSync = useAppStore((s) => s.initFirestoreSync);
 
-  // Auto-advance: if today's month is newer than currentKey, create it automatically
   useEffect(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const todayKey = getMonthKey(currentYear, currentMonth);
-    if (!data.months[todayKey] && data.currentKey && data.currentKey < todayKey) {
-      // Copy last known salaries as starting point
-      const lastMonth = data.months[data.currentKey];
-      const newMonth = createEmptyMonth(currentYear, currentMonth, lastMonth?.salaries || { marcela: 0, jonatan: 0 });
-      const nd = { ...data, months: { ...data.months, [todayKey]: newMonth }, currentKey: todayKey };
-      setData(nd);
-      saveData(nd);
-    }
+    checkAndAdvanceMonth();
+  }, [data.currentKey, checkAndAdvanceMonth]);
 
-  }, [data.currentKey]);
-
-  // ── Firestore real-time sync ──────────────────────────────────────────────
   useEffect(() => {
-    const unsub = subscribeToFirestore(
-      (remoteData) => setData(remoteData),
-      (syncStatus) => setSynced(syncStatus)
-    );
+    const unsub = initFirestoreSync();
     return () => unsub();
-  }, []);
-
-  const updateMercado = useCallback((updated: any) => {
-    const newData = { ...data, mercado: updated };
-    setData(newData);
-    saveData(newData);
-  }, [data]);
+  }, [initFirestoreSync]);
 
   const currentMonth = data.months[data.currentKey];
-
-  const updateMonth = useCallback((updated: any) => {
-    const newData = { ...data, months: { ...data.months, [updated.key]: updated } };
-    setData(newData);
-    saveData(newData);
-  }, [data]);
-
   const summary = currentMonth ? computeSummary({...currentMonth, mercado: data.mercado}) : null;
 
   const tabs = [
@@ -136,20 +103,9 @@ export default function App() {
               allMonths={data.months}
               currentKey={data.currentKey}
               mercado={data.mercado}
-              onSelectMonth={(key) => { const nd = { ...data, currentKey: key }; setData(nd); saveData(nd); setTab("dashboard"); }}
-              onNewMonth={(year, month, salaries) => {
-                const prevM = data.months[data.currentKey] || null;
-                const m = createEmptyMonth(year, month, salaries, prevM);
-                const nd = { months: { ...data.months, [m.key]: m }, currentKey: m.key };
-                setData(nd); saveData(nd); setTab("dashboard");
-              }}
-              onDeleteMonth={(key) => {
-                const months = { ...data.months };
-                delete months[key];
-                const keys = Object.keys(months);
-                const nd = { months, currentKey: keys[keys.length - 1] || null };
-                setData(nd); saveData(nd);
-              }}
+              onSelectMonth={selectMonth}
+              onNewMonth={addMonth}
+              onDeleteMonth={deleteMonth}
             />
           )}
         </div>
