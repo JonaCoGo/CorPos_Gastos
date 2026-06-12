@@ -42,8 +42,8 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 ### 🟡 FASE 3: Extracción de Servicios y Lógica (Hooks)
 **Objetivo**: Separar la lógica de negocio de la UI para que sea reutilizable en React Native.
 - [x] **Paso 3.1**: Crear `src/constants.ts` y extraer todas las constantes, listas, semillas y configuraciones (`STORAGE_KEY`, `FIRESTORE_DOC`, `defaultPersonalExpenses`, `defaultFamilyCategories`, `ICONS`, `MONTH_NAMES`, `EXTRA_CATS`, `SUPERMARKETS`, `UNITS`, `ALL_CATS`, `SEED_MARKET_ITEMS`).
-- [ ] **Paso 3.2**: Crear `src/services/firebase.ts` (lógica de conexión y CRUD).
-- [ ] **Paso 3.3**: Crear `src/hooks/useFinanzas.ts` (cálculos globales, saldos, proporciones).
+- [x] **Paso 3.2**: Crear `src/utils/finanzas.ts` (lógica de negocio pura: cálculos financieros, formatters, helpers de fecha) y `src/types/models.ts` (interfaces reales de los datos de la app: `MonthData`, `FamilyExpense`, `PersonalExpense`, `Extra`, `Mercado`, `Compra`, `ResumenFinanciero`).
+- [ ] **Paso 3.3**: Crear `src/hooks/useFinanzas.ts` (hook que envuelve la lógica de `utils/finanzas.ts` con estado de React).
 - [ ] **Paso 3.4**: Crear `src/hooks/useMercado.ts` (lógica de lista y historial de compras).
 
 ### ⚪ FASE 4: Descomposición de la UI (Componentes)
@@ -97,3 +97,15 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - Se actualizó `src/App.tsx` para importar estas constantes desde `./constants` y se eliminaron las definiciones originales.
 - Se eliminó la función interna `getSeedItems()` de `loadData()` y se reemplazó su uso por `SEED_MARKET_ITEMS`.
 - **Paso 3.1 completado. El archivo `App.tsx` se redujo en ~200 líneas de "ruido" (datos estáticos), dejando solo la lógica y la UI.
+
+### [2026-06-13] - Fase 3.2: Extracción de Lógica de Negocio Pura (Cerebro Financiero)
+- Se creó el directorio `src/utils/`.
+- Se creó `src/types/models.ts` con las interfaces reales que reflejan exactamente la estructura de datos que se guarda en Firestore/LocalStorage (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Extra`, `Mercado`, `Compra`, `ResumenFinanciero`, etc.).
+- Se creó `src/utils/finanzas.ts` y se extrajeron de `src/App.tsx` todas las funciones puras de lógica de negocio:
+  - `COP(n)`: Formatter de moneda colombiana.
+  - `getMonthKey(year, month)`: Helper para generar claves de mes.
+  - `createEmptyMonth(...)`: Función para crear un mes vacío con carry-over de estados.
+  - `calculateMercadoTotals(mercado)`: Calcula totales de compras por persona.
+  - `computeSummary(monthData)`: El cerebro financiero (neto, proporciones, aportes, saldos libres).
+- Se actualizó `src/App.tsx` para importar estas funciones desde `./utils/finanzas` y se eliminaron las definiciones originales.
+- **Paso 3.2 completado. Toda la lógica financiera está ahora en un archivo separado, 100% tipado con TypeScript, sin dependencias de React ni Firebase. Esto significa que este código es directamente reutilizable en la futura app de React Native.**
