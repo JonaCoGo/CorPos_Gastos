@@ -48,7 +48,7 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 
 ### ⚪ FASE 4: Descomposición de la UI (Componentes)
 **Objetivo**: Dividir el `App.jsx` en componentes pequeños y manejables.
-- [ ] Crear `src/components/ui/` (Button, Card, Modal, Input, ProgressBar).
+- [x] Crear `src/components/ui/` (Avatar, Btn, Card, Field, Label, Modal, ProgressBar).
 - [ ] Crear `src/components/features/` (DashboardView, HogarView, MercadoView, etc.).
 - [ ] Crear `src/layouts/MainLayout.tsx` (estructura general y navegación inferior).
 
@@ -115,11 +115,24 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - Se añadieron las "Reglas de Oro para la IA" en `CONTEXTO.md` para garantizar que siempre se usen las herramientas de archivos reales y no se alucinen cambios.
 - Se actualizó este `REFACTOR_PLAN.md` con el estado actual de la arquitectura y los próximos pasos exactos.
 
+### [2026-06-13] - Fase 3.3 (UI): Extracción de Componentes UI "Tontos"
+- Se creó el directorio `src/components/ui/`.
+- Se extrajeron 7 componentes primitivos de `src/App.tsx` hacia sus propios archivos, tipándolos estrictamente con TypeScript:
+  - `Avatar.tsx`: Avatar circular con colores dinámicos.
+  - `Btn.tsx`: Botón con 6 variantes (primary, secondary, danger, marce, jona, ghost).
+  - `Card.tsx`: Contenedor con sombra, bordes y hover effect.
+  - `Field.tsx`: Input con Label integrado. Se añadió soporte para la prop `disabled` (corrigiendo un bug silencioso en los campos de mercado).
+  - `Label.tsx`: Etiqueta de texto en mayúsculas.
+  - `Modal.tsx`: Overlay oscuro con animación slideUp y cierre por clic fuera.
+  - `ProgressBar.tsx`: Barra de progreso con cambio de color al llegar al 100%.
+- Se creó `src/components/ui/index.ts` como barrel file para importar todos los componentes fácilmente.
+- Se actualizó `src/App.tsx` para importar desde `./components/ui`, eliminando ~200 líneas de código de la UI.
+- **Paso completado. La base de componentes UI está separada, tipada y lista para ser reutilizada.**
+
 ---
 
 ## 🚀 Próximos Pasos Inmediatos (Para el siguiente chat)
 
-1. **Fase 3.3 (UI Components)**: Leer `App.tsx`, identificar los componentes "tontos" (`Avatar`, `Card`, `Modal`, `Btn`, `Field`, `ProgressBar`, `Tabs`, `BottomNav`) y moverlos a `src/components/ui/`.
-2. **Fase 3.4 (Feature Views)**: Identificar las vistas de cada pestaña (`TabMercado`, `TabFamilyExpenses`, `TabPersonal`, `TabExtras`, `TabSalarios`, `TabHistorial`, `TabDashboard`) y moverlas a `src/features/`.
-3. **Fase 3.5 (Firebase Service)**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
-4. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.
+1. **Fase 3.4 (Feature Views)**: Identificar las vistas de cada pestaña (`TabMercado`, `TabFamilyExpenses`, `TabPersonal`, `TabExtras`, `TabSalarios`, `TabHistorial`, `TabDashboard`) y moverlas a `src/features/`.
+2. **Fase 3.5 (Firebase Service)**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
+3. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.

@@ -18,7 +18,8 @@ El proyecto ya no es un monolito puro. Se ha refactorizado parcialmente siguiend
 - **`src/constants.ts`**: Contiene todas las constantes, listas, iconos, supermercados y las 70 semillas de productos del mercado (`SEED_MARKET_ITEMS`).
 - **`src/types/models.ts`**: Define las interfaces reales de TypeScript que reflejan la estructura de datos guardada en Firestore/LocalStorage (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Extra`, `Mercado`, `Compra`, `ResumenFinanciero`, etc.).
 - **`src/utils/finanzas.ts`**: Contiene **toda la lógica de negocio pura** (funciones matemáticas y de negocio) extraída del `App.tsx`. Incluye `COP` (formatter), `getMonthKey`, `createEmptyMonth`, `calculateMercadoTotals`, y `computeSummary`. Este código no tiene dependencias de React ni Firebase, por lo que es 100% reutilizable en React Native.
-- **`src/App.tsx`**: Aún contiene la integración con Firebase/LocalStorage, el estado global (`useState`), los componentes UI "tontos" (Avatar, Card, Modal, etc.) y las vistas de las pestañas (TabMercado, TabFamilyExpenses, etc.). Este es el archivo que sigue siendo gigante y que debemos seguir refactorizando.
+- **`src/components/ui/`**: Contiene los 7 componentes UI "tontos" (primitivas) extraídos de `App.tsx`: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`. Todos están tipados con TypeScript y exportados desde un `index.ts` barrel file.
+- **`src/App.tsx`**: Aún contiene la integración con Firebase/LocalStorage, el estado global (`useState`) y las vistas de las pestañas (TabMercado, TabFamilyExpenses, etc.). Este es el archivo que sigue siendo gigante y que debemos seguir refactorizando.
 
 ## 🚨 REGLAS DE ORO PARA LA IA (¡LEER ANTES DE ACTUAR!)
 Como CTO virtual y Arquitecto de Software, debes seguir estas reglas estrictamente para evitar errores y pérdida de tiempo del usuario:
@@ -32,10 +33,9 @@ Como CTO virtual y Arquitecto de Software, debes seguir estas reglas estrictamen
 ## 🚀 Próximos Pasos Inmediatos
 Para saber exactamente qué hacer a continuación, **lee el archivo `REFACTOR_PLAN.md`**. 
 Los próximos pasos lógicos son:
-- **Fase 3.3**: Extraer los componentes UI "tontos" de `App.tsx` a `src/components/ui/`.
 - **Fase 3.4**: Extraer las vistas de las pestañas (`TabMercado`, etc.) a `src/features/`.
 - **Fase 3.5**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
 - **Fase 4**: Evaluar e integrar Zustand para el estado global.
 
 ---
-*Última actualización: 2026-06-13. Fase 3.2 completada.*
+*Última actualización: 2026-06-13. Fase 3.3 (UI Components) completada.*
