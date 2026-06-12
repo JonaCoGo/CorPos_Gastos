@@ -33,11 +33,11 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - Se actualizó `package.json`: se eliminó `react-scripts`, se añadieron `vite` y `@vitejs/plugin-react`, y se actualizaron los scripts (`dev`, `build`, `preview`).
 - Se creó `src/index.jsx` y se vaciaron los antiguos `public/index.html` y `src/index.js` para evitar conflictos.
 
-### ⚪ FASE 2: Introducción de TypeScript y Tipos
+### 🟡 FASE 2: Introducción de TypeScript y Tipos
 **Objetivo**: Tipar la aplicación para ganar seguridad y documentación viva.
-- [ ] Instalar TypeScript y configurar `tsconfig.json`.
-- [ ] Renombrar archivos de `.jsx` a `.tsx`.
-- [ ] Crear `src/types/index.ts` con las interfaces principales (`Gasto`, `Salario`, `ItemMercado`, `Usuario`).
+- [x] Instalar TypeScript y configurar `tsconfig.json`.
+- [x] Renombrar archivos de `.jsx` a `.tsx`.
+- [x] Crear `src/types/index.ts` con las interfaces principales (`Gasto`, `Salario`, `ItemMercado`, `Usuario`).
 
 ### ⚪ FASE 3: Extracción de Servicios y Lógica (Hooks)
 **Objetivo**: Separar la lógica de negocio de la UI para que sea reutilizable en React Native.
@@ -66,6 +66,16 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 ---
 
 ## 📝 Bitácora de Cambios
+
+### [2026-06-13] - Fase 2: Configuración de TypeScript y Tipos Iniciales
+- Se instalaron las dependencias de TypeScript (`typescript`, `@types/react`, `@types/react-dom`, `@types/node`).
+- Se creó `tsconfig.json` con la configuración estándar de Vite + React, habilitando modo estricto (`strict: true`) para máxima seguridad en los cálculos financieros.
+- Se creó `tsconfig.node.json` para la configuración de Vite.
+- Se creó el directorio `src/types/` y el archivo `src/types/index.ts` con las interfaces principales del dominio: `Usuario`, `GastoHogar`, `GastoExtra`, `ItemMercado`, `GastoPersonal`, `HistorialCompra`, `ResumenFinanciero`.
+- Se renombraron los archivos de entrada de la aplicación: `src/index.jsx` a `src/index.tsx` y `src/App.jsx` a `src/App.tsx`.
+- Se actualizó `index.html` para apuntar al nuevo script de entrada `/src/index.tsx`.
+- Se vació el antiguo `src/index.js` para evitar confusiones.
+- **Fase 2 completada al 100%. La aplicación ahora soporta TypeScript y tiene una base de tipos sólida para la refactorización.**
 
 ### [2026-06-13] - Fase 1: Migración a Vite y Flujo de Git Completada
 - Se ejecutó `npm install` y la app arrancó correctamente en `http://localhost:3000/` usando Vite.
