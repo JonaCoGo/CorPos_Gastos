@@ -43,8 +43,7 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 **Objetivo**: Separar la lógica de negocio de la UI para que sea reutilizable en React Native.
 - [x] **Paso 3.1**: Crear `src/constants.ts` y extraer todas las constantes, listas, semillas y configuraciones (`STORAGE_KEY`, `FIRESTORE_DOC`, `defaultPersonalExpenses`, `defaultFamilyCategories`, `ICONS`, `MONTH_NAMES`, `EXTRA_CATS`, `SUPERMARKETS`, `UNITS`, `ALL_CATS`, `SEED_MARKET_ITEMS`).
 - [x] **Paso 3.2**: Crear `src/utils/finanzas.ts` (lógica de negocio pura: cálculos financieros, formatters, helpers de fecha) y `src/types/models.ts` (interfaces reales de los datos de la app: `MonthData`, `FamilyExpense`, `PersonalExpense`, `Extra`, `Mercado`, `Compra`, `ResumenFinanciero`).
-- [ ] **Paso 3.3**: Crear `src/hooks/useFinanzas.ts` (hook que envuelve la lógica de `utils/finanzas.ts` con estado de React).
-- [ ] **Paso 3.4**: Crear `src/hooks/useMercado.ts` (lógica de lista y historial de compras).
+- [x] **Paso 3.5**: Crear `src/services/firestore.ts` y extraer la lógica de Firebase/LocalStorage (`loadData`, `saveData`, `subscribeToFirestore`).
 
 ### ⚪ FASE 4: Descomposición de la UI (Componentes)
 **Objetivo**: Dividir el `App.jsx` en componentes pequeños y manejables.
@@ -143,10 +142,19 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 - Se actualizó `src/App.tsx` para importar desde `./features`, eliminando ~1000 líneas de código de las vistas.
 - **Fase 3.4 completada. `App.tsx` ahora solo contiene la lógica de estado, Firebase y el enrutamiento de pestañas. El archivo pasó de ~1500 líneas a menos de 200.**
 
+### [2026-06-13] - Fase 3.5 (Firebase Service): Extracción de Servicio de Datos
+- Se creó el directorio `src/services/`.
+- Se creó `src/services/firestore.ts` y se extrajeron de `src/App.tsx` todas las funciones de persistencia y sincronización:
+  - `loadData()`: Carga datos desde localStorage, aplica migraciones (semillas de mercado) y genera el mes semilla inicial si no hay datos.
+  - `saveData(d)`: Guarda datos en localStorage como respaldo y los sincroniza con Firestore.
+  - `subscribeToFirestore(onData, onSyncChange)`: Se suscribe a los cambios en tiempo real de Firestore, empuja datos locales si la nube está vacía, y notifica el estado de sincronización.
+- Se actualizó `src/App.tsx` para importar desde `./services/firestore`, eliminando toda la lógica directa de Firebase (`doc`, `onSnapshot`, `setDoc`, `getDoc`) y reduciendo el `useEffect` de sincronización a solo 3 líneas.
+- **Paso 3.5 completado. `App.tsx` ahora está completamente desacoplado de la implementación de Firebase. Si en el futuro se cambia a Supabase o AsyncStorage (React Native), solo hay que reescribir `src/services/firestore.ts` sin tocar la UI ni la lógica de negocio.**
+
 ---
 
 ## 🚀 Próximos Pasos Inmediatos (Para el siguiente chat)
 
-1. **Fase 3.5 (Firebase Service)**: Extraer la lógica de Firebase (`loadData`, `saveData`) a `src/services/firestore.ts`.
-2. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.
-3. **Fase 5 (Optimization)**: Implementar `useMemo` y `useCallback` en cálculos pesados, lazy loading de vistas.
+1. **Fase 4 (State Management)**: Evaluar e integrar Zustand para manejar el estado global, reemplazando los múltiples `useState` en `App.tsx`.
+2. **Fase 5 (Optimization)**: Implementar `useMemo` y `useCallback` en cálculos pesados, lazy loading de vistas.
+3. **Fase 6 (Security & Deploy)**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).

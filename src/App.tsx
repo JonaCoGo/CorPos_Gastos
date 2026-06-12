@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
 import { db } from "./firebase";
-import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import {
   STORAGE_KEY,
   FIRESTORE_DOC,
@@ -15,54 +14,9 @@ import {
   SEED_MARKET_ITEMS
 } from "./constants";
 import { COP, getMonthKey, createEmptyMonth, calculateMercadoTotals, computeSummary } from './utils/finanzas';
+import { loadData, saveData, subscribeToFirestore } from './services/firestore';
 
 import { TabDashboard, TabFamilyExpenses, TabPersonalExpenses, TabSalaries, TabHistory, TabExtras, TabMercado } from './features';
-
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // Migrate: if mercado missing or items empty, inject seed
-      if (!parsed.mercado || !parsed.mercado.items || parsed.mercado.items.length === 0) {
-        parsed.mercado = { items: SEED_MARKET_ITEMS, compras: parsed.mercado?.compras || [] };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-      }
-      return parsed;
-    }
-  } catch {}
-  // salaries = salario BRUTO; la app descuenta personales automáticamente
-  const jun = createEmptyMonth(2026, 6, { marcela: 1803858, jonatan: 2021241 });
-  jun.familyExpenses = jun.familyExpenses.map((c) => {
-    const map = {
-      arriendo: { marcela: 0, jonatan: 800000 },
-      mercado: { marcela: 600000, jonatan: 0 },
-      servicios: { marcela: 300000, jonatan: 0 },
-      pasajes: { marcela: 410000, jonatan: 100000 },
-      tc: { marcela: 0, jonatan: 0 },
-      ahorro_salidas: { marcela: 0, jonatan: 0 },
-      ahorro_personal: { marcela: 0, jonatan: 0 },
-      internet_planes: { marcela: 0, jonatan: 145000 },
-      credi_ahorros: { marcela: 0, jonatan: 50000 },
-      otros: { marcela: 0, jonatan: 0 },
-    };
-    return { ...c, ...(map[c.id] || {}) };
-  });
-  const months = { "2026-06": jun };
-  const d = { months, currentKey: "2026-06", mercado: { items: SEED_MARKET_ITEMS, compras: [] } };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-  return d;
-}
-
-function saveData(d: any) {
-  // Always save to localStorage as backup
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-  // Save to Firestore if available
-  if (db) {
-    const [col, docId] = FIRESTORE_DOC.split("/");
-    setDoc(doc(db, col, docId), d).catch((e) => console.error("Firestore save error:", e));
-  }
-}
 
 export default function App() {
   const [data, setData] = useState(() => loadData());
@@ -88,36 +42,10 @@ export default function App() {
 
   // ── Firestore real-time sync ──────────────────────────────────────────────
   useEffect(() => {
-    if (!db) return;
-    const [col, docId] = FIRESTORE_DOC.split("/");
-    const ref = doc(db, col, docId);
-
-    // First load: push local data to Firestore if Firestore is empty
-    getDoc(ref).then((snap) => {
-      if (!snap.exists()) {
-        const local = loadData();
-        setDoc(ref, local).catch(console.error);
-      }
-    });
-
-    // Subscribe to real-time changes
-    const unsub = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const remote = snap.data();
-        // Migrate mercado if empty
-        if (!remote.mercado || !remote.mercado.items || remote.mercado.items.length === 0) {
-          remote.mercado = { items: SEED_MARKET_ITEMS, compras: remote.mercado?.compras || [] };
-          setDoc(ref, remote).catch(console.error);
-        }
-        setData(remote);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
-        setSynced(true);
-      }
-    }, (err) => {
-      console.error("Firestore listen error:", err);
-      setSynced(false);
-    });
-
+    const unsub = subscribeToFirestore(
+      (remoteData) => setData(remoteData),
+      (syncStatus) => setSynced(syncStatus)
+    );
     return () => unsub();
   }, []);
 
