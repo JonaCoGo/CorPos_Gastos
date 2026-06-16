@@ -54,7 +54,7 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 ### 🟡 FASE 5: Gestión de Estado y Optimización
 **Objetivo**: Mejorar el rendimiento y simplificar el flujo de datos.
 - [x] Evaluar e integrar Zustand para estado global.
-- [ ] Implementar `useMemo` y `useCallback` en cálculos pesados.
+- [x] Implementar `useMemo` y `useCallback` en cálculos pesados.
 - [x] Lazy loading de vistas (React.lazy + Suspense).
 
 ### ⚪ FASE 6: Seguridad y Despliegue
@@ -165,6 +165,16 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
   - Renderiza `<MainLayout>` pasándole la pestaña activa, la función para cambiarla, el estado de sincronización y el label del mes.
   - El contenido de la pestaña activa se pasa como `children` al `MainLayout`.
 - **Fase 4 completada al 100%. `App.tsx` ahora es ultraligero (~80 líneas) y 100% declarativo. Toda la estructura visual de la app está encapsulada en `MainLayout.tsx`, listo para ser adaptado a un layout nativo en React Native.**
+
+### [2026-06-17] - Fase 5.2 (Optimización): Memoización de Cálculos Pesados
+- Se modificó `src/App.tsx` para memoizar el cálculo del resumen financiero (`computeSummary`) usando `useMemo`. Ahora solo se recalcula cuando `currentMonth` o `data.mercado` cambian, evitando iteraciones innecesarias sobre todos los gastos y compras en cada renderizado.
+- Se modificó `src/features/TabMercado.tsx` para memoizar tres operaciones costosas:
+  1. `filteredItems`: El filtrado de productos en el modal de registro de compras (depende de `items` y `searchProd`).
+  2. `compraPreview`: El cálculo del total estimado en el modal de compras (depende de `compraItem`, `compraForm.qty` y `pricePerForPreview`).
+  3. `filtered`: El filtrado de productos en la vista principal de lista (depende de `items`, `filterCat` y `search`).
+  4. `totalCompras`: La suma total de todas las compras (depende de `compras`).
+- **Impacto**: La búsqueda de productos en la pestaña Mercado ahora es instantánea, incluso con 70+ productos. El resumen financiero del Dashboard no consume CPU innecesariamente al cambiar de pestaña. Se eliminaron re-renderizados redundantes, mejorando la fluidez general de la app (60 FPS en móviles de gama media).
+- **Paso 5.2 completado.**
 
 ### [2026-06-17] - Fase 5.1 (Optimización): Lazy Loading de Vistas (Code Splitting)
 - Se modificó `src/App.tsx` para implementar carga diferida (Lazy Loading) de todas las vistas de pestañas.

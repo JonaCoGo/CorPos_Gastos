@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
@@ -22,7 +22,11 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [addForm, setAddForm] = useState({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
   const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
   const [searchProd, setSearchProd] = useState("");
-  const filteredItems = items.filter((i: any) => i.name.toLowerCase().includes(searchProd.toLowerCase()));
+  
+  // Memoize filtered items for the compra modal search - only recompute when items or searchProd changes
+  const filteredItems = useMemo(() => {
+    return items.filter((i: any) => i.name.toLowerCase().includes(searchProd.toLowerCase()));
+  }, [items, searchProd]);
 
   const saveItem = () => {
     if (!addForm.name || !addForm.pricePer) return;
@@ -72,15 +76,25 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   const compraItem = items.find((i: any) => i.id === compraForm.itemId);
   const pricePerForPreview = Number(compraForm.pricePer) || compraItem?.pricePer || 0;
-  const compraPreview = compraItem && compraForm.qty && pricePerForPreview > 0 ? pricePerForPreview * Number(compraForm.qty) : null;
+  
+  // Memoize compra preview calculation
+  const compraPreview = useMemo(() => {
+    return compraItem && compraForm.qty && pricePerForPreview > 0 ? pricePerForPreview * Number(compraForm.qty) : null;
+  }, [compraItem, compraForm.qty, pricePerForPreview]);
 
-  const filtered = items.filter((i: any) => {
-    const matchCat  = filterCat === "Todas" || i.category === filterCat;
-    const matchText = i.name.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchText;
-  });
+  // Memoize filtered items for the main list view - only recompute when items, filterCat, or search changes
+  const filtered = useMemo(() => {
+    return items.filter((i: any) => {
+      const matchCat  = filterCat === "Todas" || i.category === filterCat;
+      const matchText = i.name.toLowerCase().includes(search.toLowerCase());
+      return matchCat && matchText;
+    });
+  }, [items, filterCat, search]);
 
-  const totalCompras = compras.reduce((s: number, c: any) => s + c.total, 0);
+  // Memoize total compras calculation - only recompute when compras changes
+  const totalCompras = useMemo(() => {
+    return compras.reduce((s: number, c: any) => s + c.total, 0);
+  }, [compras]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

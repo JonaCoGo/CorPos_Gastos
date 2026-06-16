@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from "react";
+import { useEffect, useMemo, Suspense, lazy } from "react";
 import { db } from "./firebase";
 import { MONTH_NAMES } from "./constants";
 import { computeSummary } from './utils/finanzas';
@@ -38,7 +38,11 @@ export default function App() {
   }, [initFirestoreSync]);
 
   const currentMonth = data.months[data.currentKey];
-  const summary = currentMonth ? computeSummary({...currentMonth, mercado: data.mercado}) : null;
+  
+  // Memoize expensive summary calculation - only recompute when month data or mercado changes
+  const summary = useMemo(() => {
+    return currentMonth ? computeSummary({...currentMonth, mercado: data.mercado}) : null;
+  }, [currentMonth, data.mercado]);
 
   // Derived state for layout
   const syncStatus = !db ? "offline" : synced ? "synced" : "connecting";
