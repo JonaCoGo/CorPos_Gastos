@@ -55,7 +55,7 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 **Objetivo**: Mejorar el rendimiento y simplificar el flujo de datos.
 - [x] Evaluar e integrar Zustand para estado global.
 - [ ] Implementar `useMemo` y `useCallback` en cálculos pesados.
-- [ ] Lazy loading de vistas (React.lazy + Suspense).
+- [x] Lazy loading de vistas (React.lazy + Suspense).
 
 ### ⚪ FASE 6: Seguridad y Despliegue
 **Objetivo**: Asegurar los datos y preparar para producción.
@@ -165,6 +165,13 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
   - Renderiza `<MainLayout>` pasándole la pestaña activa, la función para cambiarla, el estado de sincronización y el label del mes.
   - El contenido de la pestaña activa se pasa como `children` al `MainLayout`.
 - **Fase 4 completada al 100%. `App.tsx` ahora es ultraligero (~80 líneas) y 100% declarativo. Toda la estructura visual de la app está encapsulada en `MainLayout.tsx`, listo para ser adaptado a un layout nativo en React Native.**
+
+### [2026-06-17] - Fase 5.1 (Optimización): Lazy Loading de Vistas (Code Splitting)
+- Se modificó `src/App.tsx` para implementar carga diferida (Lazy Loading) de todas las vistas de pestañas.
+- Se reemplazaron las importaciones estáticas de `src/features` por `React.lazy`, utilizando el patrón `.then(m => ({ default: m.TabName }))` para soportar exportaciones nombradas.
+- Se envolvió el renderizado de las pestañas en un componente `<Suspense>` con un fallback visual elegante ("Cargando sección...").
+- **Impacto**: Vite ahora genera chunks separados para cada pestaña (TabDashboard, TabMercado, etc.). El bundle inicial de JavaScript es significativamente más pequeño, lo que reduce el tiempo de carga inicial (FCP) y mejora el rendimiento en dispositivos móviles con conexiones lentas. Las vistas solo se descargan cuando el usuario navega a ellas.
+- **Paso 5.1 completado.**
 
 ### [2026-06-13] - Fase 4 (Estado Global): Integración de Zustand
 - Se instaló la librería `zustand`.

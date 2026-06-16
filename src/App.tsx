@@ -1,11 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, Suspense, lazy } from "react";
 import { db } from "./firebase";
 import { MONTH_NAMES } from "./constants";
 import { computeSummary } from './utils/finanzas';
 import { useAppStore } from './store/useAppStore';
 import MainLayout from './layouts/MainLayout';
 
-import { TabDashboard, TabFamilyExpenses, TabPersonalExpenses, TabSalaries, TabHistory, TabExtras, TabMercado } from './features';
+// Lazy load tabs for better initial load performance (Code Splitting)
+const TabDashboard = lazy(() => import('./features/TabDashboard').then(m => ({ default: m.TabDashboard })));
+const TabFamilyExpenses = lazy(() => import('./features/TabFamilyExpenses').then(m => ({ default: m.TabFamilyExpenses })));
+const TabPersonalExpenses = lazy(() => import('./features/TabPersonalExpenses').then(m => ({ default: m.TabPersonalExpenses })));
+const TabSalaries = lazy(() => import('./features/TabSalaries').then(m => ({ default: m.TabSalaries })));
+const TabHistory = lazy(() => import('./features/TabHistory').then(m => ({ default: m.TabHistory })));
+const TabExtras = lazy(() => import('./features/TabExtras').then(m => ({ default: m.TabExtras })));
+const TabMercado = lazy(() => import('./features/TabMercado').then(m => ({ default: m.TabMercado })));
 
 export default function App() {
   const data = useAppStore((s) => s.data);
@@ -72,7 +79,13 @@ export default function App() {
 
   return (
     <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
-      {renderTab()}
+      <Suspense fallback={
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', color: 'var(--text-secondary, #888)', fontSize: '1.2rem' }}>
+          Cargando sección... 
+        </div>
+      }>
+        {renderTab()}
+      </Suspense>
     </MainLayout>
   );
 }
