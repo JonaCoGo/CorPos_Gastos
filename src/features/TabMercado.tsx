@@ -20,7 +20,9 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [confirmDel, setConfirmDel] = useState<any>(null);
 
   const [addForm, setAddForm] = useState({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
-  const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
+  const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
+  const [searchProd, setSearchProd] = useState("");
+  const filteredItems = items.filter((i: any) => i.name.toLowerCase().includes(searchProd.toLowerCase()));
 
   const saveItem = () => {
     if (!addForm.name || !addForm.pricePer) return;
@@ -44,7 +46,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     const item = items.find((i: any) => i.id === compraForm.itemId);
     if (!item) return;
     const qty   = Number(compraForm.qty);
-    const total = item.pricePer * qty;
+    const pricePer = Number(compraForm.pricePer) || item.pricePer;
+    const total = pricePer * qty;
     const marcelaAmount = compraForm.person === "marcela" ? total : compraForm.person === "jonatan" ? 0 : total / 2;
     const jonatanAmount = compraForm.person === "jonatan" ? total : compraForm.person === "marcela" ? 0 : total / 2;
     const newC  = {
@@ -53,7 +56,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       itemName: item.name,
       qty,
       unit: item.unit,
-      pricePer: item.pricePer,
+      pricePer,
       total,
       supermarket: compraForm.supermarket,
       date: compraForm.date,
@@ -63,11 +66,13 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     };
     onUpdate({ ...mercado, compras: [newC, ...compras] });
     setShowCompra(false);
-    setCompraForm({ itemId: "", qty: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
+    setCompraForm({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
+    setSearchProd("");
   };
 
   const compraItem = items.find((i: any) => i.id === compraForm.itemId);
-  const compraPreview = compraItem && compraForm.qty ? compraItem.pricePer * Number(compraForm.qty) : null;
+  const pricePerForPreview = Number(compraForm.pricePer) || compraItem?.pricePer || 0;
+  const compraPreview = compraItem && compraForm.qty && pricePerForPreview > 0 ? pricePerForPreview * Number(compraForm.qty) : null;
 
   const filtered = items.filter((i: any) => {
     const matchCat  = filterCat === "Todas" || i.category === filterCat;
@@ -143,7 +148,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 lastCompras={compras.filter((c: any) => c.itemId === item.id).slice(0, 2)}
                 onUpdate={(changes) => updateItem(item.id, changes)}
                 onDelete={() => setConfirmDel(item)}
-                onComprar={() => { setCompraForm({ ...compraForm, itemId: item.id, supermarket: item.supermarket }); setShowCompra(true); }}
+                onComprar={(priceOverride?: number, qtyOverride?: string) => { setCompraForm({ ...compraForm, itemId: item.id, supermarket: item.supermarket, pricePer: priceOverride ? String(priceOverride) : String(item.pricePer), qty: qtyOverride || "" }); setShowCompra(true); }}
               />
             ))
           )}
@@ -229,17 +234,24 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       </Modal>
 
       {/* Modal: registrar compra */}
-      <Modal open={showCompra} onClose={() => setShowCompra(false)} title="Registrar compra">
+      <Modal open={showCompra} onClose={() => { setShowCompra(false); setSearchProd(""); }} title="Registrar compra">
         <div style={{ marginBottom: 14 }}>
           <Label>Producto</Label>
+          <input
+            placeholder="🔍 Buscar producto..."
+            value={searchProd}
+            onChange={(e) => setSearchProd(e.target.value)}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)", marginBottom: 8 }}
+          />
           <select value={compraForm.itemId} onChange={(e) => {
             const it = items.find((i: any) => i.id === e.target.value);
-            setCompraForm({ ...compraForm, itemId: e.target.value, supermarket: it?.supermarket || "D1" });
+            setCompraForm({ ...compraForm, itemId: e.target.value, supermarket: it?.supermarket || "D1", pricePer: it ? String(it.pricePer) : "" });
           }} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
             <option value="">— Selecciona —</option>
-            {items.map((i: any) => <option key={i.id} value={i.id}>{i.name} · {COP(i.pricePer)}/{i.unit}</option>)}
+            {filteredItems.map((i: any) => <option key={i.id} value={i.id}>{i.name} · {COP(i.pricePer)}/{i.unit}</option>)}
           </select>
         </div>
+        <Field label="Precio" value={compraForm.pricePer} onChange={(v) => setCompraForm({ ...compraForm, pricePer: v })} placeholder="895" />
         <div style={{ marginBottom: 14 }}>
           <Label>¿Quién pagó?</Label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -262,7 +274,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
           <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 16px", marginBottom: 14, textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 4 }}>Total estimado</div>
             <div style={{ fontSize: 26, fontWeight: 900, color: "var(--success)", fontFamily: "var(--font-display)" }}>{COP(compraPreview)}</div>
-            <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>{compraForm.qty} {compraItem?.unit} × {COP(compraItem?.pricePer)}</div>
+            <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>{compraForm.qty} {compraItem?.unit} × {COP(pricePerForPreview)}</div>
             {compraForm.person !== "" && (
               <div style={{ marginTop: 10, fontSize: 11, color: "var(--text2)" }}>
                 {compraForm.person === "marcela" && (
@@ -462,7 +474,7 @@ function ItemCard({ item, lastCompras, onUpdate, onDelete, onComprar }: any) {
             </div>
 
             {/* Botones */}
-            <Btn variant="secondary" onClick={onComprar} style={{ width: "100%", fontSize: 13, padding: "11px", marginBottom: priceChanged ? 8 : 0 }}>
+            <Btn variant="secondary" onClick={() => onComprar(priceForCalc, qty)} style={{ width: "100%", fontSize: 13, padding: "11px", marginBottom: priceChanged ? 8 : 0 }}>
               🧾 Guardar compra
             </Btn>
             {priceChanged && (
