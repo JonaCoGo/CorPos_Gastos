@@ -49,7 +49,7 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 **Objetivo**: Dividir el `App.jsx` en componentes pequeños y manejables.
 - [x] Crear `src/components/ui/` (Avatar, Btn, Card, Field, Label, Modal, ProgressBar).
 - [x] Crear `src/features/` (TabDashboard, TabFamilyExpenses, TabPersonalExpenses, TabSalaries, TabHistory, TabExtras, TabMercado).
-- [ ] Crear `src/layouts/MainLayout.tsx` (estructura general y navegación inferior).
+- [x] Crear `src/layouts/MainLayout.tsx` (estructura general y navegación inferior).
 
 ### 🟡 FASE 5: Gestión de Estado y Optimización
 **Objetivo**: Mejorar el rendimiento y simplificar el flujo de datos.
@@ -150,6 +150,21 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
   - `subscribeToFirestore(onData, onSyncChange)`: Se suscribe a los cambios en tiempo real de Firestore, empuja datos locales si la nube está vacía, y notifica el estado de sincronización.
 - Se actualizó `src/App.tsx` para importar desde `./services/firestore`, eliminando toda la lógica directa de Firebase (`doc`, `onSnapshot`, `setDoc`, `getDoc`) y reduciendo el `useEffect` de sincronización a solo 3 líneas.
 - **Paso 3.5 completado. `App.tsx` ahora está completamente desacoplado de la implementación de Firebase. Si en el futuro se cambia a Supabase o AsyncStorage (React Native), solo hay que reescribir `src/services/firestore.ts` sin tocar la UI ni la lógica de negocio.**
+
+### [2026-06-17] - Fase 4 (UI): Extracción de MainLayout
+- Se creó el directorio `src/layouts/`.
+- Se creó `src/layouts/MainLayout.tsx` extrayendo de `src/App.tsx`:
+  - Los estilos globales (bloque `<style>` con variables CSS, fuentes y animaciones).
+  - El Header sticky (logo de CorPos, indicador de estado de sincronización y badge del mes actual).
+  - El contenedor principal de contenido (con `maxWidth: 600` y padding).
+  - La barra de navegación inferior fija (Bottom Nav con las 7 pestañas: Resumen, Hogar, Extras, Mercado, Personal, Salarios, Historial).
+- Se refactorizó `src/App.tsx` para que sea un orquestador puro:
+  - Mantiene las suscripciones a Zustand (`useAppStore`).
+  - Mantiene los `useEffect` de inicialización (sync con Firestore y avance automático de mes).
+  - Mantiene el cálculo del resumen financiero (`computeSummary`).
+  - Renderiza `<MainLayout>` pasándole la pestaña activa, la función para cambiarla, el estado de sincronización y el label del mes.
+  - El contenido de la pestaña activa se pasa como `children` al `MainLayout`.
+- **Fase 4 completada al 100%. `App.tsx` ahora es ultraligero (~80 líneas) y 100% declarativo. Toda la estructura visual de la app está encapsulada en `MainLayout.tsx`, listo para ser adaptado a un layout nativo en React Native.**
 
 ### [2026-06-13] - Fase 4 (Estado Global): Integración de Zustand
 - Se instaló la librería `zustand`.
