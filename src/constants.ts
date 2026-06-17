@@ -4,25 +4,8 @@ export const FIRESTORE_DOC = "corpos/shared";
 
 // ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
 export const defaultPersonalExpenses = {
-  jonatan: [
-    { id: 1, desc: "Cuota Manejo Banco", amount: 11200, day: 15, icon: "🏦" },
-    { id: 2, desc: "Cuota Seguro Bancolombia", amount: 25000, day: 15, icon: "🛡️" },
-    { id: 3, desc: "PAC SURA", amount: 55500, day: 15, icon: "💊" },
-    { id: 4, desc: "Cuota Viaje Ari", amount: 50000, day: 15, icon: "🚌" },
-    { id: 5, desc: "Yinar", amount: 50000, day: 15, icon: "👶" },
-    { id: 6, desc: "Barbería", amount: 20000, day: 30, icon: "💈" },
-    { id: 7, desc: "Cera", amount: 30000, day: 15, icon: "💄" },
-    { id: 8, desc: "Spotify Jona-Marce", amount: 10200, day: 30, icon: "🎵" },
-    { id: 9, desc: "Ajuste", amount: 3100, day: null, icon: "💰" },
-  ],
-  marcela: [
-    { id: 1, desc: "Clases de Inglés", amount: 320000, day: null, icon: "📚" },
-    { id: 2, desc: "Arreglo Uñas", amount: 80000, day: null, icon: "💅" },
-    { id: 3, desc: "Internet Madre", amount: 100000, day: null, icon: "📶" },
-    { id: 4, desc: "Cuota Manejo Banco", amount: 11200, day: 15, icon: "🏦" },
-    { id: 5, desc: "Cuota Seguro Bancolombia", amount: 25000, day: 15, icon: "🛡️" },
-    { id: 6, desc: "Ajuste", amount: 600, day: null, icon: "💰" },
-  ],
+  jonatan: [],
+  marcela: [],
 };
 
 export const defaultFamilyCategories = [
@@ -30,13 +13,6 @@ export const defaultFamilyCategories = [
   { id: "mercado", label: "Mercado", budget: 600000, icon: "🛒" },
   { id: "servicios", label: "Servicios", budget: 300000, icon: "💡" },
   { id: "pasajes", label: "Pasajes", budget: 510000, icon: "🚌" },
-  { id: "tc_jona", label: "TC Crédito Jona", budget: 0, icon: "💳" },
-  { id: "tc_marce", label: "TC Crédito Marce", budget: 0, icon: "💳" },
-  { id: "ahorro_salidas", label: "Ahorro Salidas", budget: 150000, icon: "🎉" },
-  { id: "ahorro_personal", label: "Ahorro Personal", budget: 150000, icon: "🐷" },
-  { id: "internet_planes", label: "Internet + Planes Cel", budget: 145000, icon: "📱" },
-  { id: "credi_ahorros", label: "CrédiAhorros", budget: 200000, icon: "🏦" },
-  { id: "streaming", label: "Netflix", budget: 19000, icon: "📺" },
   { id: "otros", label: "Otros", budget: 0, icon: "📦" },
 ];
 
