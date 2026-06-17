@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Avatar, Card, Btn, Field, Modal, Label } from '../components/ui';
+import { Avatar, Card, Btn, Field, Modal, Label, Select } from '../components/ui';
 import { EXTRA_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { MonthData, Extra, Persona } from '../types/models';
@@ -126,13 +126,9 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
           </div>
         </div>
         <Field label="Valor (COP)" value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} placeholder="15000" />
-        <div style={{ marginBottom: 14 }}>
-          <Label>Categoría</Label>
-          <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
-            {EXTRA_CATS.map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </div>
+        <Select label="Categoría" value={form.category} onChange={(v) => setForm({ ...form, category: v })}>
+          {EXTRA_CATS.map((c) => <option key={c}>{c}</option>)}
+        </Select>
         <Field label="Descripción (opcional)" value={form.desc} onChange={(v) => setForm({ ...form, desc: v })} type="text" placeholder="Ej: Pizza con Marcela" />
         <Field label="Fecha" value={form.date} onChange={(v) => setForm({ ...form, date: v })} type="date" />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>

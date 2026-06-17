@@ -49,6 +49,7 @@ export function TabSalaries({ monthData, onUpdate }: TabSalariesProps) {
               value={form[n as keyof typeof form]}
               onChange={(v) => setForm({ ...form, [n]: v })}
               placeholder="Ej: 2000000"
+              currency
             />
             {(Number(form[n as keyof typeof form]) > 0) && (
               <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "10px 14px", fontSize: 12, display: "flex", flexDirection: "column", gap: 5, marginTop: -6, marginBottom: 8 }}>

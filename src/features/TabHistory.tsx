@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, Btn, Field, Modal, Label } from '../components/ui';
+import { Card, Btn, Field, Modal, Select } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP, computeSummary, getMonthKey } from '../utils/finanzas';
 import { MonthData, Mercado } from '../types/models';
@@ -81,13 +81,9 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
       <Modal open={showNew} onClose={() => { setShowNew(false); setDupError(false); }} title="Nuevo mes">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <Field label="Año" value={form.year} onChange={(v) => { setForm({ ...form, year: Number(v) }); setDupError(false); }} />
-          <div>
-            <Label>Mes</Label>
-            <select value={form.month} onChange={(e) => { setForm({ ...form, month: Number(e.target.value) }); setDupError(false); }}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
-              {MONTH_NAMES.slice(1).map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
-            </select>
-          </div>
+          <Select label="Mes" value={form.month} onChange={(v) => { setForm({ ...form, month: Number(v) }); setDupError(false); }}>
+            {MONTH_NAMES.slice(1).map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
+          </Select>
         </div>
         {dupError && (
           <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "var(--danger)", marginBottom: 12 }}>

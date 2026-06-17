@@ -100,6 +100,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
                   cursor: "pointer"
                 }}>
                   <input type="checkbox" checked={!!e.paid} onChange={() => togglePaid(person, e.id)}
+                    onClick={(ev) => ev.stopPropagation()}
                     disabled={e.active === false}
                     style={{ width: 18, height: 18, cursor: e.active === false ? "default" : "pointer", accentColor: person === "marcela" ? "var(--marce)" : "var(--jona)", flexShrink: 0 }} />
                   <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6 }}>
