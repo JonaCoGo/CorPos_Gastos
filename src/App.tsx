@@ -14,6 +14,7 @@ const TabSalaries         = lazy(() => import('./features/TabSalaries').then(m =
 const TabHistory          = lazy(() => import('./features/TabHistory').then(m => ({ default: m.TabHistory })));
 const TabExtras           = lazy(() => import('./features/TabExtras').then(m => ({ default: m.TabExtras })));
 const TabMercado          = lazy(() => import('./features/TabMercado').then(m => ({ default: m.TabMercado })));
+const TabSettings         = lazy(() => import('./features/TabSettings').then(m => ({ default: m.TabSettings })));
 
 export default function App() {
   const data   = useAppStore((s) => s.data);
@@ -75,6 +76,8 @@ export default function App() {
             onDeleteMonth={deleteMonth}
           />
         );
+      case "settings":
+        return <TabSettings />;
       case "more":
         return <TabMore onGoTo={setTab} />;
       default:

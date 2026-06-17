@@ -83,10 +83,16 @@ export interface Mercado {
   compras: Compra[];
 }
 
+export interface AppConfig {
+  marcelaName: string;
+  jonatanName: string;
+}
+
 export interface AppData {
   months: Record<string, MonthData>;
   currentKey: string;
   mercado: Mercado;
+  config: AppConfig;
 }
 
 // ==========================================

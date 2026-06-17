@@ -5,3 +5,4 @@ export { TabSalaries } from './TabSalaries';
 export { TabHistory } from './TabHistory';
 export { TabExtras } from './TabExtras';
 export { TabMercado } from './TabMercado';
+export { TabSettings } from './TabSettings';

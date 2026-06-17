@@ -2,7 +2,9 @@ import { db } from "../firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import { FIRESTORE_DOC, STORAGE_KEY, SEED_MARKET_ITEMS } from "../constants";
 import { createEmptyMonth } from "../utils/finanzas";
-import { AppData } from "../types/models";
+import { AppData, AppConfig } from "../types/models";
+
+const DEFAULT_CONFIG: AppConfig = { marcelaName: "Marcela", jonatanName: "Jonatan" };
 
 /**
  * Carga los datos desde localStorage.
@@ -16,8 +18,12 @@ export function loadData() {
       // Migración: si mercado está vacío, inyectar semillas
       if (!parsed.mercado || !parsed.mercado.items || parsed.mercado.items.length === 0) {
         parsed.mercado = { items: SEED_MARKET_ITEMS, compras: parsed.mercado?.compras || [] };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       }
+      // Migración: si config no existe, agregar defaults
+      if (!parsed.config) {
+        parsed.config = DEFAULT_CONFIG;
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       return parsed;
     }
   } catch (e) {
@@ -43,7 +49,7 @@ export function loadData() {
   });
   
   const months = { "2026-06": jun };
-  const d = { months, currentKey: "2026-06", mercado: { items: SEED_MARKET_ITEMS, compras: [] } };
+  const d = { months, currentKey: "2026-06", mercado: { items: SEED_MARKET_ITEMS, compras: [] }, config: DEFAULT_CONFIG };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
   return d;
 }
@@ -96,12 +102,17 @@ export function subscribeToFirestore(
     (snap) => {
       if (snap.exists()) {
         const remote = snap.data() as AppData;
-        // Migración de mercado si está vacío
+        let changed = false;
         if (!remote.mercado || !remote.mercado.items || remote.mercado.items.length === 0) {
           remote.mercado = { items: SEED_MARKET_ITEMS, compras: remote.mercado?.compras || [] };
-          setDoc(ref, remote).catch(console.error);
+          changed = true;
         }
-        
+        if (!remote.config) {
+          remote.config = DEFAULT_CONFIG;
+          changed = true;
+        }
+        if (changed) setDoc(ref, remote).catch(console.error);
+
         onData(remote);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
         onSyncChange(true);

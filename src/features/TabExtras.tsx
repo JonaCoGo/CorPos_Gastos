@@ -3,6 +3,7 @@ import { Avatar, Card, Btn, Field, Modal, Label, Select } from '../components/ui
 import { EXTRA_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { MonthData, Extra, Persona } from '../types/models';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabExtrasProps {
   monthData: MonthData;
@@ -10,6 +11,9 @@ interface TabExtrasProps {
 }
 
 export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
+  const config = useAppStore((s) => s.data.config);
+  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+
   const extras = monthData.extras || [];
   const [showAdd, setShowAdd]   = useState(false);
   const [confirmDel, setConfirmDel] = useState<Extra | null>(null);
@@ -46,7 +50,7 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
           <Card key={n} style={{ padding: "12px 14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <Avatar name={n} size={22} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", textTransform: "capitalize" }}>{n}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)" }}>{names[n as keyof typeof names]}</span>
             </div>
             <div style={{ fontSize: 20, fontWeight: 900, color: "var(--danger)", fontFamily: "var(--font-display)" }}>{COP(total)}</div>
             <div style={{ fontSize: 10, color: "var(--text2)", marginTop: 2 }}>en extras este mes</div>
@@ -120,7 +124,7 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               }}>
                 <Avatar name={p} size={18} />
-                <span style={{ textTransform: "capitalize" }}>{p}</span>
+                <span>{names[p]}</span>
               </button>
             ))}
           </div>

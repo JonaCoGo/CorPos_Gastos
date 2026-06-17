@@ -2,6 +2,7 @@ import { Avatar, ProgressBar, Card } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP } from '../utils/finanzas';
 import { MonthData, ResumenFinanciero } from '../types/models';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabDashboardProps {
   monthData: MonthData;
@@ -9,6 +10,12 @@ interface TabDashboardProps {
 }
 
 export function TabDashboard({ monthData, summary }: TabDashboardProps) {
+  const config = useAppStore((s) => s.data.config);
+  const names = {
+    marcela: config?.marcelaName ?? "Marcela",
+    jonatan: config?.jonatanName ?? "Jonatan",
+  };
+
   const { ratio, totalNeto, netoMarcela, netoJonatan,
     personalTotalMarcela, personalTotalJonatan,
     extrasTotalMarcela, extrasTotalJonatan,
@@ -31,13 +38,13 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
           Salarios — {MONTH_NAMES[monthData.month]} {monthData.year}
         </div>
         {[
-          { n: "marcela", bruto: monthData.salaries.marcela, personal: personalTotalMarcela, neto: netoMarcela },
-          { n: "jonatan", bruto: monthData.salaries.jonatan, personal: personalTotalJonatan, neto: netoJonatan },
-        ].map(({ n, bruto, personal, neto }) => (
+          { n: "marcela", label: names.marcela, bruto: monthData.salaries.marcela, personal: personalTotalMarcela, neto: netoMarcela },
+          { n: "jonatan", label: names.jonatan, bruto: monthData.salaries.jonatan, personal: personalTotalJonatan, neto: netoJonatan },
+        ].map(({ n, label, bruto, personal, neto }) => (
           <div key={n} style={{ background: "var(--surface2)", borderRadius: 12, padding: "14px 16px", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-              <Avatar name={n} size={26} />
-              <span style={{ fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{n}</span>
+              <Avatar name={label} persona={n} size={26} />
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{label}</span>
               <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text2)" }}>{(ratio[n as keyof typeof ratio] * 100).toFixed(1)}% del aporte</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -83,8 +90,8 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
           ) : null}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-          {[{ label: "Pagó Marcela", val: totalFamilyPaidMarcela, n: "marcela", ideal: aportePagadoIdealMarcela },
-            { label: "Pagó Jonatan", val: totalFamilyPaidJonatan, n: "jonatan", ideal: aportePagadoIdealJonatan }].map(({ label, val, n, ideal }) => (
+          {[{ label: `Pagó ${names.marcela}`, val: totalFamilyPaidMarcela, n: "marcela", ideal: aportePagadoIdealMarcela },
+            { label: `Pagó ${names.jonatan}`, val: totalFamilyPaidJonatan, n: "jonatan", ideal: aportePagadoIdealJonatan }].map(({ label, val, n, ideal }) => (
             <div key={n} style={{ background: "var(--surface2)", borderRadius: 10, padding: "10px 12px" }}>
               <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 17, fontWeight: 800, color: `var(--${n})` }}>{COP(val)}</div>
@@ -94,10 +101,10 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
         </div>
         {(faltanteMarcela >= 1000 || faltanteJonatan >= 1000) && (<div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>
             {faltanteMarcela >= 1000 && (<div style={{ color: "var(--danger)", marginBottom: 4 }}>
-                Marcela le falta pagar {COP(faltanteMarcela)} para llegar al ideal</div>
+                {names.marcela} le falta pagar {COP(faltanteMarcela)} para llegar al ideal</div>
             )}
             {faltanteJonatan >= 1000 && (<div style={{ color: "var(--danger)" }}>
-                Jonatan le falta pagar {COP(faltanteJonatan)} para llegar al ideal</div>
+                {names.jonatan} le falta pagar {COP(faltanteJonatan)} para llegar al ideal</div>
             )}</div>
         )}
       </Card>
@@ -106,12 +113,12 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
       <Card>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>Saldo Libre Estimado</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {[{ n: "marcela", saldo: saldoMarcela, aporte: aporteFamiliarMarcela },
-            { n: "jonatan", saldo: saldoJonatan, aporte: aporteFamiliarJonatan }].map(({ n, saldo, aporte }) => (
+          {[{ n: "marcela", label: names.marcela, saldo: saldoMarcela, aporte: aporteFamiliarMarcela },
+            { n: "jonatan", label: names.jonatan, saldo: saldoJonatan, aporte: aporteFamiliarJonatan }].map(({ n, label, saldo, aporte }) => (
             <div key={n} style={{ background: "var(--surface2)", borderRadius: 12, padding: "14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <Avatar name={n} size={24} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)", textTransform: "capitalize" }}>{n}</span>
+                <Avatar name={label} persona={n} size={24} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)" }}>{label}</span>
               </div>
               <div style={{ fontSize: 11, color: "var(--text2)" }}>Aporte ideal al hogar</div>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{COP(aporte)}</div>

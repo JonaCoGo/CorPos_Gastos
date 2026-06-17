@@ -3,6 +3,7 @@ import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../componen
 import { ICONS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { MonthData, PersonalExpense } from '../types/models';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabPersonalExpensesProps {
   monthData: MonthData;
@@ -13,6 +14,9 @@ type Persona = 'marcela' | 'jonatan';
 interface EditTarget { person: Persona; expense: PersonalExpense; }
 
 export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpensesProps) {
+  const config = useAppStore((s) => s.data.config);
+  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+
   const [addModal, setAddModal] = useState<string | null>(null);
   const [form, setForm] = useState({ desc: "", amount: "", day: "", icon: "" });
   const [editExpense, setEditExpense] = useState<EditTarget | null>(null);
@@ -84,7 +88,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <Avatar name={person} size={32} />
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, textTransform: "capitalize" }}>{person}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>{names[person]}</div>
                   <div style={{ fontSize: 11, color: "var(--text2)" }}>{COP(paidAmt)} pagado / {COP(total)}</div>
                 </div>
               </div>
@@ -131,7 +135,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         );
       })}
 
-      <Modal open={!!addModal} onClose={() => setAddModal(null)} title={`Añadir gasto — ${addModal === "marcela" ? "Marcela" : "Jonatan"}`}>
+      <Modal open={!!addModal} onClose={() => setAddModal(null)} title={`Añadir gasto — ${addModal === "marcela" ? names.marcela : names.jonatan}`}>
         <Field label="Descripción" value={form.desc} onChange={(v) => setForm({ ...form, desc: v })} type="text" placeholder="Ej: Gym" />
         <Field label="Valor (COP)" value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} placeholder="50000" />
         <Field label="Día del mes (opcional)" value={form.day} onChange={(v) => setForm({ ...form, day: v })} placeholder="15" />
@@ -142,7 +146,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
       </Modal>
 
       {/* Edit modal */}
-      <Modal open={!!editExpense} onClose={() => setEditExpense(null)} title={`Editar gasto — ${editExpense?.person === "marcela" ? "Marcela" : "Jonatan"}`}>
+      <Modal open={!!editExpense} onClose={() => setEditExpense(null)} title={`Editar gasto — ${editExpense?.person === "marcela" ? names.marcela : names.jonatan}`}>
         <Field label="Descripción" value={editForm.desc} onChange={(v) => setEditForm({ ...editForm, desc: v })} type="text" placeholder="Ej: Gym" />
         <Field label="Valor (COP)" value={editForm.amount} onChange={(v) => setEditForm({ ...editForm, amount: v })} placeholder="50000" />
         <Field label="Día del mes (opcional)" value={editForm.day} onChange={(v) => setEditForm({ ...editForm, day: v })} placeholder="15" />

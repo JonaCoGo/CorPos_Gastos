@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppData, MonthData, Mercado } from '../types/models';
+import { AppData, MonthData, Mercado, AppConfig } from '../types/models';
 import { loadData, saveData, subscribeToFirestore } from '../services/firestore';
 import { createEmptyMonth, getMonthKey } from '../utils/finanzas';
 
@@ -19,6 +19,8 @@ interface AppState {
 
   // ── Acciones de Datos (modifican estado + persisten) ────────────────────────
   updateMercado: (mercado: Mercado) => void;
+  resetMercadoCompras: () => void;
+  updateConfig: (config: AppConfig) => void;
   updateMonth: (updatedMonth: MonthData) => void;
   selectMonth: (key: string) => void;
   addMonth: (year: number, month: number, salaries: { marcela: number; jonatan: number }) => void;
@@ -41,6 +43,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   updateMercado: (mercado) => {
     const newData = { ...get().data, mercado };
+    set({ data: newData });
+    saveData(newData);
+  },
+
+  resetMercadoCompras: () => {
+    const { data } = get();
+    const newData = { ...data, mercado: { ...data.mercado, compras: [] } };
+    set({ data: newData });
+    saveData(newData);
+  },
+
+  updateConfig: (config) => {
+    const newData = { ...get().data, config };
     set({ data: newData });
     saveData(newData);
   },
@@ -68,7 +83,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newData = {
       months: { ...data.months, [newMonth.key]: newMonth },
       currentKey: newMonth.key,
-      mercado: data.mercado
+      mercado: data.mercado,
+      config: data.config,
     };
     set({ data: newData, tab: 'dashboard' });
     saveData(newData);
@@ -82,7 +98,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newData = {
       months,
       currentKey: keys[keys.length - 1] || '',
-      mercado: data.mercado
+      mercado: data.mercado,
+      config: data.config,
     };
     set({ data: newData });
     saveData(newData);

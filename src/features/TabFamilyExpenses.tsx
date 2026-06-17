@@ -3,6 +3,7 @@ import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../componen
 import { ICONS } from '../constants';
 import { COP, calculateMercadoTotals } from '../utils/finanzas';
 import { MonthData, Mercado, FamilyExpense } from '../types/models';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabFamilyExpensesProps {
   monthData: MonthData;
@@ -11,6 +12,9 @@ interface TabFamilyExpensesProps {
 }
 
 export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExpensesProps) {
+  const config = useAppStore((s) => s.data.config);
+  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+
   const [editCat, setEditCat] = useState<FamilyExpense | null>(null);
   const [editForm, setEditForm] = useState({ marcela: "", jonatan: "", budget: "", label: "", icon: "" });
   const [showAdd, setShowAdd] = useState(false);
@@ -139,7 +143,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
             <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
               {[{ n: "marcela", v: catTotals.marcela }, { n: "jonatan", v: catTotals.jonatan }].map(({ n, v }) => (
                 <div key={n} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text2)" }}>
-                  <Avatar name={n} size={16} />{COP(v)}
+                  <Avatar name={names[n as keyof typeof names]} persona={n} size={16} />{COP(v)}
                 </div>
               ))}
             </div>
@@ -153,18 +157,18 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
         {editCat && editCat.id === "mercado" ? (
           <>
             <div style={{ marginBottom: 14 }}>
-              <Label>Pagado por Marcela (desde compras)</Label>
+              <Label>Pagado por {names.marcela} (desde compras)</Label>
               <Field
-                label="Pagado por Marcela"
+                label={`Pagado por ${names.marcela}`}
                 value={mercadoTotals.marcela}
                 onChange={() => {}}
                 disabled
               />
             </div>
             <div style={{ marginBottom: 14 }}>
-              <Label>Pagado por Jonatan (desde compras)</Label>
+              <Label>Pagado por {names.jonatan} (desde compras)</Label>
               <Field
-                label="Pagado por Jonatan"
+                label={`Pagado por ${names.jonatan}`}
                 value={mercadoTotals.jonatan}
                 onChange={() => {}}
                 disabled
@@ -173,8 +177,8 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
           </>
         ) : (
           <>
-            <Field label="Pagado por Marcela" value={editForm.marcela} onChange={(v) => setEditForm({ ...editForm, marcela: v })} />
-            <Field label="Pagado por Jonatan" value={editForm.jonatan} onChange={(v) => setEditForm({ ...editForm, jonatan: v })} />
+            <Field label={`Pagado por ${names.marcela}`} value={editForm.marcela} onChange={(v) => setEditForm({ ...editForm, marcela: v })} />
+            <Field label={`Pagado por ${names.jonatan}`} value={editForm.jonatan} onChange={(v) => setEditForm({ ...editForm, jonatan: v })} />
           </>
         )}
         {/* Icon selector */}

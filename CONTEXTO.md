@@ -1,72 +1,102 @@
 # CONTEXTO: APP_CorPos_Gastos
 
-## 🎯 Propósito del Proyecto
-Aplicación web para la gestión de gastos familiares de **Marcela y Jonatan**. Administra salarios, gastos del hogar, gastos personales, lista del mercado con historial de compras, gastos extras y proyecciones mensuales. El objetivo final es tener una app web modular y, eventualmente, migrar a React Native para Android/iOS.
+## Propósito
 
-## 🏗️ Arquitectura y Stack Actual
+App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre salarios, gastos del hogar, gastos personales, extras, mercado mensual con historial de compras e historial por mes. Objetivo a futuro: migrar a React Native (Android/iOS).
+
+## Stack
+
 | Componente | Tecnología |
 |---|---|
-| Frontend | React 18.2 |
-| Build Tool | Vite (migrado desde Create React App) |
-| Lenguaje | TypeScript (modo estricto) |
+| Frontend | React 18 + TypeScript (strict) |
+| Build | Vite |
+| Estado global | Zustand |
 | Backend/DB | Firebase Firestore (tiempo real) |
-| Hosting | Vercel (despliegue automático desde GitHub) |
+| Persistencia local | localStorage (respaldo offline) |
+| Hosting | Vercel (CI/CD desde GitHub) |
 
-## 📁 Estructura Actual del Código (src/)
-El proyecto ya no es un monolito puro. Se ha refactorizado parcialmente siguiendo el plan en `REFACTOR_PLAN.md`:
+## Estructura de `src/`
 
-- **`src/constants.ts`**: Contiene todas las constantes, listas, iconos, supermercados y las 70 semillas de productos del mercado (`SEED_MARKET_ITEMS`).
-- **`src/types/models.ts`**: Define las interfaces reales de TypeScript que reflejan la estructura de datos guardada en Firestore/LocalStorage (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Extra`, `Mercado`, `Compra`, `ResumenFinanciero`, etc.).
-- **`src/utils/finanzas.ts`**: Contiene **toda la lógica de negocio pura** (funciones matemáticas y de negocio) extraída del `App.tsx`. Incluye `COP` (formatter), `getMonthKey`, `createEmptyMonth`, `calculateMercadoTotals`, y `computeSummary`. Este código no tiene dependencias de React ni Firebase, por lo que es 100% reutilizable en React Native.
-- **`src/components/ui/`**: Contiene los 7 componentes UI "tontos" (primitivas) extraídos de `App.tsx`: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`. Todos están tipados con TypeScript y exportados desde un `index.ts` barrel file.
-- **`src/features/`**: Contiene las 7 vistas de las pestañas extraídas de `App.tsx`: `TabDashboard`, `TabFamilyExpenses`, `TabPersonalExpenses`, `TabSalaries`, `TabHistory`, `TabExtras`, `TabMercado`. Todas están tipadas con TypeScript y exportadas desde un `index.ts` barrel file.
-- **`src/services/firestore.ts`**: Contiene **toda la lógica de persistencia y sincronización** extraída de `App.tsx`. Incluye `loadData` (carga desde localStorage con migraciones y semillas), `saveData` (guarda en localStorage y Firestore), y `subscribeToFirestore` (suscripción en tiempo real a Firestore con callbacks para datos y estado de sincronización). Esto desacopla completamente la UI de Firebase, permitiendo cambiar a Supabase o AsyncStorage (React Native) solo reescribiendo este archivo.
-- **`src/store/useAppStore.ts`**: Contiene **todo el estado global de la aplicación** gestionado con Zustand. Centraliza el estado (`data`, `tab`, `synced`) y las acciones (`updateMercado`, `updateMonth`, etc.). Cada acción que modifica los datos llama automáticamente a `saveData` para persistir en Firestore/localStorage. Esto elimina el *prop drilling* y prepara el estado para ser reutilizado en React Native.
-- **`src/App.tsx`**: Ahora es un archivo ultraligero (~100 líneas) que solo consume el store de Zustand (`useAppStore`), maneja el enrutamiento de pestañas y la estructura general de la app. No tiene `useState` ni lógica de negocio.
+- **`constants.ts`**: Constantes globales, listas de íconos, supermercados, unidades, categorías y 70 semillas de productos (`SEED_MARKET_ITEMS`).
+- **`types/models.ts`**: Interfaces TypeScript que reflejan Firestore/localStorage (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Extra`, `Mercado`, `Compra`, `AppConfig`, `AppData`, `ResumenFinanciero`, etc.).
+- **`utils/finanzas.ts`**: Lógica de negocio pura sin dependencias React ni Firebase. Reutilizable en React Native.
+- **`components/ui/`**: Primitivas UI: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Toast`. Exportadas desde `index.ts`.
+- **`features/`**: Vistas por pestaña — `TabDashboard`, `TabFamilyExpenses`, `TabPersonalExpenses`, `TabSalaries`, `TabHistory`, `TabExtras`, `TabMercado`, `TabMore`, `TabSettings`. Exportadas desde `index.ts`.
+- **`services/firestore.ts`**: `loadData` (carga con migraciones), `saveData` (localStorage + Firestore), `subscribeToFirestore` (suscripción en tiempo real). Desacoplado de la UI.
+- **`store/useAppStore.ts`**: Store Zustand con todo el estado global (`data`, `tab`, `synced`) y acciones (`updateMonth`, `updateMercado`, `resetMercadoCompras`, `updateConfig`, `addMonth`, `deleteMonth`, etc.).
+- **`App.tsx`**: Enrutador de pestañas ultraligero (~100 líneas). Solo consume el store y renderiza la pestaña activa.
+- **`layouts/MainLayout.tsx`**: Layout con header y bottom nav de 5 tabs + "⋯ Más".
 
-## 🚨 REGLAS DE ORO PARA LA IA (¡LEER ANTES DE ACTUAR!)
-Como CTO virtual y Arquitecto de Software, debes seguir estas reglas estrictamente para evitar errores y pérdida de tiempo del usuario:
+## Modelo de datos (`AppData`)
 
-1. **EJECUTA, NO SOLO DESCRIBAS**: **SIEMPRE** debes usar las herramientas de `Filesystem-*` (read, write, edit, move, etc.) para realizar los cambios reales en los archivos. **NUNCA** digas "He creado el archivo X" si no has ejecutado la herramienta `Filesystem-write_file` o `Filesystem-edit_file` para crearlo. El usuario ya se ha quejado de alucinaciones donde solo se describe el código pero no se escribe en el disco.
-2. **DOCUMENTA SIEMPRE**: Después de cada paso completado con éxito, **SIEMPRE** debes actualizar `REFACTOR_PLAN.md` añadiendo una entrada en la "Bitácora de Cambios" con la fecha, qué se hizo y marcando el paso como completado.
-3. **VERIFICA ANTES DE DESTRUIR**: Antes de borrar archivos o hacer cambios destructivos, confirma con el usuario o asegúrate de tener una copia de seguridad.
-4. **SIGUE EL PLAN**: El plan de refactorización paso a paso está detallado en `REFACTOR_PLAN.md`. No te saltes fases. Si vas a empezar una fase nueva, lee primero los archivos actuales para entender exactamente qué hay.
-5. **FLUJO DE TRABAJO**: El usuario se encarga de hacer `git add`, `git commit` y `git push` a GitHub (desde donde Vercel despliega automáticamente). Tú solo te encargas de escribir el código y actualizar la documentación.
+```ts
+{
+  months: Record<string, MonthData>;   // historial mensual
+  currentKey: string;                  // mes activo (ej: "2026-06")
+  mercado: { items: ItemMercado[]; compras: Compra[] };
+  config: { marcelaName: string; jonatanName: string };
+}
+```
 
-## 🚀 Próximos Pasos Inmediatos
-Para saber exactamente qué hacer a continuación, **lee el archivo `REFACTOR_PLAN.md`**. 
-Los próximos pasos lógicos son:
-- **Fase 5**: Implementar optimizaciones de rendimiento (`useMemo`, `useCallback`, lazy loading).
-- **Fase 6**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).
+## Reglas de trabajo
+
+1. Ejecutar siempre con herramientas reales — escribir el archivo, no describirlo.
+2. Antes de tocar código, leer este archivo.
+3. Actualizar este `CONTEXTO.md` al terminar cada sesión.
+4. No exponer credenciales ni rutas internas al cliente.
+5. Commits con formato `tipo(app-gastos): descripción`.
+
+## Estado actual (2026-06-17)
+
+- **Producción estable** en Vercel con Firestore sincronizando.
+- **0 errores TypeScript**.
+- Refactor completo: arquitectura modular, Zustand, lazy loading, dark mode, bottom nav.
+
+## Próximos pasos
+
+- **Configuración de nombres** ✅ implementado (`AppConfig`, `TabSettings`)
+- **Reset mercado** ✅ implementado (`resetMercadoCompras`, botón en Configuración)
+- Propagar nombres configurables al resto de tabs (FamilyExpenses, PersonalExpenses, Extras, Salaries) — actualmente solo Dashboard y Mercado los usan.
+- Preparación para app pública: autenticación básica, multi-usuario.
+- Migración a React Native (base ya desacoplada en `utils/finanzas.ts` y `services/firestore.ts`).
 
 ---
-## 📋 Historial de cambios recientes
+
+## Historial de cambios
+
+### [2026-06-17] — Configuración de nombres + reset mercado + TabSettings
+
+- **`AppConfig`** añadido a `types/models.ts`: `{ marcelaName, jonatanName }`.
+- **`AppData.config`** propagado en store, firestore (seed + migración de datos existentes).
+- **`useAppStore`**: nuevas acciones `updateConfig` y `resetMercadoCompras`.
+- **`TabSettings`** creado: edición de nombres a mostrar + botón de reinicio de compras del mercado (con confirmación Modal).
+- **`TabMore`**: nueva opción ⚙️ Configuración.
+- **`TabDashboard`** y **`TabMercado`**: usan `config.marcelaName` / `config.jonatanName` en lugar de strings hardcodeados.
+- **`README.md`** actualizado: refleja stack real (Vite, Zustand, TypeScript strict).
+- Migración automática: datos existentes sin `config` reciben defaults al cargar.
 
 ### [2026-06-17] — Auditoría post-refactor y corrección de bugs
-- **REFACTOR_PLAN.md eliminado**: plan completado al 100%, ya no es necesario.
-- **src/types/index.ts eliminado**: archivo de la Fase 2 sin importadores, reemplazado por `src/types/models.ts`.
-- **TabHistory.tsx**: `window.confirm` y `alert()` reemplazados por componentes `Modal` propios. Props tipados con `MonthData`, `Mercado` y `Record<string, MonthData>`.
-- **TabPersonalExpenses.tsx**: `deleteExpense` ahora muestra Modal de confirmación (consistente con el resto de la app). Props tipados con `MonthData` y `PersonalExpense`. `any` residuales eliminados con el tipo `Persona = 'marcela' | 'jonatan'`.
-- **TabSalaries.tsx**: Props tipados con `MonthData`.
-- **App.tsx**: Aserción `summary!` para garantizar no-null al pasar a `TabDashboard` (la guard `if (!currentMonth)` lo garantiza en runtime).
+
+- `REFACTOR_PLAN.md` eliminado (plan completado al 100%).
+- `src/types/index.ts` eliminado (reemplazado por `types/models.ts`).
+- `TabHistory`: `window.confirm` reemplazado por Modal propio. Props tipados.
+- `TabPersonalExpenses`: Modal de confirmación en `deleteExpense`. Tipo `Persona` eliminando `any`.
+- `TabSalaries`: Props tipados.
+- `App.tsx`: aserción `summary!` para non-null garantizado por guard.
 
 ### [2026-06-17] — Mejoras visuales y corrección de errores TypeScript
 
-- **0 errores TypeScript**: `vite/client` ref en firebase.ts, non-null assertions, `Persona` type en TabExtras, `noUnusedLocals` en TabDashboard, `DocumentData` cast en firestore, `import React` eliminado de los 7 componentes UI.
-- **Toast/snackbar**: confirmación visual al guardar en Hogar, Extras, Personal y Salarios.
-- **Dark mode**: `prefers-color-scheme: dark` con variables CSS existentes.
-- **Transiciones de pestaña**: animación `tabIn` al cambiar de tab.
-- **Bottom nav**: reducido de 7 a 5 tabs principales + "⋯ Más" (agrupa Salarios e Historial en `TabMore`).
-- **Header**: emoji 💼 eliminado, solo tipografía "CorPos".
-- **Componente `Select`**: reutilizable en `components/ui/`, reemplaza inline styles en TabExtras y TabHistory.
-- **Field con `currency` prop**: muestra formato COP al perder foco, número crudo al editar. Usado en TabSalaries.
-- **Fix checkbox TabPersonalExpenses**: `stopPropagation` en el checkbox para no abrir el modal de edición al marcar/desmarcar.
-- **`.env` local creado**: variables `VITE_FIREBASE_*` para desarrollo local.
-- **Firestore rules**: corregidas en Firebase Console (`appData` → `corpos`) para restaurar sincronización.
+- 0 errores TypeScript (vite/client ref, non-null assertions, noUnusedLocals, DocumentData cast).
+- Toast/snackbar en Hogar, Extras, Personal y Salarios.
+- Dark mode con `prefers-color-scheme: dark`.
+- Transiciones de pestaña (`tabIn`).
+- Bottom nav: 5 tabs + "⋯ Más" (agrupa Salarios, Historial, Configuración).
+- Componente `Select` reutilizable.
+- `Field` con prop `currency` (formato COP al perder foco).
+- Fix checkbox en TabPersonalExpenses (stopPropagation).
+- `.env` local creado, Firestore rules corregidas.
 
 ### [2026-06-17] — TabMercado: compras primero + productos colapsados
 
-- **Orden de tabs**: Compras aparece primero (vista por defecto), Productos pasa a segundo lugar como "configuración".
-- **ItemCard colapsado**: cada producto muestra solo nombre, categoría, supermercado y precio base. Al hacer clic se despliega la calculadora completa (precio hoy, cantidad, unidades, guardar compra, últimas compras). Los botones ✏️ y 🗑 tienen `stopPropagation` para no interferir con el toggle.
-
-*Última actualización: 2026-06-17. Producción estable en Vercel con Firestore sincronizando. Siguiente etapa: perfiles configurables (nombres, salarios base) — preparación para app pública.*
+- Compras como vista por defecto; Productos pasa a segundo lugar.
+- `ItemCard` colapsado: solo muestra nombre/categoría/precio. Al clic despliega calculadora completa.

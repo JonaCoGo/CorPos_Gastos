@@ -3,6 +3,7 @@ import { Avatar, Card, Btn, Field, ProgressBar } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP } from '../utils/finanzas';
 import { MonthData } from '../types/models';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabSalariesProps {
   monthData: MonthData;
@@ -10,6 +11,9 @@ interface TabSalariesProps {
 }
 
 export function TabSalaries({ monthData, onUpdate }: TabSalariesProps) {
+  const config = useAppStore((s) => s.data.config);
+  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+
   const personalTotalMarcela = (monthData.personalExpenses?.marcela || []).reduce((s, e) => s + (e.amount || 0), 0);
   const personalTotalJonatan = (monthData.personalExpenses?.jonatan || []).reduce((s, e) => s + (e.amount || 0), 0);
 
@@ -42,7 +46,7 @@ export function TabSalaries({ monthData, onUpdate }: TabSalariesProps) {
           <div key={n} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <Avatar name={n} size={22} />
-              <span style={{ fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{n}</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{names[n as keyof typeof names]}</span>
             </div>
             <Field
               label="Salario bruto"

@@ -3,6 +3,7 @@ import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { Mercado, ItemMercado, Compra } from '../types/models';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabMercadoProps {
   mercado: Mercado;
@@ -10,6 +11,12 @@ interface TabMercadoProps {
 }
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
+  const config = useAppStore((s) => s.data.config);
+  const names = {
+    marcela: config?.marcelaName ?? "Marcela",
+    jonatan: config?.jonatanName ?? "Jonatan",
+  };
+
   const items   = mercado?.items   || [];
   const compras = mercado?.compras || [];
 
@@ -196,10 +203,10 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                     {(c.marcelaAmount !== undefined || c.jonatanAmount !== undefined) && (
                       <div style={{ marginTop: 6, fontSize: 11, color: "var(--text2)" }}>
                         {c.marcelaAmount > 0 && (
-                          <div>Marcela: {COP(c.marcelaAmount)}</div>
+                          <div>{names.marcela}: {COP(c.marcelaAmount)}</div>
                         )}
                         {c.jonatanAmount > 0 && (
-                          <div>Jonatan: {COP(c.jonatanAmount)}</div>
+                          <div>{names.jonatan}: {COP(c.jonatanAmount)}</div>
                         )}
                       </div>
                     )}
@@ -280,7 +287,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               }}>
-                <span>{p === "ambos" ? "Ambos" : p === "marcela" ? "Marcela" : "Jonatan"}</span>
+                <span>{p === "ambos" ? "Ambos" : p === "marcela" ? names.marcela : names.jonatan}</span>
               </button>
             ))}
           </div>
@@ -294,10 +301,10 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             {compraForm.person !== "" && (
               <div style={{ marginTop: 10, fontSize: 11, color: "var(--text2)" }}>
                 {compraForm.person === "marcela" && (
-                  <div>Marcela paga: {COP(compraPreview)}</div>
+                  <div>{names.marcela} paga: {COP(compraPreview)}</div>
                 )}
                 {compraForm.person === "jonatan" && (
-                  <div>Jonatan paga: {COP(compraPreview)}</div>
+                  <div>{names.jonatan} paga: {COP(compraPreview)}</div>
                 )}
                 {compraForm.person === "ambos" && (
                   <div>Cada uno paga: {COP(compraPreview / 2)}</div>
