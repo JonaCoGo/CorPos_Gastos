@@ -50,4 +50,18 @@ Los próximos pasos lógicos son:
 - **TabSalaries.tsx**: Props tipados con `MonthData`.
 - **App.tsx**: Aserción `summary!` para garantizar no-null al pasar a `TabDashboard` (la guard `if (!currentMonth)` lo garantiza en runtime).
 
-*Última actualización: 2026-06-17. Producción estable en Vercel. Bugs de consistencia UI corregidos. Siguiente etapa: mejoras visuales (toast, transiciones, dark mode, bottom nav).*
+### [2026-06-17] — Mejoras visuales y corrección de errores TypeScript
+
+- **0 errores TypeScript**: `vite/client` ref en firebase.ts, non-null assertions, `Persona` type en TabExtras, `noUnusedLocals` en TabDashboard, `DocumentData` cast en firestore, `import React` eliminado de los 7 componentes UI.
+- **Toast/snackbar**: confirmación visual al guardar en Hogar, Extras, Personal y Salarios.
+- **Dark mode**: `prefers-color-scheme: dark` con variables CSS existentes.
+- **Transiciones de pestaña**: animación `tabIn` al cambiar de tab.
+- **Bottom nav**: reducido de 7 a 5 tabs principales + "⋯ Más" (agrupa Salarios e Historial en `TabMore`).
+- **Header**: emoji 💼 eliminado, solo tipografía "CorPos".
+- **Componente `Select`**: reutilizable en `components/ui/`, reemplaza inline styles en TabExtras y TabHistory.
+- **Field con `currency` prop**: muestra formato COP al perder foco, número crudo al editar. Usado en TabSalaries.
+- **Fix checkbox TabPersonalExpenses**: `stopPropagation` en el checkbox para no abrir el modal de edición al marcar/desmarcar.
+- **`.env` local creado**: variables `VITE_FIREBASE_*` para desarrollo local.
+- **Firestore rules**: corregidas en Firebase Console (`appData` → `corpos`) para restaurar sincronización.
+
+*Última actualización: 2026-06-17. Producción estable en Vercel con Firestore sincronizando. Siguiente etapa: perfiles configurables (nombres, salarios base) — preparación para app pública.*
