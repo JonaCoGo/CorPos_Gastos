@@ -1,10 +1,11 @@
 import { Avatar, ProgressBar, Card } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP } from '../utils/finanzas';
+import { MonthData, ResumenFinanciero } from '../types/models';
 
 interface TabDashboardProps {
-  monthData: any;
-  summary: any;
+  monthData: MonthData;
+  summary: ResumenFinanciero;
 }
 
 export function TabDashboard({ monthData, summary }: TabDashboardProps) {

@@ -2,10 +2,11 @@ import { useState, useMemo } from "react";
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
+import { Mercado, ItemMercado, Compra } from '../types/models';
 
 interface TabMercadoProps {
-  mercado: any;
-  onUpdate: (data: any) => void;
+  mercado: Mercado;
+  onUpdate: (data: Mercado) => void;
 }
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
@@ -17,7 +18,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [search,     setSearch]     = useState("");
   const [showAdd,    setShowAdd]    = useState(false);
   const [showCompra, setShowCompra] = useState(false);
-  const [confirmDel, setConfirmDel] = useState<any>(null);
+  const [confirmDel, setConfirmDel] = useState<ItemMercado | null>(null);
+  const [confirmDelCompra, setConfirmDelCompra] = useState<Compra | null>(null);
 
   const [addForm, setAddForm] = useState({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
   const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
@@ -25,36 +27,36 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   
   // Memoize filtered items for the compra modal search - only recompute when items or searchProd changes
   const filteredItems = useMemo(() => {
-    return items.filter((i: any) => i.name.toLowerCase().includes(searchProd.toLowerCase()));
+    return items.filter((i: ItemMercado) => i.name.toLowerCase().includes(searchProd.toLowerCase()));
   }, [items, searchProd]);
 
   const saveItem = () => {
     if (!addForm.name || !addForm.pricePer) return;
-    const newItem = { id: `item_${Date.now()}`, name: addForm.name, pricePer: Number(addForm.pricePer), unit: addForm.unit, supermarket: addForm.supermarket, category: addForm.category };
+    const newItem: ItemMercado = { id: `item_${Date.now()}`, name: addForm.name, pricePer: Number(addForm.pricePer), unit: addForm.unit, supermarket: addForm.supermarket, category: addForm.category };
     onUpdate({ ...mercado, items: [...items, newItem] });
     setShowAdd(false);
     setAddForm({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
   };
 
-  const updateItem = (id: string, changes: any) => {
-    onUpdate({ ...mercado, items: items.map((i: any) => i.id === id ? { ...i, ...changes } : i) });
+  const updateItem = (id: string, changes: Partial<ItemMercado>) => {
+    onUpdate({ ...mercado, items: items.map((i: ItemMercado) => i.id === id ? { ...i, ...changes } : i) });
   };
 
   const deleteItem = (id: string) => {
-    onUpdate({ ...mercado, items: items.filter((i: any) => i.id !== id), compras: compras.filter((c: any) => c.itemId !== id) });
+    onUpdate({ ...mercado, items: items.filter((i: ItemMercado) => i.id !== id), compras: compras.filter((c: Compra) => c.itemId !== id) });
     setConfirmDel(null);
   };
 
   const registerCompra = () => {
     if (!compraForm.itemId || !compraForm.qty) return;
-    const item = items.find((i: any) => i.id === compraForm.itemId);
+    const item = items.find((i: ItemMercado) => i.id === compraForm.itemId);
     if (!item) return;
     const qty   = Number(compraForm.qty);
     const pricePer = Number(compraForm.pricePer) || item.pricePer;
     const total = pricePer * qty;
     const marcelaAmount = compraForm.person === "marcela" ? total : compraForm.person === "jonatan" ? 0 : total / 2;
     const jonatanAmount = compraForm.person === "jonatan" ? total : compraForm.person === "marcela" ? 0 : total / 2;
-    const newC  = {
+    const newC: Compra  = {
       id: `compra_${Date.now()}`,
       itemId: item.id,
       itemName: item.name,
@@ -74,7 +76,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     setSearchProd("");
   };
 
-  const compraItem = items.find((i: any) => i.id === compraForm.itemId);
+  const compraItem = items.find((i: ItemMercado) => i.id === compraForm.itemId);
   const pricePerForPreview = Number(compraForm.pricePer) || compraItem?.pricePer || 0;
   
   // Memoize compra preview calculation
@@ -84,7 +86,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   // Memoize filtered items for the main list view - only recompute when items, filterCat, or search changes
   const filtered = useMemo(() => {
-    return items.filter((i: any) => {
+    return items.filter((i: ItemMercado) => {
       const matchCat  = filterCat === "Todas" || i.category === filterCat;
       const matchText = i.name.toLowerCase().includes(search.toLowerCase());
       return matchCat && matchText;
@@ -93,7 +95,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   // Memoize total compras calculation - only recompute when compras changes
   const totalCompras = useMemo(() => {
-    return compras.reduce((s: number, c: any) => s + c.total, 0);
+    return compras.reduce((s: number, c: Compra) => s + c.total, 0);
   }, [compras]);
 
   return (
@@ -156,7 +158,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               <div style={{ fontSize: 13, color: "var(--text2)" }}>Prueba con otra categoría o búsqueda.</div>
             </Card>
           ) : (
-            filtered.map((item: any) => (
+            filtered.map((item: ItemMercado) => (
               <ItemCard
                 key={item.id} item={item}
                 lastCompras={compras.filter((c: any) => c.itemId === item.id).slice(0, 2)}
@@ -184,7 +186,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               <div style={{ fontSize: 13, color: "var(--text2)" }}>Registra una compra desde la lista de productos.</div>
             </Card>
           ) : (
-            compras.map((c: any) => (
+            compras.map((c: Compra) => (
               <Card key={c.id} style={{ padding: "14px 18px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
@@ -204,7 +206,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 18, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(c.total)}</div>
-                    <button onClick={() => { if (window.confirm("¿Eliminar compra?")) onUpdate({ ...mercado, compras: compras.filter((x: any) => x.id !== c.id) }); }}
+                    <button onClick={() => setConfirmDelCompra(c)}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 11, marginTop: 4 }}>🗑 eliminar</button>
                   </div>
                 </div>
@@ -262,7 +264,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             setCompraForm({ ...compraForm, itemId: e.target.value, supermarket: it?.supermarket || "D1", pricePer: it ? String(it.pricePer) : "" });
           }} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
             <option value="">— Selecciona —</option>
-            {filteredItems.map((i: any) => <option key={i.id} value={i.id}>{i.name} · {COP(i.pricePer)}/{i.unit}</option>)}
+            {filteredItems.map((i: ItemMercado) => <option key={i.id} value={i.id}>{i.name} · {COP(i.pricePer)}/{i.unit}</option>)}
           </select>
         </div>
         <Field label="Precio" value={compraForm.pricePer} onChange={(v) => setCompraForm({ ...compraForm, pricePer: v })} placeholder="895" />
@@ -319,14 +321,25 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         </div>
       </Modal>
 
-      {/* Modal: confirmar eliminar */}
+      {/* Modal: confirmar eliminar producto */}
       <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="¿Eliminar producto?">
         <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
           Vas a eliminar <strong>{confirmDel?.name}</strong>. También se eliminarán sus compras del historial.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setConfirmDel(null)} style={{ flex: 1 }}>Cancelar</Btn>
-          <Btn variant="danger" onClick={() => deleteItem(confirmDel.id)} style={{ flex: 1 }}>Eliminar</Btn>
+          <Btn variant="danger" onClick={() => deleteItem(confirmDel!.id)} style={{ flex: 1 }}>Eliminar</Btn>
+        </div>
+      </Modal>
+
+      {/* Modal: confirmar eliminar compra */}
+      <Modal open={!!confirmDelCompra} onClose={() => setConfirmDelCompra(null)} title="¿Eliminar compra?">
+        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
+          Vas a eliminar la compra de <strong>{confirmDelCompra?.itemName}</strong> del {confirmDelCompra?.date}. Esta acción no se puede deshacer.
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn variant="secondary" onClick={() => setConfirmDelCompra(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="danger" onClick={() => { onUpdate({ ...mercado, compras: compras.filter((x: Compra) => x.id !== confirmDelCompra!.id) }); setConfirmDelCompra(null); }} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
       </Modal>
     </div>

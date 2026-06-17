@@ -194,7 +194,14 @@ Transformar la aplicación monolítica actual (un solo archivo `App.jsx` de ~150
 
 ---
 
+### [2026-06-17] - Mejoras de calidad previas a Fase 6
+
+- **firebase.js → firebase.ts**: Migrado a TypeScript y reconectado a variables de entorno via `import.meta.env.VITE_FIREBASE_*`. Se eliminó `firebase.js`. Se creó `.env` con las credenciales reales (en `.gitignore`) y `.env.example` vacío para documentación.
+- **Tipado real en servicios**: `saveData` ahora recibe `AppData` en lugar de `any`. `subscribeToFirestore` retorna y acepta `AppData` tipado.
+- **Tipado en features**: Eliminados los `any` críticos en `TabDashboard`, `TabFamilyExpenses`, `TabExtras` y `TabMercado`. Props tipados con `MonthData`, `Mercado`, `FamilyExpense`, `Extra`, `ItemMercado`, `Compra`, `ResumenFinanciero`.
+- **Memoización de mercado en TabFamilyExpenses**: `calculateMercadoTotals(mercado)` ahora se calcula una sola vez por render con `useMemo`, en lugar de ser llamado múltiples veces en el `reduce`, el `map` del render y los modales.
+- **window.confirm eliminado**: La eliminación de compras individuales en `TabMercado` ahora usa el componente `Modal` propio (con estado `confirmDelCompra`), consistente con el resto de la app.
+
 ## 🚀 Próximos Pasos Inmediatos (Para el siguiente chat)
 
-1. **Fase 5 (Optimization)**: Implementar `useMemo` y `useCallback` en cálculos pesados, lazy loading de vistas.
-2. **Fase 6 (Security & Deploy)**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).
+1. **Fase 6 (Security & Deploy)**: Reglas de Firestore restrictivas. Configurar variables de entorno `VITE_FIREBASE_*` en Vercel (el `.env` ya existe localmente).

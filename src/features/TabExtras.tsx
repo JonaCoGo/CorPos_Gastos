@@ -2,16 +2,17 @@ import { useState } from "react";
 import { Avatar, Card, Btn, Field, Modal, Label } from '../components/ui';
 import { EXTRA_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
+import { MonthData, Extra } from '../types/models';
 
 interface TabExtrasProps {
-  monthData: any;
-  onUpdate: (data: any) => void;
+  monthData: MonthData;
+  onUpdate: (data: MonthData) => void;
 }
 
 export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
   const extras = monthData.extras || [];
   const [showAdd, setShowAdd]   = useState(false);
-  const [confirmDel, setConfirmDel] = useState<any>(null);
+  const [confirmDel, setConfirmDel] = useState<Extra | null>(null);
   const [form, setForm] = useState({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10) });
 
   const addExtra = () => {
@@ -27,11 +28,11 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
     setConfirmDel(null);
   };
 
-  const totalMarcela = extras.filter((e: any) => e.person === "marcela").reduce((s: number, e: any) => s + e.amount, 0);
-  const totalJonatan = extras.filter((e: any) => e.person === "jonatan").reduce((s: number, e: any) => s + e.amount, 0);
+  const totalMarcela = extras.filter((e: Extra) => e.person === "marcela").reduce((s: number, e: Extra) => s + e.amount, 0);
+  const totalJonatan = extras.filter((e: Extra) => e.person === "jonatan").reduce((s: number, e: Extra) => s + e.amount, 0);
 
   // Group by category for summary
-  const byCat = extras.reduce((acc: any, e: any) => {
+  const byCat = extras.reduce((acc: Record<string, number>, e: Extra) => {
     acc[e.category] = (acc[e.category] || 0) + e.amount;
     return acc;
   }, {});
@@ -83,7 +84,7 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
           <Btn variant="primary" onClick={() => setShowAdd(true)}>+ Añadir gasto extra</Btn>
         </Card>
       ) : (
-        [...extras].reverse().map((e: any) => (
+        [...extras].reverse().map((e: Extra) => (
           <Card key={e.id} style={{ padding: "12px 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>

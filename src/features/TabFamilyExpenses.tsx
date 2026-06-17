@@ -1,39 +1,41 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../components/ui';
 import { ICONS } from '../constants';
 import { COP, calculateMercadoTotals } from '../utils/finanzas';
+import { MonthData, Mercado, FamilyExpense } from '../types/models';
 
 interface TabFamilyExpensesProps {
-  monthData: any;
-  mercado: any;
-  onUpdate: (data: any) => void;
+  monthData: MonthData;
+  mercado: Mercado;
+  onUpdate: (data: MonthData) => void;
 }
 
 export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExpensesProps) {
-  const [editCat, setEditCat] = useState<any>(null);
+  const [editCat, setEditCat] = useState<FamilyExpense | null>(null);
   const [editForm, setEditForm] = useState({ marcela: "", jonatan: "", budget: "", label: "", icon: "" });
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ label: "", budget: "", icon: "📦" });
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [showEditIconPicker, setShowEditIconPicker] = useState(false);
-  const [confirmDel, setConfirmDel] = useState<any>(null);
+  const [confirmDel, setConfirmDel] = useState<FamilyExpense | null>(null);
 
-  const openEdit = (cat: any) => {
+  const mercadoTotals = useMemo(() => calculateMercadoTotals(mercado), [mercado]);
+
+  const openEdit = (cat: FamilyExpense) => {
     setEditCat(cat);
     if (cat.id === "mercado") {
-      const mercadoTotals = calculateMercadoTotals(mercado);
       setEditForm({
-        marcela: mercadoTotals.marcela,
-        jonatan: mercadoTotals.jonatan,
-        budget: cat.budget || 0,
+        marcela: String(mercadoTotals.marcela),
+        jonatan: String(mercadoTotals.jonatan),
+        budget: String(cat.budget || 0),
         label: cat.label,
         icon: cat.icon
       });
     } else {
       setEditForm({
-        marcela: cat.marcela || 0,
-        jonatan: cat.jonatan || 0,
-        budget: cat.budget || 0,
+        marcela: String(cat.marcela || 0),
+        jonatan: String(cat.jonatan || 0),
+        budget: String(cat.budget || 0),
         label: cat.label,
         icon: cat.icon
       });
@@ -42,15 +44,14 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
 
   const saveEdit = () => {
     if (editCat && editCat.id === "mercado") {
-      const mercadoTotals = calculateMercadoTotals(mercado);
-      const updated = monthData.familyExpenses.map((c: any) =>
+      const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
         c.id === editCat.id
           ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
           : c
       );
       onUpdate({ ...monthData, familyExpenses: updated });
     } else {
-      const updated = monthData.familyExpenses.map((c: any) =>
+      const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
         c.id === editCat.id
           ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
           : c
@@ -61,7 +62,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
   };
 
   const toggleFamilyActive = (id: string) => {
-    const updated = monthData.familyExpenses.map((c: any) => c.id === id ? { ...c, disableNext: !c.disableNext } : c);
+    const updated = monthData.familyExpenses.map((c: FamilyExpense) => c.id === id ? { ...c, disableNext: !c.disableNext } : c);
     onUpdate({ ...monthData, familyExpenses: updated });
   };
 
@@ -82,12 +83,9 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
     setConfirmDel(null);
   };
 
-  const totalBudget = monthData.familyExpenses.reduce((s: number, c: any) => s + (c.budget || 0), 0);
-  const totalPaid = monthData.familyExpenses.reduce((s: number, c: any) => {
-    if (c.id === "mercado") {
-      const mercadoTotals = calculateMercadoTotals(mercado);
-      return s + mercadoTotals.marcela + mercadoTotals.jonatan;
-    }
+  const totalBudget = monthData.familyExpenses.reduce((s: number, c: FamilyExpense) => s + (c.budget || 0), 0);
+  const totalPaid = monthData.familyExpenses.reduce((s: number, c: FamilyExpense) => {
+    if (c.id === "mercado") return s + mercadoTotals.marcela + mercadoTotals.jonatan;
     return s + (c.marcela || 0) + (c.jonatan || 0);
   }, 0);
 
@@ -101,10 +99,10 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
         <Btn variant="primary" onClick={() => setShowAdd(true)} style={{ fontSize: 13, padding: "8px 14px" }}>+ Nuevo</Btn>
       </div>
 
-      {monthData.familyExpenses.map((cat: any) => {
+      {monthData.familyExpenses.map((cat: FamilyExpense) => {
         const isMercado = cat.id === "mercado";
-        const mercadoTotals = isMercado ? calculateMercadoTotals(mercado) : { marcela: cat.marcela || 0, jonatan: cat.jonatan || 0 };
-        const total = mercadoTotals.marcela + mercadoTotals.jonatan;
+        const catTotals = isMercado ? mercadoTotals : { marcela: cat.marcela || 0, jonatan: cat.jonatan || 0 };
+        const total = catTotals.marcela + catTotals.jonatan;
         const isActive = cat.active !== false;
         const over = total > cat.budget && cat.budget > 0 && isActive;
         return (
@@ -139,7 +137,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              {[{ n: "marcela", v: mercadoTotals.marcela }, { n: "jonatan", v: mercadoTotals.jonatan }].map(({ n, v }) => (
+              {[{ n: "marcela", v: catTotals.marcela }, { n: "jonatan", v: catTotals.jonatan }].map(({ n, v }) => (
                 <div key={n} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text2)" }}>
                   <Avatar name={n} size={16} />{COP(v)}
                 </div>
@@ -158,8 +156,8 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
               <Label>Pagado por Marcela (desde compras)</Label>
               <Field
                 label="Pagado por Marcela"
-                value={calculateMercadoTotals(mercado).marcela}
-                onChange={(v) => {/* Read-only */}}
+                value={mercadoTotals.marcela}
+                onChange={() => {}}
                 disabled
               />
             </div>
@@ -167,8 +165,8 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
               <Label>Pagado por Jonatan (desde compras)</Label>
               <Field
                 label="Pagado por Jonatan"
-                value={calculateMercadoTotals(mercado).jonatan}
-                onChange={(v) => {/* Read-only */}}
+                value={mercadoTotals.jonatan}
+                onChange={() => {}}
                 disabled
               />
             </div>

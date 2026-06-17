@@ -40,4 +40,4 @@ Los próximos pasos lógicos son:
 - **Fase 6**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).
 
 ---
-*Última actualización: 2026-06-13. Fase 4 (Zustand Global State) completada.*
+*Última actualización: 2026-06-17. Fases 1–5 completadas. Mejoras de calidad aplicadas: firebase.ts, tipado real en features y services, memoización de mercadoTotals, window.confirm reemplazado por Modal. Pendiente: Fase 6 (Firestore rules + Vercel env vars).*

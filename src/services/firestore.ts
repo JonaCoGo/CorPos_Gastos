@@ -2,6 +2,7 @@ import { db } from "../firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import { FIRESTORE_DOC, STORAGE_KEY, SEED_MARKET_ITEMS } from "../constants";
 import { createEmptyMonth } from "../utils/finanzas";
+import { AppData } from "../types/models";
 
 /**
  * Carga los datos desde localStorage.
@@ -50,7 +51,7 @@ export function loadData() {
 /**
  * Guarda los datos en localStorage y en Firestore (si está disponible).
  */
-export function saveData(d: any) {
+export function saveData(d: AppData) {
   // Siempre guardar en localStorage como respaldo
   localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
   
@@ -70,7 +71,7 @@ export function saveData(d: any) {
  * @returns Función para cancelar la suscripción (unsubscribe).
  */
 export function subscribeToFirestore(
-  onData: (data: any) => void,
+  onData: (data: AppData) => void,
   onSyncChange: (synced: boolean) => void
 ) {
   if (!db) {
