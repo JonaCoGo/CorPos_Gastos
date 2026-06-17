@@ -64,4 +64,9 @@ Los próximos pasos lógicos son:
 - **`.env` local creado**: variables `VITE_FIREBASE_*` para desarrollo local.
 - **Firestore rules**: corregidas en Firebase Console (`appData` → `corpos`) para restaurar sincronización.
 
+### [2026-06-17] — TabMercado: compras primero + productos colapsados
+
+- **Orden de tabs**: Compras aparece primero (vista por defecto), Productos pasa a segundo lugar como "configuración".
+- **ItemCard colapsado**: cada producto muestra solo nombre, categoría, supermercado y precio base. Al hacer clic se despliega la calculadora completa (precio hoy, cantidad, unidades, guardar compra, últimas compras). Los botones ✏️ y 🗑 tienen `stopPropagation` para no interferir con el toggle.
+
 *Última actualización: 2026-06-17. Producción estable en Vercel con Firestore sincronizando. Siguiente etapa: perfiles configurables (nombres, salarios base) — preparación para app pública.*

@@ -13,7 +13,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const items   = mercado?.items   || [];
   const compras = mercado?.compras || [];
 
-  const [view,       setView]       = useState("lista");
+  const [view,       setView]       = useState("compras");
   const [filterCat,  setFilterCat]  = useState("Todas");
   const [search,     setSearch]     = useState("");
   const [showAdd,    setShowAdd]    = useState(false);
@@ -103,7 +103,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
       {/* Toggle */}
       <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 12, padding: 4, gap: 4 }}>
-        {[{ id: "lista", label: "🧺 Productos" }, { id: "compras", label: "🧾 Compras" }].map((v) => (
+        {[{ id: "compras", label: "🧾 Compras" }, { id: "lista", label: "🧺 Productos" }].map((v) => (
           <button key={v.id} onClick={() => setView(v.id)} style={{
             flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
             background: view === v.id ? "var(--surface)" : "transparent",
@@ -348,6 +348,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
 // ── ItemCard: edición inline completa + calculadora con precio editable ─────
 function ItemCard({ item, lastCompras, onUpdate, onDelete, onComprar }: any) {
+  const [expanded,     setExpanded]     = useState(false);
   const [editing,      setEditing]      = useState(false);
   const [qty,          setQty]          = useState("");
   const [currentPrice, setCurrentPrice] = useState(String(item.pricePer));
@@ -371,20 +372,29 @@ function ItemCard({ item, lastCompras, onUpdate, onDelete, onComprar }: any) {
     <Card style={{ padding: "14px 16px" }}>
       {!editing ? (
         <>
-          {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+          {/* Header — siempre visible, clic para expandir */}
+          <div
+            onClick={() => setExpanded((e) => !e)}
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }}
+          >
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text1)", marginBottom: 2 }}>{item.name}</div>
-              <div style={{ fontSize: 11, color: "var(--text2)" }}>{item.category} · {item.supermarket}</div>
+              <div style={{ fontSize: 11, color: "var(--text2)" }}>{item.category} · {item.supermarket} · {COP(item.pricePer)}/{item.unit}</div>
             </div>
-            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-              <button onClick={() => setEditing(true)}
+            <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditing(true); }}
                 style={{ background: "var(--surface2)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", fontSize: 14 }}>✏️</button>
-              <button onClick={onDelete}
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
                 style={{ background: "var(--surface2)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", fontSize: 14 }}>🗑</button>
+              <span style={{ fontSize: 12, color: "var(--text2)", marginLeft: 2 }}>{expanded ? "▲" : "▼"}</span>
             </div>
           </div>
 
+          {/* Detalle expandible */}
+          {expanded && (
+          <div style={{ marginTop: 12 }}>
           {/* Calculadora */}
           <div style={{ background: "var(--surface2)", borderRadius: 14, padding: "14px" }}>
 
@@ -524,6 +534,8 @@ function ItemCard({ item, lastCompras, onUpdate, onDelete, onComprar }: any) {
                 </div>
               ))}
             </div>
+          )}
+          </div>
           )}
         </>
       ) : (
