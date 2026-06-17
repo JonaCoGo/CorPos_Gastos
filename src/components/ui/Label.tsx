@@ -1,7 +1,7 @@
-import React from 'react';
+import { ReactNode } from 'react';
 
 interface LabelProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function Label({ children }: LabelProps) {

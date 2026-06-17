@@ -162,7 +162,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               <ItemCard
                 key={item.id} item={item}
                 lastCompras={compras.filter((c: any) => c.itemId === item.id).slice(0, 2)}
-                onUpdate={(changes) => updateItem(item.id, changes)}
+                onUpdate={(changes: Partial<ItemMercado>) => updateItem(item.id, changes)}
                 onDelete={() => setConfirmDel(item)}
                 onComprar={(priceOverride?: number, qtyOverride?: string) => { setCompraForm({ ...compraForm, itemId: item.id, supermarket: item.supermarket, pricePer: priceOverride ? String(priceOverride) : String(item.pricePer), qty: qtyOverride || "" }); setShowCompra(true); }}
               />

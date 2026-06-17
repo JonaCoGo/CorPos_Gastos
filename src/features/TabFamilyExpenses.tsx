@@ -52,7 +52,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
       onUpdate({ ...monthData, familyExpenses: updated });
     } else {
       const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
-        c.id === editCat.id
+        c.id === editCat!.id
           ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
           : c
       );
@@ -68,10 +68,10 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
 
   const addCategory = () => {
     if (!addForm.label) return;
-    const newCat = {
+    const newCat: FamilyExpense = {
       id: `custom_${Date.now()}`, label: addForm.label,
       budget: Number(addForm.budget) || 0, icon: addForm.icon,
-      marcela: 0, jonatan: 0,
+      marcela: 0, jonatan: 0, active: true, disableNext: false,
     };
     onUpdate({ ...monthData, familyExpenses: [...monthData.familyExpenses, newCat] });
     setShowAdd(false);
@@ -79,7 +79,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
   };
 
   const deleteCategory = (id: string) => {
-    onUpdate({ ...monthData, familyExpenses: monthData.familyExpenses.filter((c: any) => c.id !== id) });
+    onUpdate({ ...monthData, familyExpenses: monthData.familyExpenses.filter((c) => c.id !== id) });
     setConfirmDel(null);
   };
 
@@ -236,7 +236,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
         </p>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setConfirmDel(null)} style={{ flex: 1 }}>Cancelar</Btn>
-          <Btn variant="danger" onClick={() => deleteCategory(confirmDel.id)} style={{ flex: 1 }}>Eliminar</Btn>
+          <Btn variant="danger" onClick={() => deleteCategory(confirmDel!.id)} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
       </Modal>
     </div>

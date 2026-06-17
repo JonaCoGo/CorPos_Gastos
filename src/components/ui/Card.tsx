@@ -1,8 +1,8 @@
-import React from 'react';
+import { ReactNode, CSSProperties } from 'react';
 
 interface CardProps {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
+  children: ReactNode;
+  style?: CSSProperties;
   onClick?: () => void;
 }
 

@@ -2,15 +2,16 @@ import { useState } from "react";
 import { Avatar, Card, Btn, Field, ProgressBar } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP } from '../utils/finanzas';
+import { MonthData } from '../types/models';
 
 interface TabSalariesProps {
-  monthData: any;
-  onUpdate: (data: any) => void;
+  monthData: MonthData;
+  onUpdate: (data: MonthData) => void;
 }
 
 export function TabSalaries({ monthData, onUpdate }: TabSalariesProps) {
-  const personalTotalMarcela = (monthData.personalExpenses?.marcela || []).reduce((s: number, e: any) => s + (e.amount || 0), 0);
-  const personalTotalJonatan = (monthData.personalExpenses?.jonatan || []).reduce((s: number, e: any) => s + (e.amount || 0), 0);
+  const personalTotalMarcela = (monthData.personalExpenses?.marcela || []).reduce((s, e) => s + (e.amount || 0), 0);
+  const personalTotalJonatan = (monthData.personalExpenses?.jonatan || []).reduce((s, e) => s + (e.amount || 0), 0);
 
   const [form, setForm] = useState({
     marcela: monthData.salaries.marcela || "",

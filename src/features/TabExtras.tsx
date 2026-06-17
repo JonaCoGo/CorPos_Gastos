@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Avatar, Card, Btn, Field, Modal, Label } from '../components/ui';
 import { EXTRA_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
-import { MonthData, Extra } from '../types/models';
+import { MonthData, Extra, Persona } from '../types/models';
 
 interface TabExtrasProps {
   monthData: MonthData;
@@ -13,7 +13,7 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
   const extras = monthData.extras || [];
   const [showAdd, setShowAdd]   = useState(false);
   const [confirmDel, setConfirmDel] = useState<Extra | null>(null);
-  const [form, setForm] = useState({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10) });
+  const [form, setForm] = useState<{ person: Persona; amount: string; category: string; desc: string; date: string }>({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10) });
 
   const addExtra = () => {
     if (!form.amount) return;
@@ -24,7 +24,7 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
   };
 
   const deleteExtra = (id: string) => {
-    onUpdate({ ...monthData, extras: extras.filter((e: any) => e.id !== id) });
+    onUpdate({ ...monthData, extras: extras.filter((e) => e.id !== id) });
     setConfirmDel(null);
   };
 
@@ -58,7 +58,7 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
       {Object.keys(byCat).length > 0 && (
         <Card style={{ padding: "12px 16px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>Por categoría</div>
-          {Object.entries(byCat).sort((a: any, b: any) => b[1] - a[1]).map(([cat, total]: any) => (
+          {Object.entries(byCat).sort(([, a], [, b]) => b - a).map(([cat, total]) => (
             <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
               <span style={{ fontSize: 13, color: "var(--text1)" }}>{cat}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text1)" }}>{COP(total)}</span>
@@ -110,7 +110,7 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
         <div style={{ marginBottom: 14 }}>
           <Label>¿Quién pagó?</Label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {["jonatan", "marcela"].map((p) => (
+            {(["jonatan", "marcela"] as Persona[]).map((p) => (
               <button key={p} onClick={() => setForm({ ...form, person: p })} style={{
                 padding: "10px", borderRadius: 10, border: "2px solid",
                 borderColor: form.person === p ? (p === "marcela" ? "var(--marce)" : "var(--jona)") : "var(--border)",
@@ -144,11 +144,11 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
       {/* Confirm delete */}
       <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="¿Eliminar gasto?">
         <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
-          Vas a eliminar <strong>{confirmDel?.category}</strong> de {COP(confirmDel?.amount)}.
+          Vas a eliminar <strong>{confirmDel?.category}</strong> de {COP(confirmDel?.amount ?? 0)}.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setConfirmDel(null)} style={{ flex: 1 }}>Cancelar</Btn>
-          <Btn variant="danger" onClick={() => deleteExtra(confirmDel.id)} style={{ flex: 1 }}>Eliminar</Btn>
+          <Btn variant="danger" onClick={() => deleteExtra(confirmDel!.id)} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
       </Modal>
     </div>

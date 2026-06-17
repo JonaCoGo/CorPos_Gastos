@@ -81,7 +81,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const keys = Object.keys(months);
     const newData = {
       months,
-      currentKey: keys[keys.length - 1] || null,
+      currentKey: keys[keys.length - 1] || '',
       mercado: data.mercado
     };
     set({ data: newData });

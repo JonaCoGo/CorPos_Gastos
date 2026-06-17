@@ -1,10 +1,10 @@
-import React from 'react';
+import { ReactNode, CSSProperties } from 'react';
 
 interface BtnProps {
-  children: React.ReactNode;
+  children: ReactNode;
   onClick?: () => void;
   variant?: "primary" | "secondary" | "danger" | "marce" | "jona" | "ghost";
-  style?: React.CSSProperties;
+  style?: CSSProperties;
   disabled?: boolean;
 }
 

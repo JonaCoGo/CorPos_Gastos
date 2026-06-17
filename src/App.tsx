@@ -54,7 +54,7 @@ export default function App() {
   const renderTab = () => {
     switch (tab) {
       case "dashboard":
-        return <TabDashboard monthData={currentMonth} summary={summary} />;
+        return <TabDashboard monthData={currentMonth} summary={summary!} />;
       case "family":
         return <TabFamilyExpenses monthData={currentMonth} mercado={data.mercado || { items: [], compras: [] }} onUpdate={updateMonth} />;
       case "extras":

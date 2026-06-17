@@ -39,7 +39,7 @@ export function loadData() {
       credi_ahorros: { marcela: 0, jonatan: 50000 },
       otros: { marcela: 0, jonatan: 0 },
     };
-    return { ...c, ...(map[c.id] || {}) };
+    return { ...c, ...(map[c.id as keyof typeof map] || {}) };
   });
   
   const months = { "2026-06": jun };
@@ -95,7 +95,7 @@ export function subscribeToFirestore(
     ref,
     (snap) => {
       if (snap.exists()) {
-        const remote = snap.data();
+        const remote = snap.data() as AppData;
         // Migración de mercado si está vacío
         if (!remote.mercado || !remote.mercado.items || remote.mercado.items.length === 0) {
           remote.mercado = { items: SEED_MARKET_ITEMS, compras: remote.mercado?.compras || [] };

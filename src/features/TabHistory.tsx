@@ -2,28 +2,32 @@ import { useState } from "react";
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP, computeSummary, getMonthKey } from '../utils/finanzas';
+import { MonthData, Mercado } from '../types/models';
 
 interface TabHistoryProps {
-  allMonths: any;
+  allMonths: Record<string, MonthData>;
   currentKey: string;
-  mercado: any;
+  mercado: Mercado;
   onSelectMonth: (key: string) => void;
-  onNewMonth: (year: number, month: number, salaries: { marcela: number, jonatan: number }) => void;
+  onNewMonth: (year: number, month: number, salaries: { marcela: number; jonatan: number }) => void;
   onDeleteMonth: (key: string) => void;
 }
 
 export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNewMonth, onDeleteMonth }: TabHistoryProps) {
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ year: 2026, month: 7, marcela: "", jonatan: "" });
+  const [dupError, setDupError] = useState(false);
+  const [confirmDelMonth, setConfirmDelMonth] = useState<MonthData | null>(null);
 
   const create = () => {
     const key = getMonthKey(form.year, form.month);
-    if (allMonths[key]) { alert("Ese mes ya existe"); return; }
+    if (allMonths[key]) { setDupError(true); return; }
     onNewMonth(Number(form.year), Number(form.month), { marcela: Number(form.marcela) || 0, jonatan: Number(form.jonatan) || 0 });
     setShowNew(false);
+    setDupError(false);
   };
 
-  const sorted = Object.values(allMonths).sort((a: any, b: any) => b.key.localeCompare(a.key));
+  const sorted = (Object.values(allMonths) as MonthData[]).sort((a, b) => b.key.localeCompare(a.key));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -34,8 +38,8 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
         <Btn variant="primary" onClick={() => setShowNew(true)} style={{ fontSize: 13, padding: "8px 14px" }}>+ Nuevo mes</Btn>
       </div>
 
-      {sorted.map((m: any) => {
-        const s = computeSummary({...m, mercado});
+      {sorted.map((m) => {
+        const s = computeSummary({ ...m, mercado });
         const isActive = m.key === currentKey;
         return (
           <Card key={m.key} onClick={() => onSelectMonth(m.key)}
@@ -63,7 +67,7 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
             </div>
             {!isActive && (
               <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
-                <button onClick={(e) => { e.stopPropagation(); if (window.confirm("¿Eliminar este mes?")) onDeleteMonth(m.key); }}
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDelMonth(m); }}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 12 }}>
                   🗑 Eliminar mes
                 </button>
@@ -73,22 +77,39 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
         );
       })}
 
-      <Modal open={showNew} onClose={() => setShowNew(false)} title="Nuevo mes">
+      {/* Modal: nuevo mes */}
+      <Modal open={showNew} onClose={() => { setShowNew(false); setDupError(false); }} title="Nuevo mes">
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Año" value={form.year} onChange={(v) => setForm({ ...form, year: v })} />
+          <Field label="Año" value={form.year} onChange={(v) => { setForm({ ...form, year: Number(v) }); setDupError(false); }} />
           <div>
             <Label>Mes</Label>
-            <select value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value as any })}
+            <select value={form.month} onChange={(e) => { setForm({ ...form, month: Number(e.target.value) }); setDupError(false); }}
               style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
               {MONTH_NAMES.slice(1).map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
             </select>
           </div>
         </div>
+        {dupError && (
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "var(--danger)", marginBottom: 12 }}>
+            ⚠ Ese mes ya existe. Selecciona otro.
+          </div>
+        )}
         <Field label="Neto Marcela" value={form.marcela} onChange={(v) => setForm({ ...form, marcela: v })} placeholder="Ej: 1379597" />
         <Field label="Neto Jonatan" value={form.jonatan} onChange={(v) => setForm({ ...form, jonatan: v })} placeholder="Ej: 1475402" />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          <Btn variant="secondary" onClick={() => setShowNew(false)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="secondary" onClick={() => { setShowNew(false); setDupError(false); }} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={create} style={{ flex: 1 }}>Crear</Btn>
+        </div>
+      </Modal>
+
+      {/* Modal: confirmar eliminar mes */}
+      <Modal open={!!confirmDelMonth} onClose={() => setConfirmDelMonth(null)} title="¿Eliminar mes?">
+        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
+          Vas a eliminar <strong>{confirmDelMonth ? `${MONTH_NAMES[confirmDelMonth.month]} ${confirmDelMonth.year}` : ""}</strong>. Esta acción no se puede deshacer.
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn variant="secondary" onClick={() => setConfirmDelMonth(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="danger" onClick={() => { onDeleteMonth(confirmDelMonth!.key); setConfirmDelMonth(null); }} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
       </Modal>
     </div>

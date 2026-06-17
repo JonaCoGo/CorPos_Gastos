@@ -16,7 +16,7 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
     totalFamilyPaidMarcela, totalFamilyPaidJonatan,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
     aportePagadoIdealMarcela, aportePagadoIdealJonatan,
-    saldoMarcela, saldoJonatan, diffMarcela, diffJonatan } = summary;
+    saldoMarcela, saldoJonatan } = summary;
 
   // Calcular faltantes para llegar al ideal
   const faltanteMarcela = Math.max(0, aporteFamiliarMarcela - totalFamilyPaidMarcela);
@@ -38,7 +38,7 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <Avatar name={n} size={26} />
               <span style={{ fontSize: 13, fontWeight: 700, textTransform: "capitalize" }}>{n}</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text2)" }}>{(ratio[n] * 100).toFixed(1)}% del aporte</span>
+              <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text2)" }}>{(ratio[n as keyof typeof ratio] * 100).toFixed(1)}% del aporte</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>

@@ -2,30 +2,35 @@ import { useState } from "react";
 import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../components/ui';
 import { ICONS } from '../constants';
 import { COP } from '../utils/finanzas';
+import { MonthData, PersonalExpense } from '../types/models';
 
 interface TabPersonalExpensesProps {
-  monthData: any;
-  onUpdate: (data: any) => void;
+  monthData: MonthData;
+  onUpdate: (data: MonthData) => void;
 }
+
+type Persona = 'marcela' | 'jonatan';
+interface EditTarget { person: Persona; expense: PersonalExpense; }
 
 export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpensesProps) {
   const [addModal, setAddModal] = useState<string | null>(null);
   const [form, setForm] = useState({ desc: "", amount: "", day: "", icon: "" });
-  const [editExpense, setEditExpense] = useState<any>(null);
+  const [editExpense, setEditExpense] = useState<EditTarget | null>(null);
   const [editForm, setEditForm] = useState({ desc: "", amount: "", day: "", icon: "" });
   const [showEditIconPicker, setShowEditIconPicker] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<{ person: Persona; expense: PersonalExpense } | null>(null);
 
-  const togglePaid = (person: string, id: number) => {
-    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e: any) => e.id === id ? { ...e, paid: !e.paid } : e) };
+  const togglePaid = (person: Persona, id: number) => {
+    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e: PersonalExpense) => e.id === id ? { ...e, paid: !e.paid } : e) };
     onUpdate({ ...monthData, personalExpenses: updated });
   };
-  const toggleActive = (person: string, id: number) => {
-    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e: any) => e.id === id ? { ...e, disableNext: !e.disableNext } : e) };
+  const toggleActive = (person: Persona, id: number) => {
+    const updated = { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].map((e: PersonalExpense) => e.id === id ? { ...e, disableNext: !e.disableNext } : e) };
     onUpdate({ ...monthData, personalExpenses: updated });
   };
 
   const addExpense = () => {
-    const newExp = {
+    const newExp: PersonalExpense = {
       id: Date.now(),
       desc: form.desc,
       amount: Number(form.amount) || 0,
@@ -33,43 +38,46 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
       paid: false,
       icon: form.icon || "💰"
     };
-    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [addModal!]: [...monthData.personalExpenses[addModal!], newExp] } });
+    const p = addModal! as Persona;
+    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [p]: [...monthData.personalExpenses[p], newExp] } });
     setAddModal(null);
     setForm({ desc: "", amount: "", day: "", icon: "" });
   };
 
-  const openEditExpense = (person: string, expense: any) => {
+  const openEditExpense = (person: Persona, expense: PersonalExpense) => {
     setEditExpense({ person, expense });
     setEditForm({
       desc: expense.desc,
-      amount: expense.amount || "",
-      day: expense.day || "",
+      amount: String(expense.amount ?? ""),
+      day: String(expense.day ?? ""),
       icon: expense.icon || ""
     });
   };
 
   const saveEditExpense = () => {
-    const { person, expense } = editExpense;
-    const updatedExpenses = monthData.personalExpenses[person].map((e: any) =>
+    if (!editExpense) return;
+    const person = editExpense.person as Persona;
+    const { expense } = editExpense;
+    const updatedExpenses = monthData.personalExpenses[person].map((e: PersonalExpense) =>
       e.id === expense.id
         ? { ...e, desc: editForm.desc, amount: Number(editForm.amount) || 0, day: Number(editForm.day) || null, icon: editForm.icon || "💰" }
         : e
     );
-    const updatedPersonalExpenses = { ...monthData.personalExpenses, [person]: updatedExpenses };
-    onUpdate({ ...monthData, personalExpenses: updatedPersonalExpenses });
+    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: updatedExpenses } });
     setEditExpense(null);
   };
 
-  const deleteExpense = (person: string, id: number) => {
-    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].filter((e: any) => e.id !== id) } });
+  const deleteExpense = (person: Persona, id: number) => {
+    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].filter((e: PersonalExpense) => e.id !== id) } });
+    setConfirmDel(null);
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {["jonatan", "marcela"].map((person) => {
-        const expenses = monthData.personalExpenses[person] || [];
-        const total = expenses.reduce((s: number, e: any) => s + e.amount, 0);
-        const paidAmt = expenses.filter((e: any) => e.paid).reduce((s: number, e: any) => s + e.amount, 0);
+      {(["jonatan", "marcela"] as Persona[]).map((person) => {
+        const expenses: PersonalExpense[] = monthData.personalExpenses[person] || [];
+        const total = expenses.reduce((s, e) => s + e.amount, 0);
+        const paidAmt = expenses.filter((e) => e.paid).reduce((s, e) => s + e.amount, 0);
         return (
           <Card key={person}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -84,7 +92,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
             </div>
             <ProgressBar value={paidAmt} max={total} color={person === "marcela" ? "var(--marce)" : "var(--jona)"} height={6} />
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>
-              {expenses.map((e: any) => (
+              {expenses.map((e) => (
                 <div key={e.id} onClick={() => openEditExpense(person, e)} style={{
                   display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
                   background: "var(--surface2)", borderRadius: 10,
@@ -113,7 +121,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
                       {e.disableNext ? "↩️" : "⏸️"}
                     </button>
                   )}
-                  <button onClick={(ev) => { ev.stopPropagation(); deleteExpense(person, e.id); }}
+                  <button onClick={(ev) => { ev.stopPropagation(); setConfirmDel({ person, expense: e }); }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 14, padding: "2px 4px" }}>🗑</button>
                 </div>
               ))}
@@ -137,7 +145,6 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         <Field label="Descripción" value={editForm.desc} onChange={(v) => setEditForm({ ...editForm, desc: v })} type="text" placeholder="Ej: Gym" />
         <Field label="Valor (COP)" value={editForm.amount} onChange={(v) => setEditForm({ ...editForm, amount: v })} placeholder="50000" />
         <Field label="Día del mes (opcional)" value={editForm.day} onChange={(v) => setEditForm({ ...editForm, day: v })} placeholder="15" />
-        {/* Icon selector */}
         <div style={{ marginBottom: 14 }}>
           <Label>Icono</Label>
           <button onClick={() => setShowEditIconPicker(!showEditIconPicker)}
@@ -158,6 +165,17 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setEditExpense(null)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={saveEditExpense} style={{ flex: 1 }}>Guardar</Btn>
+        </div>
+      </Modal>
+
+      {/* Confirm delete */}
+      <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="¿Eliminar gasto?">
+        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
+          Vas a eliminar <strong>{confirmDel?.expense.icon || "💰"} {confirmDel?.expense.desc}</strong> ({COP(confirmDel?.expense.amount ?? 0)}). Esta acción no se puede deshacer.
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn variant="secondary" onClick={() => setConfirmDel(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="danger" onClick={() => deleteExpense(confirmDel!.person, confirmDel!.expense.id)} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
       </Modal>
     </div>

@@ -40,4 +40,14 @@ Los próximos pasos lógicos son:
 - **Fase 6**: Reglas de Firestore restrictivas, variables de entorno para Firebase (.env).
 
 ---
-*Última actualización: 2026-06-17. Fases 1–5 completadas. Mejoras de calidad aplicadas: firebase.ts, tipado real en features y services, memoización de mercadoTotals, window.confirm reemplazado por Modal. Pendiente: Fase 6 (Firestore rules + Vercel env vars).*
+## 📋 Historial de cambios recientes
+
+### [2026-06-17] — Auditoría post-refactor y corrección de bugs
+- **REFACTOR_PLAN.md eliminado**: plan completado al 100%, ya no es necesario.
+- **src/types/index.ts eliminado**: archivo de la Fase 2 sin importadores, reemplazado por `src/types/models.ts`.
+- **TabHistory.tsx**: `window.confirm` y `alert()` reemplazados por componentes `Modal` propios. Props tipados con `MonthData`, `Mercado` y `Record<string, MonthData>`.
+- **TabPersonalExpenses.tsx**: `deleteExpense` ahora muestra Modal de confirmación (consistente con el resto de la app). Props tipados con `MonthData` y `PersonalExpense`. `any` residuales eliminados con el tipo `Persona = 'marcela' | 'jonatan'`.
+- **TabSalaries.tsx**: Props tipados con `MonthData`.
+- **App.tsx**: Aserción `summary!` para garantizar no-null al pasar a `TabDashboard` (la guard `if (!currentMonth)` lo garantiza en runtime).
+
+*Última actualización: 2026-06-17. Producción estable en Vercel. Bugs de consistencia UI corregidos. Siguiente etapa: mejoras visuales (toast, transiciones, dark mode, bottom nav).*
