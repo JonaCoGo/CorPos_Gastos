@@ -13,7 +13,9 @@ export function ProgressBar({ value, max, color = "var(--accent)", height = 8 }:
         height: "100%", borderRadius: 99, width: `${pct}%`,
         background: pct >= 100
           ? "linear-gradient(90deg, var(--danger), #f87171)"
-          : `linear-gradient(90deg, ${color}bb, ${color})`,
+          : color.startsWith('var(')
+            ? color
+            : `linear-gradient(90deg, ${color}bb, ${color})`,
         transition: "width 0.5s cubic-bezier(.4,0,.2,1)",
       }} />
     </div>

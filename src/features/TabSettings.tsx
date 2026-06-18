@@ -9,7 +9,6 @@ const TYPE_OPTIONS: { value: PaymentMethodType; label: string; icon: string }[] 
   { value: "ahorro",   label: "Cuenta ahorro", icon: "🏦" },
   { value: "credito",  label: "Tarjeta crédito", icon: "💳" },
   { value: "efectivo", label: "Efectivo",       icon: "💵" },
-  { value: "conjunto", label: "Cuenta conjunta", icon: "🤝" },
 ];
 
 const PRESET_COLORS = ["#FBBF24", "#820AD1", "#0ea5e9", "#059669", "#dc2626", "#6366f1", "#f59e0b", "#64748b"];
@@ -89,7 +88,7 @@ export function TabSettings() {
     updateConfig({ ...config, paymentMethods: methods.filter((m) => m.id !== id) });
   };
 
-  const ownerLabel = (owner: string) => owner === "marcela" ? names.marcela : owner === "jonatan" ? names.jonatan : "Conjunto";
+  const ownerLabel = (owner: string) => owner === "marcela" ? names.marcela : owner === "jonatan" ? names.jonatan : "Los dos";
   const typeInfo = (type: string) => TYPE_OPTIONS.find((t) => t.value === type);
 
   return (
@@ -248,7 +247,7 @@ export function TabSettings() {
                 cursor: "pointer", fontFamily: "var(--font-body)", fontSize: 12, fontWeight: 600,
                 color: methodForm.owner === o ? "var(--accent)" : "var(--text2)",
               }}>
-                {o === "marcela" ? names.marcela : o === "jonatan" ? names.jonatan : "Conjunto"}
+                {o === "marcela" ? names.marcela : o === "jonatan" ? names.jonatan : "Los dos"}
               </button>
             ))}
           </div>

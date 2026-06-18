@@ -169,7 +169,7 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
                       <div style={{ width: 10, height: 10, borderRadius: "50%", background: m.color }} />
                       <span style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</span>
                       <span style={{ fontSize: 11, color: "var(--text2)" }}>
-                        {m.owner === "marcela" ? names.marcela : m.owner === "jonatan" ? names.jonatan : "Conjunto"}
+                        {m.owner === "marcela" ? names.marcela : m.owner === "jonatan" ? names.jonatan : "Los dos"}
                       </span>
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{COP(total)}</span>
