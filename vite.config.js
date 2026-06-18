@@ -1,15 +1,44 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['icon.svg'],
+      manifest: {
+        name: 'CorPos — Gastos familiares',
+        short_name: 'CorPos',
+        description: 'Gestión de gastos familiares para Marcela y Jonatan',
+        theme_color: '#4f46e5',
+        background_color: '#f4f5f7',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        icons: [
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'firestore-cache', networkTimeoutSeconds: 5 }
+          }
+        ]
+      }
+    })
+  ],
   server: {
-    port: 3000, // Mantenemos el puerto 3000 al que estabas acostumbrado con CRA
-    open: true  // Abre el navegador automáticamente al iniciar
+    port: 3000,
+    open: true
   },
   build: {
-    outDir: 'dist', // Vite usa 'dist' por defecto, pero lo dejamos explícito
+    outDir: 'dist',
     sourcemap: true
   }
 })

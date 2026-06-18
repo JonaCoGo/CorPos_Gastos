@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Bell, BellOff } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, PaymentMethodType } from '../types/models';
+import { requestNotifPermission, getNotifEnabled, setNotifEnabled } from '../hooks/useNotifications';
 
 const TYPE_OPTIONS: { value: PaymentMethodType; label: string; icon: string }[] = [
   { value: "ahorro",   label: "Cuenta ahorro", icon: "🏦" },
@@ -26,6 +27,25 @@ export function TabSettings() {
   const [jonatanName, setJonatanName] = useState(names.jonatan);
   const [saved,        setSaved]       = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+
+  // Notificaciones
+  const notifSupported = 'Notification' in window;
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    notifSupported ? Notification.permission : 'denied'
+  );
+  const [notifEnabled, setNotifEnabledState] = useState(getNotifEnabled());
+
+  const handleRequestNotif = async () => {
+    const perm = await requestNotifPermission();
+    setNotifPermission(perm);
+    if (perm === 'granted') { setNotifEnabled(true); setNotifEnabledState(true); }
+  };
+
+  const toggleNotifEnabled = () => {
+    const next = !notifEnabled;
+    setNotifEnabled(next);
+    setNotifEnabledState(next);
+  };
 
   // Medios de pago
   const [showAddMethod, setShowAddMethod] = useState(false);
@@ -119,6 +139,52 @@ export function TabSettings() {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Notificaciones */}
+      <Card>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+          Notificaciones
+        </div>
+        {!notifSupported ? (
+          <div style={{ fontSize: 13, color: "var(--text2)" }}>Tu navegador no soporta notificaciones.</div>
+        ) : notifPermission === 'denied' ? (
+          <div style={{ fontSize: 13, color: "var(--danger)" }}>
+            Notificaciones bloqueadas por el navegador. Permítelas en la configuración del sitio y recarga la app.
+          </div>
+        ) : notifPermission === 'default' ? (
+          <div>
+            <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
+              Activa las notificaciones para recibir recordatorios de gastos pendientes, resumen semanal y aviso de cierre de mes.
+            </div>
+            <Btn variant="primary" onClick={handleRequestNotif} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <Bell size={16} /> Activar notificaciones
+            </Btn>
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
+              Las notificaciones se envían al abrir la app si hay gastos pendientes, los domingos como resumen semanal, y los últimos 3 días del mes.
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "var(--surface2)", borderRadius: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {notifEnabled ? <Bell size={16} color="var(--accent)" /> : <BellOff size={16} color="var(--text2)" />}
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{notifEnabled ? "Activas" : "Pausadas"}</span>
+              </div>
+              <button onClick={toggleNotifEnabled} style={{
+                background: notifEnabled ? "var(--accent)" : "var(--border)",
+                border: "none", borderRadius: 20, width: 44, height: 24, cursor: "pointer",
+                position: "relative", transition: "background 0.2s",
+              }} aria-label={notifEnabled ? "Pausar notificaciones" : "Activar notificaciones"}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                  position: "absolute", top: 3, transition: "left 0.2s",
+                  left: notifEnabled ? 23 : 3,
+                }} />
+              </button>
+            </div>
           </div>
         )}
       </Card>

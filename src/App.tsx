@@ -6,6 +6,7 @@ import { useAppStore } from './store/useAppStore';
 import MainLayout from './layouts/MainLayout';
 import { Toast, AppSkeleton } from './components/ui';
 import { TabMore } from './features/TabMore';
+import { useNotifications } from './hooks/useNotifications';
 
 const TabDashboard        = lazy(() => import('./features/TabDashboard').then(m => ({ default: m.TabDashboard })));
 const TabFamilyExpenses   = lazy(() => import('./features/TabFamilyExpenses').then(m => ({ default: m.TabFamilyExpenses })));
@@ -42,6 +43,8 @@ export default function App() {
     currentMonth ? computeSummary({ ...currentMonth, mercado: data.mercado }) : null,
     [currentMonth, data.mercado]
   );
+
+  useNotifications(currentMonth ?? null, data.mercado ?? null);
 
   const syncStatus = !db ? "offline" : synced ? "synced" : "connecting";
   const monthLabel = currentMonth ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : "";
