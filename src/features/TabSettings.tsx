@@ -38,7 +38,12 @@ export function TabSettings() {
   const handleRequestNotif = async () => {
     const perm = await requestNotifPermission();
     setNotifPermission(perm);
-    if (perm === 'granted') { setNotifEnabled(true); setNotifEnabledState(true); }
+    if (perm === 'granted') {
+      setNotifEnabled(true);
+      setNotifEnabledState(true);
+      localStorage.removeItem('corpos_notif_last_check');
+      window.location.reload();
+    }
   };
 
   const toggleNotifEnabled = () => {

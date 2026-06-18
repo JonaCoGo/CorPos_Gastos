@@ -75,11 +75,12 @@ export function loadData() {
 export function saveData(d: AppData) {
   // Siempre guardar en localStorage como respaldo
   localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-  
-  // Guardar en Firestore
+
+  // Guardar en Firestore — JSON.parse/stringify elimina valores undefined que Firestore rechaza
   if (db) {
     const [col, docId] = FIRESTORE_DOC.split("/");
-    setDoc(doc(db, col, docId), d).catch((e) => console.error("Firestore save error:", e));
+    const sanitized = JSON.parse(JSON.stringify(d));
+    setDoc(doc(db, col, docId), sanitized).catch((e) => console.error("Firestore save error:", e));
   }
 }
 

@@ -31,19 +31,20 @@ function todayKey() {
 }
 
 export function useNotifications(monthData: MonthData | null, _mercado: Mercado | null) {
-  const fired = useRef(false);
+  const checked = useRef(false);
 
   useEffect(() => {
-    if (!monthData || fired.current) return;
+    if (!monthData) return;
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
     if (!getNotifEnabled()) return;
+    if (checked.current) return;
 
     const lastCheck = localStorage.getItem(STORAGE_KEY);
     const today = todayKey();
     if (lastCheck === today) return; // ya se revisó hoy
 
-    fired.current = true;
+    checked.current = true;
     localStorage.setItem(STORAGE_KEY, today);
 
     const dayOfMonth = new Date().getDate();
@@ -88,5 +89,5 @@ export function useNotifications(monthData: MonthData | null, _mercado: Mercado 
         'month-end'
       );
     }
-  }, [monthData]);
+  }, [monthData, checked]);
 }
