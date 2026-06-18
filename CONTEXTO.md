@@ -52,6 +52,10 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 - **0 errores TypeScript**.
 - Refactor completo: arquitectura modular, Zustand, lazy loading, dark mode, bottom nav.
 
+## Plan de mejoras
+
+Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md) — 7 fases desde pulir diseño hasta migración a React Native.
+
 ## Próximos pasos
 
 - **Configuración de nombres** ✅ implementado (`AppConfig`, `TabSettings`)
