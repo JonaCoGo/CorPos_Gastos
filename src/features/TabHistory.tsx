@@ -3,6 +3,7 @@ import { Card, Btn, Field, Modal, Select } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP, computeSummary, getMonthKey } from '../utils/finanzas';
 import { MonthData, Mercado } from '../types/models';
+import { useAppStore } from '../store/useAppStore';
 
 interface TabHistoryProps {
   allMonths: Record<string, MonthData>;
@@ -14,6 +15,9 @@ interface TabHistoryProps {
 }
 
 export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNewMonth, onDeleteMonth }: TabHistoryProps) {
+  const config = useAppStore((s) => s.data.config);
+  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ year: 2026, month: 7, marcela: "", jonatan: "" });
   const [dupError, setDupError] = useState(false);
@@ -60,7 +64,7 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
               {[{ n: "marcela", saldo: s.saldoMarcela }, { n: "jonatan", saldo: s.saldoJonatan }].map(({ n, saldo }) => (
                 <div key={n} style={{ background: "var(--surface2)", borderRadius: 8, padding: "8px 10px", display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 11, color: "var(--text2)", textTransform: "capitalize" }}>{n}</span>
+                  <span style={{ fontSize: 11, color: "var(--text2)" }}>{names[n as keyof typeof names]}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: saldo >= 0 ? "var(--success)" : "var(--danger)" }}>{COP(saldo)}</span>
                 </div>
               ))}
@@ -86,12 +90,12 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
           </Select>
         </div>
         {dupError && (
-          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "var(--danger)", marginBottom: 12 }}>
+          <div style={{ background: "var(--surface2)", border: "1px solid var(--danger)", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "var(--danger)", marginBottom: 12 }}>
             ⚠ Ese mes ya existe. Selecciona otro.
           </div>
         )}
-        <Field label="Neto Marcela" value={form.marcela} onChange={(v) => setForm({ ...form, marcela: v })} placeholder="Ej: 1379597" />
-        <Field label="Neto Jonatan" value={form.jonatan} onChange={(v) => setForm({ ...form, jonatan: v })} placeholder="Ej: 1475402" />
+        <Field label={`Salario ${names.marcela}`} value={form.marcela} onChange={(v) => setForm({ ...form, marcela: v })} placeholder="Ej: 1379597" currency />
+        <Field label={`Salario ${names.jonatan}`} value={form.jonatan} onChange={(v) => setForm({ ...form, jonatan: v })} placeholder="Ej: 1475402" currency />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => { setShowNew(false); setDupError(false); }} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={create} style={{ flex: 1 }}>Crear</Btn>

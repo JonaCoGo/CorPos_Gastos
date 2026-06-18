@@ -106,26 +106,33 @@ export default function MainLayout({ children, tab, setTab, syncStatus, monthLab
         {/* Bottom nav — 5 tabs principales */}
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "var(--surface)", borderTop: "1px solid var(--border)", padding: "8px 0 14px", zIndex: 100 }}>
           <div style={{ maxWidth: 600, margin: "0 auto", display: "flex", justifyContent: "space-around" }}>
-            {TABS.map((t) => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                background: "none", border: "none", cursor: "pointer",
-                color: tab === t.id ? "var(--accent)" : "var(--text2)",
-                padding: "4px 10px", borderRadius: 10, transition: "color 0.15s",
-              }}>
-                <span style={{ fontSize: 20 }}>{t.icon}</span>
-                <span style={{ fontSize: 10, fontWeight: tab === t.id ? 700 : 500, fontFamily: "var(--font-body)" }}>{t.label}</span>
-              </button>
-            ))}
+            {TABS.map((t) => {
+              const active = tab === t.id;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)} style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                  background: active ? "var(--accent)1a" : "none", border: "none", cursor: "pointer",
+                  color: active ? "var(--accent)" : "var(--text2)",
+                  padding: "4px 10px", borderRadius: 10, transition: "color 0.15s, background 0.15s",
+                  position: "relative",
+                }}>
+                  <span style={{ fontSize: 20 }}>{t.icon}</span>
+                  <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, fontFamily: "var(--font-body)" }}>{t.label}</span>
+                  {active && <span style={{ position: "absolute", bottom: -2, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
+                </button>
+              );
+            })}
             {/* Más — acceso a Salarios e Historial */}
             <button onClick={() => setTab("more")} style={{
               display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-              background: "none", border: "none", cursor: "pointer",
+              background: isSecondary ? "var(--accent)1a" : "none", border: "none", cursor: "pointer",
               color: isSecondary ? "var(--accent)" : "var(--text2)",
-              padding: "4px 10px", borderRadius: 10, transition: "color 0.15s",
+              padding: "4px 10px", borderRadius: 10, transition: "color 0.15s, background 0.15s",
+              position: "relative",
             }}>
               <span style={{ fontSize: 20 }}>⋯</span>
               <span style={{ fontSize: 10, fontWeight: isSecondary ? 700 : 500, fontFamily: "var(--font-body)" }}>Más</span>
+              {isSecondary && <span style={{ position: "absolute", bottom: -2, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
             </button>
           </div>
         </div>

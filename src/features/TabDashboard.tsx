@@ -79,13 +79,13 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
         <ProgressBar value={totalFamilyPaid} max={totalFamilyBudget} height={10} />
         <div style={{ marginTop: 12 }}>
           {totalFamilyPending > 0 ? (
-            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, color: "#92400e" }}>⏳ Por pagar</span>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "#92400e" }}>{COP(totalFamilyPending)}</span>
+            <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, color: "var(--danger)" }}>⏳ Por pagar</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--danger)" }}>{COP(totalFamilyPending)}</span>
             </div>
           ) : totalFamilyPaid > 0 ? (
-            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
-              <span style={{ fontSize: 13, color: "#166534", fontWeight: 600 }}>✅ ¡Todos los gastos cubiertos!</span>
+            <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
+              <span style={{ fontSize: 13, color: "var(--success)", fontWeight: 600 }}>✅ ¡Todos los gastos cubiertos!</span>
             </div>
           ) : null}
         </div>
@@ -133,7 +133,7 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 8, fontSize: 11, color: "var(--text2)", padding: "8px 10px", background: "#f0f4ff", borderRadius: 8 }}>
+        <div style={{ marginTop: 8, fontSize: 11, color: "var(--text2)", padding: "8px 10px", background: "var(--surface2)", borderRadius: 8 }}>
           Saldo libre = neto disponible − aporte proporcional al hogar
         </div>
       </Card>

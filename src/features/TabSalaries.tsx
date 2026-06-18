@@ -36,7 +36,7 @@ export function TabSalaries({ monthData, onUpdate }: TabSalariesProps) {
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 4 }}>
           Salarios — {MONTH_NAMES[monthData.month]} {monthData.year}
         </div>
-        <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 16, padding: "8px 10px", background: "#f0f4ff", borderRadius: 8, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 16, padding: "8px 10px", background: "var(--surface2)", borderRadius: 8, lineHeight: 1.6 }}>
           Ingresa el <strong>salario bruto</strong> de cada uno. La app descuenta los gastos personales automáticamente para calcular el neto y los aportes al hogar.
         </div>
         {[
@@ -82,7 +82,7 @@ export function TabSalaries({ monthData, onUpdate }: TabSalariesProps) {
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <Avatar name={n} size={20} />
-                    <span style={{ textTransform: "capitalize", fontWeight: 600 }}>{n}</span>
+                    <span style={{ fontWeight: 600 }}>{names[n as keyof typeof names]}</span>
                   </span>
                   <span style={{ color: "var(--text2)" }}>{pct}% · {COP(v)}</span>
                 </div>
