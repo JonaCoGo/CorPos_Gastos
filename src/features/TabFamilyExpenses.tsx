@@ -51,23 +51,19 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
   };
 
   const saveEdit = () => {
+    if (!editCat) return;
     const pmId = editForm.paymentMethodId || undefined;
-    if (editCat && editCat.id === "mercado") {
-      const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
-        c.id === editCat.id
+    const catId = editCat.id;
+    const isMercado = catId === "mercado";
+    const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
+      c.id === catId
+        ? isMercado
           ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon, paymentMethodId: pmId }
-          : c
-      );
-      onUpdate({ ...monthData, familyExpenses: updated });
-    } else {
-      const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
-        c.id === editCat!.id
-          ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon, paymentMethodId: pmId }
-          : c
-      );
-      onUpdate({ ...monthData, familyExpenses: updated });
-    }
+          : { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon, paymentMethodId: pmId }
+        : c
+    );
     setEditCat(null);
+    onUpdate({ ...monthData, familyExpenses: updated });
   };
 
   const toggleFamilyActive = (id: string) => {
@@ -82,14 +78,14 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
       budget: Number(addForm.budget) || 0, icon: addForm.icon,
       marcela: 0, jonatan: 0, active: true, disableNext: false,
     };
-    onUpdate({ ...monthData, familyExpenses: [...monthData.familyExpenses, newCat] });
     setShowAdd(false);
     setAddForm({ label: "", budget: "", icon: "📦" });
+    onUpdate({ ...monthData, familyExpenses: [...monthData.familyExpenses, newCat] });
   };
 
   const deleteCategory = (id: string) => {
-    onUpdate({ ...monthData, familyExpenses: monthData.familyExpenses.filter((c) => c.id !== id) });
     setConfirmDel(null);
+    onUpdate({ ...monthData, familyExpenses: monthData.familyExpenses.filter((c) => c.id !== id) });
   };
 
   const totalBudget = monthData.familyExpenses.reduce((s: number, c: FamilyExpense) => s + (c.budget || 0), 0);

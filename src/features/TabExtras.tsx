@@ -24,14 +24,14 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
   const addExtra = () => {
     if (!form.amount) return;
     const newE = { id: `ex_${Date.now()}`, person: form.person, amount: Number(form.amount), category: form.category, desc: form.desc, date: form.date, paymentMethodId: form.paymentMethodId || undefined };
-    onUpdate({ ...monthData, extras: [...extras, newE] });
     setShowAdd(false);
     setForm({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10), paymentMethodId: "" });
+    onUpdate({ ...monthData, extras: [...extras, newE] });
   };
 
   const deleteExtra = (id: string) => {
-    onUpdate({ ...monthData, extras: extras.filter((e) => e.id !== id) });
     setConfirmDel(null);
+    onUpdate({ ...monthData, extras: extras.filter((e) => e.id !== id) });
   };
 
   const totalMarcela = extras.filter((e: Extra) => e.person === "marcela").reduce((s: number, e: Extra) => s + e.amount, 0);

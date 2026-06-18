@@ -47,10 +47,10 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
       paymentMethodId: form.paymentMethodId || undefined,
     };
     const p = addModal! as Persona;
-    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [p]: [...monthData.personalExpenses[p], newExp] } });
     setAddModal(null);
     setShowAddIconPicker(false);
     setForm({ desc: "", amount: "", day: "", icon: "", paymentMethodId: "" });
+    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [p]: [...monthData.personalExpenses[p], newExp] } });
   };
 
   const openEditExpense = (person: Persona, expense: PersonalExpense) => {
@@ -73,13 +73,14 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         ? { ...e, desc: editForm.desc, amount: Number(editForm.amount) || 0, day: Number(editForm.day) || null, icon: editForm.icon || "💰", paymentMethodId: editForm.paymentMethodId || undefined }
         : e
     );
-    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: updatedExpenses } });
     setEditExpense(null);
+    setShowEditIconPicker(false);
+    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: updatedExpenses } });
   };
 
   const deleteExpense = (person: Persona, id: number) => {
-    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].filter((e: PersonalExpense) => e.id !== id) } });
     setConfirmDel(null);
+    onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: monthData.personalExpenses[person].filter((e: PersonalExpense) => e.id !== id) } });
   };
 
   return (
