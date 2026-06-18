@@ -16,6 +16,7 @@ interface CartEntry {
   itemId: string;
   qty: string;
   pricePer: string;
+  unit: string;
 }
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
@@ -38,6 +39,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   // ── Estado vista "historial" ────────────────────────────────────────────────
   const [confirmDelCompra, setConfirmDelCompra] = useState<Compra | null>(null);
+  const [expandedTrip,    setExpandedTrip]    = useState<string | null>(null);
 
   // ── Estado vista "productos" ────────────────────────────────────────────────
   const [filterCat,  setFilterCat]  = useState("Todas");
@@ -56,7 +58,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       setCart(next);
       if (expandedItem === item.id) setExpandedItem(null);
     } else {
-      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer) } });
+      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer), unit: item.unit } });
       setExpandedItem(item.id);
     }
   };
@@ -82,13 +84,14 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       const item = items.find((i) => i.id === e.itemId)!;
       const qty = Number(e.qty) || 1;
       const pricePer = Number(e.pricePer) || item.pricePer;
+      const unit = e.unit || item.unit;
       const total = qty * pricePer;
       return {
         id: `compra_${Date.now()}_${e.itemId}`,
         itemId: item.id,
         itemName: item.name,
         qty,
-        unit: item.unit,
+        unit,
         pricePer,
         total,
         supermarket,
@@ -132,6 +135,19 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   }, [items, filterCat, search]);
 
   const totalCompras = useMemo(() => compras.reduce((s, c) => s + c.total, 0), [compras]);
+
+  // Agrupar compras por viaje (fecha + supermercado)
+  const trips = useMemo(() => {
+    const map = new Map<string, { key: string; date: string; supermarket: string; items: Compra[]; total: number }>();
+    compras.forEach((c) => {
+      const key = `${c.date}__${c.supermarket}`;
+      if (!map.has(key)) map.set(key, { key, date: c.date, supermarket: c.supermarket, items: [], total: 0 });
+      const t = map.get(key)!;
+      t.items.push(c);
+      t.total += c.total;
+    });
+    return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }, [compras]);
 
   // ── Productos: guardar nuevo ─────────────────────────────────────────────────
   const saveItem = () => {
@@ -250,6 +266,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 const entry = cart[item.id];
                 const isExpanded = expandedItem === item.id;
                 const pricePer = checked ? (Number(entry.pricePer) || item.pricePer) : item.pricePer;
+                const unit = checked ? (entry.unit || item.unit) : item.unit;
                 const qty = checked ? (Number(entry.qty) || 1) : 1;
                 const total = checked ? pricePer * qty : null;
                 const priceChanged = checked && Number(entry.pricePer) > 0 && Number(entry.pricePer) !== item.pricePer;
@@ -290,7 +307,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                       {checked && total !== null ? (
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
                           <div style={{ fontSize: 15, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(total)}</div>
-                          <div style={{ fontSize: 10, color: "var(--text2)" }}>{qty} {item.unit}</div>
+                          <div style={{ fontSize: 10, color: "var(--text2)" }}>{qty} {unit}</div>
                         </div>
                       ) : null}
 
@@ -304,28 +321,44 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                       )}
                     </div>
 
-                    {/* Panel expandido: editar qty y precio */}
+                    {/* Panel expandido: editar qty, precio y unidad */}
                     {checked && isExpanded && (
-                      <div style={{ borderTop: "1px solid var(--border)", padding: "12px 14px", background: "var(--surface2)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <div>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>Cantidad ({item.unit})</div>
-                          <input
-                            type="number"
-                            value={entry.qty}
-                            onChange={(e) => updateCartEntry(item.id, { qty: e.target.value })}
-                            style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }}
-                          />
+                      <div style={{ borderTop: "1px solid var(--border)", padding: "12px 14px", background: "var(--surface2)", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>Cantidad</div>
+                            <input
+                              type="number"
+                              value={entry.qty}
+                              onChange={(e) => updateCartEntry(item.id, { qty: e.target.value })}
+                              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }}
+                            />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: priceChanged ? "var(--jona)" : "var(--text2)", marginBottom: 6 }}>
+                              Precio hoy {priceChanged ? "↑" : ""}
+                            </div>
+                            <input
+                              type="number"
+                              value={entry.pricePer}
+                              onChange={(e) => updateCartEntry(item.id, { pricePer: e.target.value })}
+                              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: `2px solid ${priceChanged ? "var(--jona)" : "var(--border)"}`, background: priceChanged ? "#fff7f0" : "var(--surface)", color: priceChanged ? "var(--jona)" : "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }}
+                            />
+                          </div>
                         </div>
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: priceChanged ? "var(--jona)" : "var(--text2)", marginBottom: 6 }}>
-                            Precio hoy {priceChanged ? "↑" : ""}
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>Unidad</div>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {UNITS.map((u) => (
+                              <button key={u.id} onClick={() => updateCartEntry(item.id, { unit: u.id })} style={{
+                                padding: "6px 12px", borderRadius: 8, border: "2px solid",
+                                borderColor: unit === u.id ? "var(--accent)" : "var(--border)",
+                                background: unit === u.id ? "var(--accent)" : "var(--surface)",
+                                color: unit === u.id ? "#fff" : "var(--text2)",
+                                fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)",
+                              }}>{u.id}</button>
+                            ))}
                           </div>
-                          <input
-                            type="number"
-                            value={entry.pricePer}
-                            onChange={(e) => updateCartEntry(item.id, { pricePer: e.target.value })}
-                            style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: `2px solid ${priceChanged ? "var(--jona)" : "var(--border)"}`, background: priceChanged ? "#fff7f0" : "var(--surface)", color: priceChanged ? "var(--jona)" : "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }}
-                          />
                         </div>
                       </div>
                     )}
@@ -364,35 +397,64 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       {view === "historial" && (
         <>
           <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)" }}>
-            {compras.length} compra{compras.length !== 1 ? "s" : ""} · {COP(totalCompras)}
+            {trips.length} viaje{trips.length !== 1 ? "s" : ""} · {COP(totalCompras)}
           </div>
-          {compras.length === 0 ? (
+          {trips.length === 0 ? (
             <Card style={{ textAlign: "center", padding: "36px 20px" }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>🧾</div>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Sin compras aún</div>
               <div style={{ fontSize: 13, color: "var(--text2)" }}>Registra un viaje al mercado.</div>
             </Card>
           ) : (
-            compras.map((c) => (
-              <Card key={c.id} style={{ padding: "14px 18px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700 }}>{c.itemName}</div>
-                    <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>
-                      {c.qty} {c.unit} · {COP(c.pricePer)}/{c.unit} · {c.supermarket}
+            trips.map((trip) => {
+              const isOpen = expandedTrip === trip.key;
+              return (
+                <Card key={trip.key} style={{ padding: 0, overflow: "hidden" }}>
+                  {/* Cabecera del viaje */}
+                  <button
+                    onClick={() => setExpandedTrip(isOpen ? null : trip.key)}
+                    style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "var(--font-body)", textAlign: "left" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>🛒</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{trip.supermarket}</span>
+                        <span style={{ fontSize: 11, color: "var(--text2)", background: "var(--surface2)", borderRadius: 99, padding: "2px 8px" }}>
+                          {trip.items.length} producto{trip.items.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 3 }}>{trip.date}</div>
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>{c.date}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(c.total)}</div>
-                    <button onClick={() => setConfirmDelCompra(c)} aria-label="Eliminar compra"
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 11, marginTop: 4, display: "flex", alignItems: "center", gap: 3 }}>
-                      <Trash2 size={12} /> eliminar
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 18, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(trip.total)}</span>
+                      {isOpen ? <ChevronUp size={16} color="var(--text2)" /> : <ChevronDown size={16} color="var(--text2)" />}
+                    </div>
+                  </button>
+
+                  {/* Detalle expandido */}
+                  {isOpen && (
+                    <div style={{ borderTop: "1px solid var(--border)" }}>
+                      {trip.items.map((c, idx) => (
+                        <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px", borderBottom: idx < trip.items.length - 1 ? "1px solid var(--border)" : "none" }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600 }}>{c.itemName}</div>
+                            <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>
+                              {c.qty} {c.unit} · {COP(c.pricePer)}/{c.unit}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700 }}>{COP(c.total)}</span>
+                            <button onClick={() => setConfirmDelCompra(c)} aria-label="Eliminar"
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", display: "flex", padding: 4 }}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              );
+            })
           )}
         </>
       )}
