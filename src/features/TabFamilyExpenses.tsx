@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Trash2, Pause, Play, Undo2 } from 'lucide-react';
-import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../components/ui';
+import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar, PaymentChips } from '../components/ui';
 import { ICONS } from '../constants';
 import { COP, calculateMercadoTotals } from '../utils/finanzas';
 import { MonthData, Mercado, FamilyExpense } from '../types/models';
@@ -15,9 +15,10 @@ interface TabFamilyExpensesProps {
 export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExpensesProps) {
   const config = useAppStore((s) => s.data.config);
   const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const paymentMethods = config?.paymentMethods ?? [];
 
   const [editCat, setEditCat] = useState<FamilyExpense | null>(null);
-  const [editForm, setEditForm] = useState({ marcela: "", jonatan: "", budget: "", label: "", icon: "" });
+  const [editForm, setEditForm] = useState({ marcela: "", jonatan: "", budget: "", label: "", icon: "", paymentMethodId: "" });
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ label: "", budget: "", icon: "📦" });
   const [showIconPicker, setShowIconPicker] = useState(false);
@@ -34,7 +35,8 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
         jonatan: String(mercadoTotals.jonatan),
         budget: String(cat.budget || 0),
         label: cat.label,
-        icon: cat.icon
+        icon: cat.icon,
+        paymentMethodId: cat.paymentMethodId ?? "",
       });
     } else {
       setEditForm({
@@ -42,23 +44,25 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
         jonatan: String(cat.jonatan || 0),
         budget: String(cat.budget || 0),
         label: cat.label,
-        icon: cat.icon
+        icon: cat.icon,
+        paymentMethodId: cat.paymentMethodId ?? "",
       });
     }
   };
 
   const saveEdit = () => {
+    const pmId = editForm.paymentMethodId || undefined;
     if (editCat && editCat.id === "mercado") {
       const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
         c.id === editCat.id
-          ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
+          ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon, paymentMethodId: pmId }
           : c
       );
       onUpdate({ ...monthData, familyExpenses: updated });
     } else {
       const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
         c.id === editCat!.id
-          ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon }
+          ? { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, budget: Number(editForm.budget) || 0, label: editForm.label, icon: editForm.icon, paymentMethodId: pmId }
           : c
       );
       onUpdate({ ...monthData, familyExpenses: updated });
@@ -204,6 +208,12 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
           )}
         </div>
         <Field label="Nombre de la categoría" value={editForm.label} onChange={(v) => setEditForm({ ...editForm, label: v })} type="text" placeholder="Ej: Servicios" />
+        <PaymentChips
+          methods={paymentMethods}
+          selectedId={editForm.paymentMethodId || undefined}
+          onChange={(id) => setEditForm({ ...editForm, paymentMethodId: id ?? "" })}
+          ownerNames={names}
+        />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setEditCat(null)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={saveEdit} style={{ flex: 1 }}>Guardar</Btn>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trash2, Pause, Play, Undo2 } from 'lucide-react';
-import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../components/ui';
+import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar, PaymentChips } from '../components/ui';
 import { ICONS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { MonthData, PersonalExpense } from '../types/models';
@@ -17,11 +17,12 @@ interface EditTarget { person: Persona; expense: PersonalExpense; }
 export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpensesProps) {
   const config = useAppStore((s) => s.data.config);
   const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const paymentMethods = config?.paymentMethods ?? [];
 
   const [addModal, setAddModal] = useState<string | null>(null);
-  const [form, setForm] = useState({ desc: "", amount: "", day: "", icon: "" });
+  const [form, setForm] = useState({ desc: "", amount: "", day: "", icon: "", paymentMethodId: "" });
   const [editExpense, setEditExpense] = useState<EditTarget | null>(null);
-  const [editForm, setEditForm] = useState({ desc: "", amount: "", day: "", icon: "" });
+  const [editForm, setEditForm] = useState({ desc: "", amount: "", day: "", icon: "", paymentMethodId: "" });
   const [showAddIconPicker, setShowAddIconPicker] = useState(false);
   const [showEditIconPicker, setShowEditIconPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState<{ person: Persona; expense: PersonalExpense } | null>(null);
@@ -42,13 +43,14 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
       amount: Number(form.amount) || 0,
       day: Number(form.day) || null,
       paid: false,
-      icon: form.icon || "💰"
+      icon: form.icon || "💰",
+      paymentMethodId: form.paymentMethodId || undefined,
     };
     const p = addModal! as Persona;
     onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [p]: [...monthData.personalExpenses[p], newExp] } });
     setAddModal(null);
     setShowAddIconPicker(false);
-    setForm({ desc: "", amount: "", day: "", icon: "" });
+    setForm({ desc: "", amount: "", day: "", icon: "", paymentMethodId: "" });
   };
 
   const openEditExpense = (person: Persona, expense: PersonalExpense) => {
@@ -57,7 +59,8 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
       desc: expense.desc,
       amount: String(expense.amount ?? ""),
       day: String(expense.day ?? ""),
-      icon: expense.icon || ""
+      icon: expense.icon || "",
+      paymentMethodId: expense.paymentMethodId ?? "",
     });
   };
 
@@ -67,7 +70,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
     const { expense } = editExpense;
     const updatedExpenses = monthData.personalExpenses[person].map((e: PersonalExpense) =>
       e.id === expense.id
-        ? { ...e, desc: editForm.desc, amount: Number(editForm.amount) || 0, day: Number(editForm.day) || null, icon: editForm.icon || "💰" }
+        ? { ...e, desc: editForm.desc, amount: Number(editForm.amount) || 0, day: Number(editForm.day) || null, icon: editForm.icon || "💰", paymentMethodId: editForm.paymentMethodId || undefined }
         : e
     );
     onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [person]: updatedExpenses } });
@@ -95,7 +98,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
                   <div style={{ fontSize: 11, color: "var(--text2)" }}>{COP(paidAmt)} pagado / {COP(total)}</div>
                 </div>
               </div>
-              <Btn variant={person === "marcela" ? "marce" : "jona"} style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => { setAddModal(person); setForm({ desc: "", amount: "", day: "", icon: "" }); }}>+ Añadir</Btn>
+              <Btn variant={person === "marcela" ? "marce" : "jona"} style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => { setAddModal(person); setForm({ desc: "", amount: "", day: "", icon: "", paymentMethodId: "" }); }}>+ Añadir</Btn>
             </div>
             <ProgressBar value={paidAmt} max={total} color={person === "marcela" ? "var(--marce)" : "var(--jona)"} height={6} />
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 7 }}>
@@ -164,6 +167,12 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         <Field label="Descripción" value={form.desc} onChange={(v) => setForm({ ...form, desc: v })} type="text" placeholder="Ej: Gym" />
         <Field label="Valor (COP)" value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} placeholder="50000" />
         <Field label="Día del mes (opcional)" value={form.day} onChange={(v) => setForm({ ...form, day: v })} placeholder="15" />
+        <PaymentChips
+          methods={paymentMethods}
+          selectedId={form.paymentMethodId || undefined}
+          onChange={(id) => setForm({ ...form, paymentMethodId: id ?? "" })}
+          ownerNames={names}
+        />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => { setAddModal(null); setShowAddIconPicker(false); }} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={addExpense} disabled={!form.desc || !form.amount} style={{ flex: 1 }}>Guardar</Btn>
@@ -175,6 +184,12 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         <Field label="Descripción" value={editForm.desc} onChange={(v) => setEditForm({ ...editForm, desc: v })} type="text" placeholder="Ej: Gym" />
         <Field label="Valor (COP)" value={editForm.amount} onChange={(v) => setEditForm({ ...editForm, amount: v })} placeholder="50000" />
         <Field label="Día del mes (opcional)" value={editForm.day} onChange={(v) => setEditForm({ ...editForm, day: v })} placeholder="15" />
+        <PaymentChips
+          methods={paymentMethods}
+          selectedId={editForm.paymentMethodId || undefined}
+          onChange={(id) => setEditForm({ ...editForm, paymentMethodId: id ?? "" })}
+          ownerNames={names}
+        />
         <div style={{ marginBottom: 14 }}>
           <Label>Icono</Label>
           <button onClick={() => setShowEditIconPicker(!showEditIconPicker)}

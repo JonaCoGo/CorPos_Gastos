@@ -19,6 +19,7 @@ export interface FamilyExpense {
   jonatan: number;
   active: boolean;
   disableNext: boolean;
+  paymentMethodId?: string;
 }
 
 export interface PersonalExpense {
@@ -30,6 +31,7 @@ export interface PersonalExpense {
   icon: string;
   active?: boolean;
   disableNext?: boolean;
+  paymentMethodId?: string;
 }
 
 export interface Extra {
@@ -39,6 +41,7 @@ export interface Extra {
   category: string;
   desc: string;
   date: string;
+  paymentMethodId?: string;
 }
 
 export interface MonthData {
@@ -76,6 +79,7 @@ export interface Compra {
   notes: string;
   marcelaAmount: number;
   jonatanAmount: number;
+  paymentMethodId?: string;
 }
 
 export interface Mercado {
@@ -83,9 +87,21 @@ export interface Mercado {
   compras: Compra[];
 }
 
+export type PaymentMethodType = 'ahorro' | 'credito' | 'efectivo' | 'conjunto';
+
+export interface PaymentMethod {
+  id: string;
+  label: string;
+  type: PaymentMethodType;
+  owner: 'marcela' | 'jonatan' | 'conjunto';
+  color: string;
+  active: boolean;
+}
+
 export interface AppConfig {
   marcelaName: string;
   jonatanName: string;
+  paymentMethods: PaymentMethod[];
 }
 
 export interface AppData {

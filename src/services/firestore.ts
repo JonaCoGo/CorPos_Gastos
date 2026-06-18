@@ -2,9 +2,20 @@ import { db } from "../firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
 import { FIRESTORE_DOC, STORAGE_KEY, SEED_MARKET_ITEMS } from "../constants";
 import { createEmptyMonth } from "../utils/finanzas";
-import { AppData, AppConfig } from "../types/models";
+import { AppData, AppConfig, PaymentMethod } from "../types/models";
 
-const DEFAULT_CONFIG: AppConfig = { marcelaName: "Marcela", jonatanName: "Jonatan" };
+const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
+  { id: "banc_marce", label: "Bancolombia", type: "ahorro",  owner: "marcela",  color: "#FBBF24", active: true },
+  { id: "nu_marce",   label: "Nu",          type: "credito", owner: "marcela",  color: "#820AD1", active: true },
+  { id: "banc_jona",  label: "Bancolombia", type: "ahorro",  owner: "jonatan",  color: "#FBBF24", active: true },
+  { id: "nu_jona",    label: "Nu",          type: "credito", owner: "jonatan",  color: "#820AD1", active: true },
+];
+
+const DEFAULT_CONFIG: AppConfig = {
+  marcelaName: "Marcela",
+  jonatanName: "Jonatan",
+  paymentMethods: DEFAULT_PAYMENT_METHODS,
+};
 
 /**
  * Carga los datos desde localStorage.
@@ -22,6 +33,10 @@ export function loadData() {
       // Migración: si config no existe, agregar defaults
       if (!parsed.config) {
         parsed.config = DEFAULT_CONFIG;
+      }
+      // Migración: si config existe pero no tiene paymentMethods
+      if (parsed.config && !parsed.config.paymentMethods) {
+        parsed.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       return parsed;
@@ -109,6 +124,10 @@ export function subscribeToFirestore(
         }
         if (!remote.config) {
           remote.config = DEFAULT_CONFIG;
+          changed = true;
+        }
+        if (remote.config && !remote.config.paymentMethods) {
+          remote.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
           changed = true;
         }
         if (changed) setDoc(ref, remote).catch(console.error);

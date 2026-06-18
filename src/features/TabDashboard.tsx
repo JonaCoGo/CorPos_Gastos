@@ -1,15 +1,16 @@
 import { Avatar, ProgressBar, Card } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP } from '../utils/finanzas';
-import { MonthData, ResumenFinanciero } from '../types/models';
+import { MonthData, ResumenFinanciero, Mercado } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
 interface TabDashboardProps {
   monthData: MonthData;
   summary: ResumenFinanciero;
+  mercado: Mercado;
 }
 
-export function TabDashboard({ monthData, summary }: TabDashboardProps) {
+export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps) {
   const config = useAppStore((s) => s.data.config);
   const names = {
     marcela: config?.marcelaName ?? "Marcela",
@@ -28,6 +29,19 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
   // Calcular faltantes para llegar al ideal
   const faltanteMarcela = Math.max(0, aporteFamiliarMarcela - totalFamilyPaidMarcela);
   const faltanteJonatan = Math.max(0, aporteFamiliarJonatan - totalFamilyPaidJonatan);
+
+  // Resumen por medio de pago
+  const paymentMethods = config?.paymentMethods ?? [];
+  const pmTotals: Record<string, number> = {};
+  if (paymentMethods.length > 0) {
+    monthData.familyExpenses.forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + (e.marcela || 0) + (e.jonatan || 0); });
+    (monthData.personalExpenses?.marcela || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
+    (monthData.personalExpenses?.jonatan || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
+    (monthData.extras || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
+    (mercado?.compras || []).forEach((c) => { if (c.paymentMethodId) pmTotals[c.paymentMethodId] = (pmTotals[c.paymentMethodId] || 0) + c.total; });
+  }
+  const pmEntries = paymentMethods.filter((m) => pmTotals[m.id] > 0).sort((a, b) => (pmTotals[b.id] || 0) - (pmTotals[a.id] || 0));
+  const pmGrandTotal = pmEntries.reduce((s, m) => s + (pmTotals[m.id] || 0), 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -137,6 +151,41 @@ export function TabDashboard({ monthData, summary }: TabDashboardProps) {
           Saldo libre = neto disponible − aporte proporcional al hogar
         </div>
       </Card>
+
+      {/* Resumen por medio de pago */}
+      {pmEntries.length > 0 && (
+        <Card>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+            Pagado por cuenta
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {pmEntries.map((m) => {
+              const total = pmTotals[m.id] || 0;
+              const pct = pmGrandTotal > 0 ? (total / pmGrandTotal) * 100 : 0;
+              return (
+                <div key={m.id}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: m.color }} />
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</span>
+                      <span style={{ fontSize: 11, color: "var(--text2)" }}>
+                        {m.owner === "marcela" ? names.marcela : m.owner === "jonatan" ? names.jonatan : "Conjunto"}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{COP(total)}</span>
+                  </div>
+                  <ProgressBar value={total} max={pmGrandTotal} color={m.color} height={6} />
+                  <div style={{ fontSize: 10, color: "var(--text2)", textAlign: "right", marginTop: 2 }}>{pct.toFixed(1)}%</div>
+                </div>
+              );
+            })}
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 12, color: "var(--text2)" }}>Total rastreado</span>
+              <span style={{ fontSize: 14, fontWeight: 800 }}>{COP(pmGrandTotal)}</span>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

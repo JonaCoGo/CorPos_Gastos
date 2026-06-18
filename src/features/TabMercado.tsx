@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Card, Btn, Field, Modal, Label } from '../components/ui';
+import { Pencil, Trash2 } from 'lucide-react';
+import { Card, Btn, Field, Modal, Label, PaymentChips } from '../components/ui';
 import { SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { Mercado, ItemMercado, Compra } from '../types/models';
@@ -12,10 +13,8 @@ interface TabMercadoProps {
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const config = useAppStore((s) => s.data.config);
-  const names = {
-    marcela: config?.marcelaName ?? "Marcela",
-    jonatan: config?.jonatanName ?? "Jonatan",
-  };
+  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const paymentMethods = config?.paymentMethods ?? [];
 
   const items   = mercado?.items   || [];
   const compras = mercado?.compras || [];
@@ -29,7 +28,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [confirmDelCompra, setConfirmDelCompra] = useState<Compra | null>(null);
 
   const [addForm, setAddForm] = useState({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
-  const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
+  const [compraForm, setCompraForm] = useState({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela", paymentMethodId: "" });
   const [searchProd, setSearchProd] = useState("");
   
   // Memoize filtered items for the compra modal search - only recompute when items or searchProd changes
@@ -75,11 +74,12 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       date: compraForm.date,
       notes: compraForm.notes,
       marcelaAmount,
-      jonatanAmount
+      jonatanAmount,
+      paymentMethodId: compraForm.paymentMethodId || undefined,
     };
     onUpdate({ ...mercado, compras: [newC, ...compras] });
     setShowCompra(false);
-    setCompraForm({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela" });
+    setCompraForm({ itemId: "", qty: "", pricePer: "", supermarket: "D1", date: new Date().toISOString().slice(0, 10), notes: "", person: "marcela", paymentMethodId: "" });
     setSearchProd("");
   };
 
@@ -213,8 +213,10 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 18, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(c.total)}</div>
-                    <button onClick={() => setConfirmDelCompra(c)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 11, marginTop: 4 }}>🗑 eliminar</button>
+                    <button onClick={() => setConfirmDelCompra(c)} aria-label="Eliminar compra"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 11, marginTop: 4, display: "flex", alignItems: "center", gap: 3 }}>
+                      <Trash2 size={12} /> eliminar
+                    </button>
                   </div>
                 </div>
               </Card>
@@ -322,6 +324,12 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         </div>
         <Field label="Fecha" value={compraForm.date} onChange={(v) => setCompraForm({ ...compraForm, date: v })} type="date" />
         <Field label="Notas (opcional)" value={compraForm.notes} onChange={(v) => setCompraForm({ ...compraForm, notes: v })} type="text" placeholder="Ej: Estaba en oferta" />
+        <PaymentChips
+          methods={paymentMethods}
+          selectedId={compraForm.paymentMethodId || undefined}
+          onChange={(id) => setCompraForm({ ...compraForm, paymentMethodId: id ?? "" })}
+          ownerNames={names}
+        />
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setShowCompra(false)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={registerCompra} disabled={!compraForm.itemId || !compraForm.qty} style={{ flex: 1 }}>Registrar</Btn>
@@ -389,12 +397,14 @@ function ItemCard({ item, lastCompras, onUpdate, onDelete, onComprar }: any) {
               <div style={{ fontSize: 11, color: "var(--text2)" }}>{item.category} · {item.supermarket} · {COP(item.pricePer)}/{item.unit}</div>
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
-              <button
-                onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-                style={{ background: "var(--surface2)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", fontSize: 14 }}>✏️</button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                style={{ background: "var(--surface2)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", fontSize: 14 }}>🗑</button>
+              <button onClick={(e) => { e.stopPropagation(); setEditing(true); }} aria-label="Editar producto"
+                style={{ background: "var(--surface2)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center" }}>
+                <Pencil size={14} />
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); onDelete(); }} aria-label="Eliminar producto"
+                style={{ background: "var(--surface2)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "var(--text2)", display: "flex", alignItems: "center" }}>
+                <Trash2 size={14} />
+              </button>
               <span style={{ fontSize: 12, color: "var(--text2)", marginLeft: 2 }}>{expanded ? "▲" : "▼"}</span>
             </div>
           </div>

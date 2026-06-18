@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Trash2 } from 'lucide-react';
-import { Avatar, Card, Btn, Field, Modal, Label, Select } from '../components/ui';
+import { Avatar, Card, Btn, Field, Modal, Label, Select, PaymentChips } from '../components/ui';
 import { EXTRA_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { MonthData, Extra, Persona } from '../types/models';
@@ -14,18 +14,19 @@ interface TabExtrasProps {
 export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
   const config = useAppStore((s) => s.data.config);
   const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const paymentMethods = config?.paymentMethods ?? [];
 
   const extras = monthData.extras || [];
   const [showAdd, setShowAdd]   = useState(false);
   const [confirmDel, setConfirmDel] = useState<Extra | null>(null);
-  const [form, setForm] = useState<{ person: Persona; amount: string; category: string; desc: string; date: string }>({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10) });
+  const [form, setForm] = useState<{ person: Persona; amount: string; category: string; desc: string; date: string; paymentMethodId: string }>({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10), paymentMethodId: "" });
 
   const addExtra = () => {
     if (!form.amount) return;
-    const newE = { id: `ex_${Date.now()}`, person: form.person, amount: Number(form.amount), category: form.category, desc: form.desc, date: form.date };
+    const newE = { id: `ex_${Date.now()}`, person: form.person, amount: Number(form.amount), category: form.category, desc: form.desc, date: form.date, paymentMethodId: form.paymentMethodId || undefined };
     onUpdate({ ...monthData, extras: [...extras, newE] });
     setShowAdd(false);
-    setForm({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10) });
+    setForm({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10), paymentMethodId: "" });
   };
 
   const deleteExtra = (id: string) => {
@@ -139,6 +140,12 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
         </Select>
         <Field label="Descripción (opcional)" value={form.desc} onChange={(v) => setForm({ ...form, desc: v })} type="text" placeholder="Ej: Pizza con Marcela" />
         <Field label="Fecha" value={form.date} onChange={(v) => setForm({ ...form, date: v })} type="date" />
+        <PaymentChips
+          methods={paymentMethods}
+          selectedId={form.paymentMethodId || undefined}
+          onChange={(id) => setForm({ ...form, paymentMethodId: id ?? "" })}
+          ownerNames={names}
+        />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setShowAdd(false)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={addExtra} disabled={!form.amount} style={{ flex: 1 }}>Guardar</Btn>
