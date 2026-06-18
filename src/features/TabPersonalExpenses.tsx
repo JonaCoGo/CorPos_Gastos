@@ -22,6 +22,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
   const [form, setForm] = useState({ desc: "", amount: "", day: "", icon: "" });
   const [editExpense, setEditExpense] = useState<EditTarget | null>(null);
   const [editForm, setEditForm] = useState({ desc: "", amount: "", day: "", icon: "" });
+  const [showAddIconPicker, setShowAddIconPicker] = useState(false);
   const [showEditIconPicker, setShowEditIconPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState<{ person: Persona; expense: PersonalExpense } | null>(null);
 
@@ -46,6 +47,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
     const p = addModal! as Persona;
     onUpdate({ ...monthData, personalExpenses: { ...monthData.personalExpenses, [p]: [...monthData.personalExpenses[p], newExp] } });
     setAddModal(null);
+    setShowAddIconPicker(false);
     setForm({ desc: "", amount: "", day: "", icon: "" });
   };
 
@@ -141,12 +143,29 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         );
       })}
 
-      <Modal open={!!addModal} onClose={() => setAddModal(null)} title={`Añadir gasto — ${addModal === "marcela" ? names.marcela : names.jonatan}`}>
+      <Modal open={!!addModal} onClose={() => { setAddModal(null); setShowAddIconPicker(false); }} title={`Añadir gasto — ${addModal === "marcela" ? names.marcela : names.jonatan}`}>
+        <div style={{ marginBottom: 14 }}>
+          <Label>Icono</Label>
+          <button onClick={() => setShowAddIconPicker(!showAddIconPicker)} aria-label="Elegir icono"
+            style={{ fontSize: 28, background: "var(--surface2)", border: "1.5px solid var(--border)", borderRadius: 10, padding: "8px 16px", cursor: "pointer" }}>
+            {form.icon || "💰"}
+          </button>
+          {showAddIconPicker && (
+            <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, background: "var(--surface2)", borderRadius: 10, padding: 10 }}>
+              {ICONS.map((ic) => (
+                <button key={ic} onClick={() => { setForm({ ...form, icon: ic }); setShowAddIconPicker(false); }}
+                  style={{ fontSize: 22, background: form.icon === ic ? "var(--accent)" : "none", border: "none", borderRadius: 8, padding: "4px 6px", cursor: "pointer" }}>
+                  {ic}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <Field label="Descripción" value={form.desc} onChange={(v) => setForm({ ...form, desc: v })} type="text" placeholder="Ej: Gym" />
         <Field label="Valor (COP)" value={form.amount} onChange={(v) => setForm({ ...form, amount: v })} placeholder="50000" />
         <Field label="Día del mes (opcional)" value={form.day} onChange={(v) => setForm({ ...form, day: v })} placeholder="15" />
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          <Btn variant="secondary" onClick={() => setAddModal(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="secondary" onClick={() => { setAddModal(null); setShowAddIconPicker(false); }} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={addExpense} disabled={!form.desc || !form.amount} style={{ flex: 1 }}>Guardar</Btn>
         </div>
       </Modal>
