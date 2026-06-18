@@ -7,3 +7,4 @@ export { Field } from './Field';
 export { Btn } from './Btn';
 export { Toast } from './Toast';
 export { Select } from './Select';
+export { Skeleton, AppSkeleton } from './Skeleton';

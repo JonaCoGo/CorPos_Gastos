@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trash2 } from 'lucide-react';
 import { Card, Btn, Field, Modal, Select } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
 import { COP, computeSummary, getMonthKey } from '../utils/finanzas';
@@ -72,8 +73,9 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
             {!isActive && (
               <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelMonth(m); }}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 12 }}>
-                  🗑 Eliminar mes
+                  aria-label="Eliminar mes"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                  <Trash2 size={13} /> Eliminar mes
                 </button>
               </div>
             )}

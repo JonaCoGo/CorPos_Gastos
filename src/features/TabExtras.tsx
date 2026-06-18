@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trash2 } from 'lucide-react';
 import { Avatar, Card, Btn, Field, Modal, Label, Select } from '../components/ui';
 import { EXTRA_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
@@ -102,7 +103,10 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ fontSize: 16, fontWeight: 900, color: "var(--danger)", fontFamily: "var(--font-display)" }}>{COP(e.amount)}</div>
                 <button onClick={() => setConfirmDel(e)}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 14, padding: "2px" }}>🗑</button>
+                  aria-label="Eliminar gasto extra"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "2px", display: "flex", alignItems: "center" }}>
+                  <Trash2 size={15} />
+                </button>
               </div>
             </div>
           </Card>

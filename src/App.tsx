@@ -4,7 +4,7 @@ import { MONTH_NAMES } from "./constants";
 import { computeSummary } from './utils/finanzas';
 import { useAppStore } from './store/useAppStore';
 import MainLayout from './layouts/MainLayout';
-import { Toast } from './components/ui';
+import { Toast, AppSkeleton } from './components/ui';
 import { TabMore } from './features/TabMore';
 
 const TabDashboard        = lazy(() => import('./features/TabDashboard').then(m => ({ default: m.TabDashboard })));
@@ -46,7 +46,11 @@ export default function App() {
   const syncStatus = !db ? "offline" : synced ? "synced" : "connecting";
   const monthLabel = currentMonth ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : "";
 
-  if (!currentMonth) return <div style={{ padding: 32, textAlign: "center" }}>Sin datos</div>;
+  if (!currentMonth) return (
+    <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel="">
+      <AppSkeleton />
+    </MainLayout>
+  );
 
   const withToast = (fn: (d: typeof currentMonth) => void, msg: string) =>
     (d: typeof currentMonth) => { fn(d); showToast(msg); };
@@ -87,11 +91,7 @@ export default function App() {
 
   return (
     <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
-      <Suspense fallback={
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh', color: 'var(--text2)', fontSize: '1.2rem' }}>
-          Cargando...
-        </div>
-      }>
+      <Suspense fallback={<AppSkeleton />}>
         {renderTab()}
       </Suspense>
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}

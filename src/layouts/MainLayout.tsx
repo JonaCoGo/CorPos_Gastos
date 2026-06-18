@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef } from "react";
+import { LayoutDashboard, Home, User, ShoppingCart, Wallet, MoreHorizontal } from 'lucide-react';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -9,11 +10,11 @@ interface MainLayoutProps {
 }
 
 const TABS = [
-  { id: "dashboard", label: "Resumen",  icon: "📊" },
-  { id: "family",    label: "Hogar",    icon: "🏠" },
-  { id: "personal",  label: "Personal", icon: "👤" },
-  { id: "mercado",   label: "Mercado",  icon: "🛒" },
-  { id: "extras",    label: "Extras",   icon: "💸" },
+  { id: "dashboard", label: "Resumen",  Icon: LayoutDashboard },
+  { id: "family",    label: "Hogar",    Icon: Home },
+  { id: "personal",  label: "Personal", Icon: User },
+  { id: "mercado",   label: "Mercado",  Icon: ShoppingCart },
+  { id: "extras",    label: "Extras",   Icon: Wallet },
 ];
 
 const SECONDARY = ["salaries", "history", "more"];
@@ -109,30 +110,31 @@ export default function MainLayout({ children, tab, setTab, syncStatus, monthLab
             {TABS.map((t) => {
               const active = tab === t.id;
               return (
-                <button key={t.id} onClick={() => setTab(t.id)} style={{
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                  background: active ? "var(--accent)1a" : "none", border: "none", cursor: "pointer",
+                <button key={t.id} onClick={() => setTab(t.id)} aria-label={t.label} aria-current={active ? "page" : undefined} style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                  background: "none", border: "none", cursor: "pointer",
                   color: active ? "var(--accent)" : "var(--text2)",
-                  padding: "4px 10px", borderRadius: 10, transition: "color 0.15s, background 0.15s",
+                  padding: "4px 10px", borderRadius: 10, transition: "color 0.15s",
                   position: "relative",
                 }}>
-                  <span style={{ fontSize: 20 }}>{t.icon}</span>
+                  <div style={{ width: 40, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, background: active ? "rgba(79,70,229,0.12)" : "transparent", transition: "background 0.15s" }}>
+                    <t.Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
+                  </div>
                   <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, fontFamily: "var(--font-body)" }}>{t.label}</span>
-                  {active && <span style={{ position: "absolute", bottom: -2, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
                 </button>
               );
             })}
             {/* Más — acceso a Salarios e Historial */}
-            <button onClick={() => setTab("more")} style={{
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-              background: isSecondary ? "var(--accent)1a" : "none", border: "none", cursor: "pointer",
+            <button onClick={() => setTab("more")} aria-label="Más opciones" aria-current={isSecondary ? "page" : undefined} style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+              background: "none", border: "none", cursor: "pointer",
               color: isSecondary ? "var(--accent)" : "var(--text2)",
-              padding: "4px 10px", borderRadius: 10, transition: "color 0.15s, background 0.15s",
-              position: "relative",
+              padding: "4px 10px", borderRadius: 10, transition: "color 0.15s",
             }}>
-              <span style={{ fontSize: 20 }}>⋯</span>
+              <div style={{ width: 40, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, background: isSecondary ? "rgba(79,70,229,0.12)" : "transparent", transition: "background 0.15s" }}>
+                <MoreHorizontal size={20} strokeWidth={isSecondary ? 2.5 : 1.8} />
+              </div>
               <span style={{ fontSize: 10, fontWeight: isSecondary ? 700 : 500, fontFamily: "var(--font-body)" }}>Más</span>
-              {isSecondary && <span style={{ position: "absolute", bottom: -2, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: "50%", background: "var(--accent)" }} />}
             </button>
           </div>
         </div>

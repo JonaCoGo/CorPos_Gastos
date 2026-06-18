@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Trash2, Pause, Play, Undo2 } from 'lucide-react';
 import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../components/ui';
 import { ICONS } from '../constants';
 import { COP, calculateMercadoTotals } from '../utils/finanzas';
@@ -127,12 +128,15 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
                   {isActive && cat.disableNext && <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700 }}>⏸ Próximo mes inactivo</div>}
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); toggleFamilyActive(cat.id); }}
-                  title={!isActive ? "Reactivar próximo mes" : cat.disableNext ? "Cancelar desactivación" : "Desactivar desde próximo mes"}
-                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "4px", lineHeight: 1 }}>
-                  {!isActive ? "▶️" : cat.disableNext ? "↩️" : "⏸️"}
+                  aria-label={!isActive ? "Reactivar próximo mes" : cat.disableNext ? "Cancelar desactivación" : "Desactivar desde próximo mes"}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "4px", display: "flex", alignItems: "center" }}>
+                  {!isActive ? <Play size={16} /> : cat.disableNext ? <Undo2 size={16} /> : <Pause size={16} />}
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setConfirmDel(cat); }}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 16, padding: "4px", lineHeight: 1 }}>🗑</button>
+                  aria-label="Eliminar categoría"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "4px", display: "flex", alignItems: "center" }}>
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
             {cat.budget > 0 && (

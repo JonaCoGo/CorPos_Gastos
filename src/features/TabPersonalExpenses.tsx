@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trash2, Pause, Play, Undo2 } from 'lucide-react';
 import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar } from '../components/ui';
 import { ICONS } from '../constants';
 import { COP } from '../utils/finanzas';
@@ -118,16 +119,21 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: e.active === false ? "var(--text2)" : "var(--text1)" }}>{COP(e.amount)}</div>
                   {e.active === false ? (
-                    <button onClick={(ev) => { ev.stopPropagation(); toggleActive(person, e.id); }} title="Reactivar el próximo mes"
-                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>▶️</button>
+                    <button onClick={(ev) => { ev.stopPropagation(); toggleActive(person, e.id); }} aria-label="Reactivar el próximo mes"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "2px 4px", display: "flex", alignItems: "center" }}>
+                      <Play size={14} />
+                    </button>
                   ) : (
-                    <button onClick={(ev) => { ev.stopPropagation(); toggleActive(person, e.id); }} title={e.disableNext ? "Cancelar desactivación" : "Desactivar desde el próximo mes"}
-                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "2px 4px" }}>
-                      {e.disableNext ? "↩️" : "⏸️"}
+                    <button onClick={(ev) => { ev.stopPropagation(); toggleActive(person, e.id); }} aria-label={e.disableNext ? "Cancelar desactivación" : "Desactivar desde el próximo mes"}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "2px 4px", display: "flex", alignItems: "center" }}>
+                      {e.disableNext ? <Undo2 size={14} /> : <Pause size={14} />}
                     </button>
                   )}
                   <button onClick={(ev) => { ev.stopPropagation(); setConfirmDel({ person, expense: e }); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", fontSize: 14, padding: "2px 4px" }}>🗑</button>
+                    aria-label="Eliminar gasto"
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "2px 4px", display: "flex", alignItems: "center" }}>
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               ))}
             </div>
