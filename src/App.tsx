@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, Suspense, lazy } from "react";
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { db } from "./firebase";
 import { MONTH_NAMES } from "./constants";
 import { computeSummary } from './utils/finanzas';
@@ -18,6 +19,8 @@ const TabMercado          = lazy(() => import('./features/TabMercado').then(m =>
 const TabSettings         = lazy(() => import('./features/TabSettings').then(m => ({ default: m.TabSettings })));
 
 export default function App() {
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
+
   const data   = useAppStore((s) => s.data);
   const tab    = useAppStore((s) => s.tab);
   const synced = useAppStore((s) => s.synced);
@@ -97,6 +100,21 @@ export default function App() {
 
   return (
     <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
+      {needRefresh && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999,
+          background: "#4f46e5", color: "#fff",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "12px 18px", gap: 12,
+          boxShadow: "0 2px 12px rgba(79,70,229,0.4)",
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>🔄 Nueva versión disponible</span>
+          <button onClick={() => updateServiceWorker(true)} style={{
+            background: "#fff", color: "#4f46e5", border: "none", borderRadius: 8,
+            padding: "7px 14px", fontSize: 13, fontWeight: 800, cursor: "pointer",
+          }}>Actualizar</button>
+        </div>
+      )}
       <Suspense fallback={<AppSkeleton />}>
         {renderTab()}
       </Suspense>
