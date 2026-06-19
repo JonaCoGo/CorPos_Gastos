@@ -33,6 +33,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   // ── Estado vista "hacer mercado" ────────────────────────────────────────────
   const [supermarket,   setSupermarket]   = useState(SUPERMARKETS[0]);
   const [paymentId,     setPaymentId]     = useState<string>("");
+  const [tripPaidBy,    setTripPaidBy]    = useState<'marcela' | 'jonatan' | 'conjunto'>('conjunto');
   const [cart,          setCart]          = useState<Record<string, CartEntry>>({});
   const [expandedItem,  setExpandedItem]  = useState<string | null>(null);
   const [filterCatH,    setFilterCatH]    = useState("Todas");
@@ -53,6 +54,15 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   // ── Helpers carrito ─────────────────────────────────────────────────────────
   const inCart = (id: string) => !!cart[id];
 
+  const setTripPayer = (payer: 'marcela' | 'jonatan' | 'conjunto') => {
+    setTripPaidBy(payer);
+    setCart((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((id) => { next[id] = { ...next[id], paidBy: payer }; });
+      return next;
+    });
+  };
+
   const toggleCart = (item: ItemMercado) => {
     if (inCart(item.id)) {
       const next = { ...cart };
@@ -60,7 +70,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       setCart(next);
       if (expandedItem === item.id) setExpandedItem(null);
     } else {
-      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer), unit: item.unit, paidBy: 'conjunto' } });
+      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer), unit: item.unit, paidBy: tripPaidBy } });
       setExpandedItem(item.id);
     }
   };
@@ -217,6 +227,29 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
                   transition: "all 0.15s",
                 }}>{s}</button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Quién paga este viaje */}
+          <Card>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>
+              ¿Quién paga?
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {([
+                { id: 'marcela',  label: names.marcela },
+                { id: 'jonatan',  label: names.jonatan },
+                { id: 'conjunto', label: 'Los dos' },
+              ] as const).map((p) => (
+                <button key={p.id} onClick={() => setTripPayer(p.id)} style={{
+                  flex: 1, padding: "8px 4px", borderRadius: 10, border: "2px solid",
+                  borderColor: tripPaidBy === p.id ? "var(--accent)" : "var(--border)",
+                  background: tripPaidBy === p.id ? "var(--accent)" : "var(--surface2)",
+                  color: tripPaidBy === p.id ? "#fff" : "var(--text2)",
+                  fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+                  transition: "all 0.15s",
+                }}>{p.label}</button>
               ))}
             </div>
           </Card>

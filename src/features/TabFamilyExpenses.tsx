@@ -12,7 +12,7 @@ interface TabFamilyExpensesProps {
   onUpdate: (data: MonthData) => void;
 }
 
-// Input numérico que muestra el valor en COP debajo mientras se escribe
+// Input numérico: muestra número crudo al editar, formato $COP al salir
 function CopField({ label, value, onChange, disabled, hint }: {
   label: string;
   value: string;
@@ -20,29 +20,35 @@ function CopField({ label, value, onChange, disabled, hint }: {
   disabled?: boolean;
   hint?: string;
 }) {
+  const [focused, setFocused] = useState(false);
   const num = Number(value) || 0;
+  const displayValue = focused
+    ? (value === "0" ? "" : value)
+    : (num > 0 ? COP(num) : "");
+
   return (
     <div style={{ marginBottom: 14 }}>
       <Label>{label}</Label>
       <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        type="text"
+        inputMode="numeric"
+        value={displayValue}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^0-9]/g, '');
+          onChange(raw || "0");
+        }}
+        onFocus={(e) => { setFocused(true); if (!disabled) e.target.style.borderColor = "var(--accent)"; }}
+        onBlur={(e)  => { setFocused(false); e.target.style.borderColor = "var(--border)"; }}
         disabled={disabled}
-        placeholder="0"
+        placeholder="$0"
         style={{
           width: "100%", boxSizing: "border-box",
           padding: "10px 12px", borderRadius: 10, fontSize: 15, fontWeight: 700,
           border: "1.5px solid var(--border)", background: disabled ? "var(--surface2)" : "var(--surface)",
           color: "var(--text1)", fontFamily: "var(--font-body)", outline: "none",
         }}
-        onFocus={(e) => { if (!disabled) e.target.style.borderColor = "var(--accent)"; }}
-        onBlur={(e)  => { e.target.style.borderColor = "var(--border)"; }}
       />
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-        {num > 0 && <span style={{ fontSize: 11, color: "var(--accent)", fontWeight: 700 }}>{COP(num)}</span>}
-        {hint && <span style={{ fontSize: 11, color: "var(--danger)", fontWeight: 600, marginLeft: "auto" }}>{hint}</span>}
-      </div>
+      {hint && <div style={{ fontSize: 11, color: "var(--danger)", fontWeight: 600, marginTop: 3 }}>{hint}</div>}
     </div>
   );
 }
