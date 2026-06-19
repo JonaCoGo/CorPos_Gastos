@@ -400,24 +400,6 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                             ))}
                           </div>
                         </div>
-                        <div>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>¿Quién paga?</div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            {([
-                              { id: 'marcela',  label: names.marcela },
-                              { id: 'jonatan',  label: names.jonatan },
-                              { id: 'conjunto', label: 'Los dos' },
-                            ] as const).map((p) => (
-                              <button key={p.id} onClick={() => updateCartEntry(item.id, { paidBy: p.id })} style={{
-                                flex: 1, padding: "7px 4px", borderRadius: 8, border: "2px solid",
-                                borderColor: entry.paidBy === p.id ? "var(--accent)" : "var(--border)",
-                                background: entry.paidBy === p.id ? "var(--accent)" : "var(--surface)",
-                                color: entry.paidBy === p.id ? "#fff" : "var(--text2)",
-                                fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)",
-                              }}>{p.label}</button>
-                            ))}
-                          </div>
-                        </div>
                       </div>
                     )}
                   </div>
