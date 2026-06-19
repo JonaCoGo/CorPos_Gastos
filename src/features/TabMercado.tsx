@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ShoppingCart, Pencil, Trash2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { ShoppingCart, Pencil, Trash2, ChevronDown, ChevronUp, Check, SlidersHorizontal } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label, PaymentChips } from '../components/ui';
 import { SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
@@ -43,6 +43,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [confirmDelCompra, setConfirmDelCompra] = useState<Compra | null>(null);
   const [confirmDelTrip,  setConfirmDelTrip]  = useState<string | null>(null);
   const [expandedTrip,    setExpandedTrip]    = useState<string | null>(null);
+  const [editingCompra,   setEditingCompra]   = useState<Compra | null>(null);
+  const [editCompraForm,  setEditCompraForm]  = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string }>({ paidBy: 'conjunto', paymentMethodId: "" });
 
   // ── Estado vista "productos" ────────────────────────────────────────────────
   const [filterCat,  setFilterCat]  = useState("Todas");
@@ -495,23 +497,36 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   {/* Detalle expandido */}
                   {isOpen && (
                     <div style={{ borderTop: "1px solid var(--border)" }}>
-                      {trip.items.map((c, idx) => (
-                        <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px", borderBottom: idx < trip.items.length - 1 ? "1px solid var(--border)" : "none" }}>
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600 }}>{c.itemName}</div>
-                            <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>
-                              {c.qty} {c.unit} · {COP(c.pricePer)}/{c.unit}
+                      {trip.items.map((c, idx) => {
+                        const payer = c.paidBy === 'marcela' ? names.marcela : c.paidBy === 'jonatan' ? names.jonatan : 'Los dos';
+                        return (
+                          <div key={c.id} style={{ padding: "10px 18px", borderBottom: idx < trip.items.length - 1 ? "1px solid var(--border)" : "none" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 600 }}>{c.itemName}</div>
+                                <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>
+                                  {c.qty} {c.unit} · {COP(c.pricePer)}/{c.unit}
+                                </div>
+                                <div style={{ fontSize: 10, color: "var(--text2)", marginTop: 2 }}>
+                                  {payer}{c.paymentMethodId ? ` · ${paymentMethods.find((m) => m.id === c.paymentMethodId)?.label ?? ""}` : ""}
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 14, fontWeight: 700 }}>{COP(c.total)}</span>
+                                <button onClick={() => { setEditingCompra(c); setEditCompraForm({ paidBy: c.paidBy ?? 'conjunto', paymentMethodId: c.paymentMethodId ?? "" }); }}
+                                  aria-label="Editar pagador"
+                                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", display: "flex", padding: 4 }}>
+                                  <SlidersHorizontal size={13} />
+                                </button>
+                                <button onClick={() => setConfirmDelCompra(c)} aria-label="Eliminar"
+                                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", display: "flex", padding: 4 }}>
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <span style={{ fontSize: 14, fontWeight: 700 }}>{COP(c.total)}</span>
-                            <button onClick={() => setConfirmDelCompra(c)} aria-label="Eliminar"
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", display: "flex", padding: 4 }}>
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </Card>
@@ -629,6 +644,60 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             </>
           );
         })()}
+      </Modal>
+
+      {/* Modal: editar pagador de una compra del historial */}
+      <Modal open={!!editingCompra} onClose={() => setEditingCompra(null)} title={editingCompra ? `Editar · ${editingCompra.itemName}` : ""}>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>¿Quién pagó?</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {([
+              { id: 'marcela',  label: names.marcela },
+              { id: 'jonatan',  label: names.jonatan },
+              { id: 'conjunto', label: 'Los dos' },
+            ] as const).map((p) => (
+              <button key={p.id} onClick={() => setEditCompraForm((f) => ({ ...f, paidBy: p.id }))} style={{
+                flex: 1, padding: "9px 4px", borderRadius: 10, border: "2px solid",
+                borderColor: editCompraForm.paidBy === p.id ? "var(--accent)" : "var(--border)",
+                background: editCompraForm.paidBy === p.id ? "var(--accent)" : "var(--surface2)",
+                color: editCompraForm.paidBy === p.id ? "#fff" : "var(--text2)",
+                fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+              }}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+        {paymentMethods.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Medio de pago</div>
+            <PaymentChips
+              methods={paymentMethods}
+              selectedId={editCompraForm.paymentMethodId || undefined}
+              onChange={(id) => setEditCompraForm((f) => ({ ...f, paymentMethodId: id ?? "" }))}
+              ownerNames={names}
+            />
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <Btn variant="secondary" onClick={() => setEditingCompra(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={() => {
+            if (!editingCompra) return;
+            const paidBy = editCompraForm.paidBy;
+            const total = editingCompra.total;
+            const updated = compras.map((c) => c.id === editingCompra.id
+              ? {
+                  ...c,
+                  paidBy,
+                  marcelaAmount:  paidBy === 'marcela'  ? total : 0,
+                  jonatanAmount:  paidBy === 'jonatan'  ? total : 0,
+                  conjuntoAmount: paidBy === 'conjunto' ? total : 0,
+                  paymentMethodId: editCompraForm.paymentMethodId || undefined,
+                }
+              : c
+            );
+            onUpdate({ ...mercado, compras: updated });
+            setEditingCompra(null);
+          }} style={{ flex: 1 }}>Guardar</Btn>
+        </div>
       </Modal>
 
       {/* Modal: confirmar eliminar compra */}

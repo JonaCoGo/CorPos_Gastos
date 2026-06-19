@@ -101,7 +101,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
     const pmId = editForm.paymentMethodId || undefined;
     const catId = editCat.id;
     const isMercado = catId === "mercado";
-    const monthlyAmount = editForm.monthlyAmount ? Number(editForm.monthlyAmount) : undefined;
+    const monthlyAmount = Number(editForm.monthlyAmount) > 0 ? Number(editForm.monthlyAmount) : undefined;
     const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
       c.id === catId
         ? isMercado
