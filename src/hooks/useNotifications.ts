@@ -30,8 +30,13 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function useNotifications(monthData: MonthData | null, _mercado: Mercado | null) {
+export function useNotifications(monthData: MonthData | null, _mercado: Mercado | null, permission?: NotificationPermission) {
   const checked = useRef(false);
+
+  // Resetear checked cuando el permiso cambia a granted
+  useEffect(() => {
+    if (permission === 'granted') checked.current = false;
+  }, [permission]);
 
   useEffect(() => {
     if (!monthData) return;
@@ -42,7 +47,7 @@ export function useNotifications(monthData: MonthData | null, _mercado: Mercado 
 
     const lastCheck = localStorage.getItem(STORAGE_KEY);
     const today = todayKey();
-    if (lastCheck === today) return; // ya se revisó hoy
+    if (lastCheck === today) return;
 
     checked.current = true;
     localStorage.setItem(STORAGE_KEY, today);

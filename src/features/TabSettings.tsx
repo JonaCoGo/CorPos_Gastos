@@ -13,7 +13,7 @@ const TYPE_OPTIONS: { value: PaymentMethodType; label: string; icon: string }[] 
 
 const PRESET_COLORS = ["#FBBF24", "#820AD1", "#0ea5e9", "#059669", "#dc2626", "#6366f1", "#f59e0b", "#64748b"];
 
-export function TabSettings() {
+export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () => void }) {
   const config              = useAppStore((s) => s.data.config);
   const updateConfig        = useAppStore((s) => s.updateConfig);
   const resetMercadoCompras = useAppStore((s) => s.resetMercadoCompras);
@@ -41,7 +41,7 @@ export function TabSettings() {
       setNotifEnabled(true);
       setNotifEnabledState(true);
       localStorage.removeItem('corpos_notif_last_check');
-      window.location.reload();
+      onPermissionGranted?.();
     }
   };
 

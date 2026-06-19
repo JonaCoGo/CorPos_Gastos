@@ -44,7 +44,10 @@ export default function App() {
     [currentMonth, data.mercado]
   );
 
-  useNotifications(currentMonth ?? null, data.mercado ?? null);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
+    'Notification' in window ? Notification.permission : 'denied'
+  );
+  useNotifications(currentMonth ?? null, data.mercado ?? null, notifPermission);
 
   const syncStatus = !db ? "offline" : synced ? "synced" : "connecting";
   const monthLabel = currentMonth ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : "";
@@ -84,7 +87,7 @@ export default function App() {
           />
         );
       case "settings":
-        return <TabSettings />;
+        return <TabSettings onPermissionGranted={() => setNotifPermission('granted')} />;
       case "more":
         return <TabMore onGoTo={setTab} />;
       default:
