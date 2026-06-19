@@ -15,8 +15,10 @@ export interface FamilyExpense {
   label: string;
   icon: string;
   budget: number;
+  monthlyAmount?: number;   // monto real este mes (override del budget para cálculos)
   marcela: number;
   jonatan: number;
+  conjunto?: number;        // pagado desde cuenta/fondo conjunto
   active: boolean;
   disableNext: boolean;
   paymentMethodId?: string;
@@ -79,6 +81,8 @@ export interface Compra {
   notes: string;
   marcelaAmount: number;
   jonatanAmount: number;
+  conjuntoAmount?: number;  // pagado desde fondo conjunto
+  paidBy?: 'marcela' | 'jonatan' | 'conjunto';
   paymentMethodId?: string;
 }
 
@@ -129,6 +133,7 @@ export interface ResumenFinanciero {
   totalFamilyPending: number;
   totalFamilyPaidMarcela: number;
   totalFamilyPaidJonatan: number;
+  totalFamilyPaidConjunto: number;
   aporteFamiliarMarcela: number;
   aporteFamiliarJonatan: number;
   aportePagadoIdealMarcela: number;
@@ -142,4 +147,5 @@ export interface ResumenFinanciero {
 export interface MercadoTotals {
   marcela: number;
   jonatan: number;
+  conjunto: number;
 }

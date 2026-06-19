@@ -53,6 +53,8 @@ export function createEmptyMonth(
       ...c,
       marcela: 0,
       jonatan: 0,
+      conjunto: 0,
+      monthlyAmount: undefined,
       disableNext: false,
       active: c.disableNext ? false : true,
     }));
@@ -76,12 +78,13 @@ export function createEmptyMonth(
 
 // ─── CALCULAR TOTALES DE MERCADO ──────────────────────────────────────────────
 export function calculateMercadoTotals(mercado: Mercado | null | undefined): MercadoTotals {
-  if (!mercado || !mercado.compras) return { marcela: 0, jonatan: 0 };
+  if (!mercado || !mercado.compras) return { marcela: 0, jonatan: 0, conjunto: 0 };
 
-  const marcelaTotal = mercado.compras.reduce((sum, compra) => sum + (compra.marcelaAmount || 0), 0);
-  const jonatanTotal = mercado.compras.reduce((sum, compra) => sum + (compra.jonatanAmount || 0), 0);
+  const marcela  = mercado.compras.reduce((s, c) => s + (c.marcelaAmount  || 0), 0);
+  const jonatan  = mercado.compras.reduce((s, c) => s + (c.jonatanAmount  || 0), 0);
+  const conjunto = mercado.compras.reduce((s, c) => s + (c.conjuntoAmount || 0), 0);
 
-  return { marcela: marcelaTotal, jonatan: jonatanTotal };
+  return { marcela, jonatan, conjunto };
 }
 
 // ─── COMPUTAR RESUMEN FINANCIERO ──────────────────────────────────────────────
@@ -109,37 +112,38 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
     ? { marcela: netoMarcela / totalNeto, jonatan: netoJonatan / totalNeto }
     : { marcela: 0.5, jonatan: 0.5 };
 
-  // Gastos del hogar
-  const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.budget || 0), 0);
+  // Gastos del hogar — usa monthlyAmount como override del budget cuando está definido
+  const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.monthlyAmount ?? c.budget ?? 0), 0);
 
   const mercadoTotals = calculateMercadoTotals(mercado);
 
   const totalFamilyPaidMarcela = familyExpenses.reduce((sum, cat) => {
-    if (cat.id === 'mercado') {
-      return sum + mercadoTotals.marcela;
-    }
+    if (cat.id === 'mercado') return sum + mercadoTotals.marcela;
     return sum + (cat.marcela || 0);
   }, 0);
 
   const totalFamilyPaidJonatan = familyExpenses.reduce((sum, cat) => {
-    if (cat.id === 'mercado') {
-      return sum + mercadoTotals.jonatan;
-    }
+    if (cat.id === 'mercado') return sum + mercadoTotals.jonatan;
     return sum + (cat.jonatan || 0);
   }, 0);
 
-  const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan;
+  const totalFamilyPaidConjunto = familyExpenses.reduce((sum, cat) => {
+    if (cat.id === 'mercado') return sum + mercadoTotals.conjunto;
+    return sum + (cat.conjunto || 0);
+  }, 0);
+
+  const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan + totalFamilyPaidConjunto;
   const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid);
 
-  // Aporte ideal = proporción del presupuesto total
-  const aporteFamiliarMarcela = totalFamilyBudget * ratio.marcela;
-  const aporteFamiliarJonatan = totalFamilyBudget * ratio.jonatan;
+  // El aporte ideal individual se calcula sobre la porción que no cubrió el fondo conjunto
+  const portionIndividual = Math.max(0, totalFamilyBudget - totalFamilyPaidConjunto);
+  const aporteFamiliarMarcela = portionIndividual * ratio.marcela;
+  const aporteFamiliarJonatan = portionIndividual * ratio.jonatan;
 
   // Saldo libre = neto - aporte ideal al hogar - gastos extra propios
   const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela;
   const saldoJonatan = netoJonatan - aporteFamiliarJonatan - extrasTotalJonatan;
 
-  // Balance real: quién pagó de más o de menos respecto al presupuesto total
   const diffMarcela = totalFamilyPaidMarcela - aporteFamiliarMarcela;
   const diffJonatan = totalFamilyPaidJonatan - aporteFamiliarJonatan;
 
@@ -157,6 +161,7 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
     totalFamilyPending,
     totalFamilyPaidMarcela,
     totalFamilyPaidJonatan,
+    totalFamilyPaidConjunto,
     aporteFamiliarMarcela,
     aporteFamiliarJonatan,
     aportePagadoIdealMarcela: aporteFamiliarMarcela,

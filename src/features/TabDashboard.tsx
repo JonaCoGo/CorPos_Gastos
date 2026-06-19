@@ -21,7 +21,7 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
     personalTotalMarcela, personalTotalJonatan,
     extrasTotalMarcela, extrasTotalJonatan,
     totalFamilyBudget, totalFamilyPaid, totalFamilyPending,
-    totalFamilyPaidMarcela, totalFamilyPaidJonatan,
+    totalFamilyPaidMarcela, totalFamilyPaidJonatan, totalFamilyPaidConjunto,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
     aportePagadoIdealMarcela, aportePagadoIdealJonatan,
     saldoMarcela, saldoJonatan } = summary;
@@ -34,7 +34,7 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
   const paymentMethods = config?.paymentMethods ?? [];
   const pmTotals: Record<string, number> = {};
   if (paymentMethods.length > 0) {
-    monthData.familyExpenses.forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + (e.marcela || 0) + (e.jonatan || 0); });
+    monthData.familyExpenses.forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + (e.marcela || 0) + (e.jonatan || 0) + (e.conjunto || 0); });
     (monthData.personalExpenses?.marcela || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
     (monthData.personalExpenses?.jonatan || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
     (monthData.extras || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
@@ -113,6 +113,15 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
             </div>
           ))}
         </div>
+        {totalFamilyPaidConjunto > 0 && (
+          <div style={{ marginTop: 8, background: "var(--surface2)", borderRadius: 10, padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>🤝 Pagaron los dos (fondo conjunto)</div>
+              <div style={{ fontSize: 10, color: "var(--text2)" }}>Reduce el aporte individual proporcionalmente</div>
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "var(--accent)" }}>{COP(totalFamilyPaidConjunto)}</div>
+          </div>
+        )}
         {(faltanteMarcela >= 1000 || faltanteJonatan >= 1000) && (<div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, fontSize: 12 }}>
             {faltanteMarcela >= 1000 && (<div style={{ color: "var(--danger)", marginBottom: 4 }}>
                 {names.marcela} le falta pagar {COP(faltanteMarcela)} para llegar al ideal</div>

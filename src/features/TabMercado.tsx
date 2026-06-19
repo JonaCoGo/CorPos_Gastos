@@ -17,6 +17,7 @@ interface CartEntry {
   qty: string;
   pricePer: string;
   unit: string;
+  paidBy: 'marcela' | 'jonatan' | 'conjunto';
 }
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
@@ -39,6 +40,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   // ── Estado vista "historial" ────────────────────────────────────────────────
   const [confirmDelCompra, setConfirmDelCompra] = useState<Compra | null>(null);
+  const [confirmDelTrip,  setConfirmDelTrip]  = useState<string | null>(null);
   const [expandedTrip,    setExpandedTrip]    = useState<string | null>(null);
 
   // ── Estado vista "productos" ────────────────────────────────────────────────
@@ -58,7 +60,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       setCart(next);
       if (expandedItem === item.id) setExpandedItem(null);
     } else {
-      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer), unit: item.unit } });
+      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer), unit: item.unit, paidBy: 'conjunto' } });
       setExpandedItem(item.id);
     }
   };
@@ -86,6 +88,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       const pricePer = Number(e.pricePer) || item.pricePer;
       const unit = e.unit || item.unit;
       const total = qty * pricePer;
+      const paidBy = e.paidBy || 'conjunto';
       return {
         id: `compra_${Date.now()}_${e.itemId}`,
         itemId: item.id,
@@ -97,8 +100,10 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         supermarket,
         date: today,
         notes: "",
-        marcelaAmount: total / 2,
-        jonatanAmount: total / 2,
+        marcelaAmount:  paidBy === 'marcela'  ? total : 0,
+        jonatanAmount:  paidBy === 'jonatan'  ? total : 0,
+        conjuntoAmount: paidBy === 'conjunto' ? total : 0,
+        paidBy,
         paymentMethodId: paymentId || undefined,
       };
     });
@@ -360,6 +365,24 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                             ))}
                           </div>
                         </div>
+                        <div>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>¿Quién paga?</div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            {([
+                              { id: 'marcela',  label: names.marcela },
+                              { id: 'jonatan',  label: names.jonatan },
+                              { id: 'conjunto', label: 'Los dos' },
+                            ] as const).map((p) => (
+                              <button key={p.id} onClick={() => updateCartEntry(item.id, { paidBy: p.id })} style={{
+                                flex: 1, padding: "7px 4px", borderRadius: 8, border: "2px solid",
+                                borderColor: entry.paidBy === p.id ? "var(--accent)" : "var(--border)",
+                                background: entry.paidBy === p.id ? "var(--accent)" : "var(--surface)",
+                                color: entry.paidBy === p.id ? "#fff" : "var(--text2)",
+                                fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)",
+                              }}>{p.label}</button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -411,24 +434,30 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               return (
                 <Card key={trip.key} style={{ padding: 0, overflow: "hidden" }}>
                   {/* Cabecera del viaje */}
-                  <button
-                    onClick={() => setExpandedTrip(isOpen ? null : trip.key)}
-                    style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "var(--font-body)", textAlign: "left" }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 16 }}>🛒</span>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{trip.supermarket}</span>
-                        <span style={{ fontSize: 11, color: "var(--text2)", background: "var(--surface2)", borderRadius: 99, padding: "2px 8px" }}>
-                          {trip.items.length} producto{trip.items.length !== 1 ? "s" : ""}
-                        </span>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <button
+                      onClick={() => setExpandedTrip(isOpen ? null : trip.key)}
+                      style={{ flex: 1, background: "none", border: "none", cursor: "pointer", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "var(--font-body)", textAlign: "left" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 16 }}>🛒</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{trip.supermarket}</span>
+                          <span style={{ fontSize: 11, color: "var(--text2)", background: "var(--surface2)", borderRadius: 99, padding: "2px 8px" }}>
+                            {trip.items.length} producto{trip.items.length !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 3 }}>{trip.date}</div>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 3 }}>{trip.date}</div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 18, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(trip.total)}</span>
-                      {isOpen ? <ChevronUp size={16} color="var(--text2)" /> : <ChevronDown size={16} color="var(--text2)" />}
-                    </div>
-                  </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(trip.total)}</span>
+                        {isOpen ? <ChevronUp size={16} color="var(--text2)" /> : <ChevronDown size={16} color="var(--text2)" />}
+                      </div>
+                    </button>
+                    <button onClick={() => setConfirmDelTrip(trip.key)} aria-label="Eliminar viaje completo"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", padding: "14px 14px 14px 0", display: "flex", alignItems: "center" }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
 
                   {/* Detalle expandido */}
                   {isOpen && (
@@ -544,6 +573,29 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
           <Btn variant="secondary" onClick={() => setConfirmDel(null)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="danger" onClick={() => deleteItem(confirmDel!.id)} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
+      </Modal>
+
+      {/* Modal: confirmar eliminar viaje completo */}
+      <Modal open={!!confirmDelTrip} onClose={() => setConfirmDelTrip(null)} title="¿Eliminar viaje completo?">
+        {(() => {
+          const trip = trips.find((t) => t.key === confirmDelTrip);
+          return (
+            <>
+              <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
+                Vas a eliminar <strong>{trip?.items.length} producto{trip?.items.length !== 1 ? "s" : ""}</strong> del viaje a <strong>{trip?.supermarket}</strong> del {trip?.date}. Esta acción no se puede deshacer.
+              </p>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Btn variant="secondary" onClick={() => setConfirmDelTrip(null)} style={{ flex: 1 }}>Cancelar</Btn>
+                <Btn variant="danger" onClick={() => {
+                  const ids = new Set(trip?.items.map((c) => c.id));
+                  onUpdate({ ...mercado, compras: compras.filter((c) => !ids.has(c.id)) });
+                  setConfirmDelTrip(null);
+                  if (expandedTrip === confirmDelTrip) setExpandedTrip(null);
+                }} style={{ flex: 1 }}>Eliminar viaje</Btn>
+              </div>
+            </>
+          );
+        })()}
       </Modal>
 
       {/* Modal: confirmar eliminar compra */}
