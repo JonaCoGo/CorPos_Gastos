@@ -140,9 +140,16 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
   const aporteFamiliarMarcela = portionIndividual * ratio.marcela;
   const aporteFamiliarJonatan = portionIndividual * ratio.jonatan;
 
-  // Saldo libre = neto - aporte ideal al hogar - gastos extra propios
-  const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela;
-  const saldoJonatan = netoJonatan - aporteFamiliarJonatan - extrasTotalJonatan;
+  // Aportes al fondo conjunto (dinero que cada uno transfirió este mes)
+  const aporteFondoMarcela = monthData.fondoConjunto?.aporteMarcela ?? 0;
+  const aporteFondoJonatan = monthData.fondoConjunto?.aporteJonatan ?? 0;
+
+  // Saldo libre = neto - aporte ideal al hogar - extras - aporte al fondo conjunto
+  const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela - aporteFondoMarcela;
+  const saldoJonatan = netoJonatan - aporteFamiliarJonatan - extrasTotalJonatan - aporteFondoJonatan;
+
+  // Saldo del fondo = total depositado - total gastado como "conjunto"
+  const saldoFondo = (aporteFondoMarcela + aporteFondoJonatan) - totalFamilyPaidConjunto;
 
   const diffMarcela = totalFamilyPaidMarcela - aporteFamiliarMarcela;
   const diffJonatan = totalFamilyPaidJonatan - aporteFamiliarJonatan;
@@ -170,5 +177,8 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
     saldoJonatan,
     diffMarcela,
     diffJonatan,
+    aporteFondoMarcela,
+    aporteFondoJonatan,
+    saldoFondo,
   };
 }

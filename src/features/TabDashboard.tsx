@@ -24,7 +24,8 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
     totalFamilyPaidMarcela, totalFamilyPaidJonatan, totalFamilyPaidConjunto,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
     aportePagadoIdealMarcela, aportePagadoIdealJonatan,
-    saldoMarcela, saldoJonatan } = summary;
+    saldoMarcela, saldoJonatan,
+    aporteFondoMarcela, aporteFondoJonatan, saldoFondo } = summary;
 
   // Calcular faltantes para llegar al ideal
   const faltanteMarcela = Math.max(0, aporteFamiliarMarcela - totalFamilyPaidMarcela);
@@ -136,8 +137,8 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
       <Card>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>Saldo Libre Estimado</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {[{ n: "marcela", label: names.marcela, saldo: saldoMarcela, aporte: aporteFamiliarMarcela },
-            { n: "jonatan", label: names.jonatan, saldo: saldoJonatan, aporte: aporteFamiliarJonatan }].map(({ n, label, saldo, aporte }) => (
+          {[{ n: "marcela", label: names.marcela, saldo: saldoMarcela, aporte: aporteFamiliarMarcela, fondoAporte: aporteFondoMarcela },
+            { n: "jonatan", label: names.jonatan, saldo: saldoJonatan, aporte: aporteFamiliarJonatan, fondoAporte: aporteFondoJonatan }].map(({ n, label, saldo, aporte, fondoAporte }) => (
             <div key={n} style={{ background: "var(--surface2)", borderRadius: 12, padding: "14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <Avatar name={label} persona={n} size={24} />
@@ -146,7 +147,13 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
               <div style={{ fontSize: 11, color: "var(--text2)" }}>Aporte ideal al hogar</div>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{COP(aporte)}</div>
               <div style={{ fontSize: 11, color: "var(--text2)" }}>Gastos extra</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 8 }}>−{COP(n === "marcela" ? extrasTotalMarcela : extrasTotalJonatan)}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>−{COP(n === "marcela" ? extrasTotalMarcela : extrasTotalJonatan)}</div>
+              {fondoAporte > 0 && (
+                <>
+                  <div style={{ fontSize: 11, color: "var(--text2)" }}>Aporte al fondo conjunto</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>−{COP(fondoAporte)}</div>
+                </>
+              )}
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
                 <div style={{ fontSize: 11, color: "var(--text2)" }}>Queda libre</div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: saldo >= 0 ? "var(--success)" : "var(--danger)", fontFamily: "var(--font-display)" }}>
@@ -157,9 +164,51 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
           ))}
         </div>
         <div style={{ marginTop: 8, fontSize: 11, color: "var(--text2)", padding: "8px 10px", background: "var(--surface2)", borderRadius: 8 }}>
-          Saldo libre = neto disponible − aporte proporcional al hogar
+          Saldo libre = neto disponible − aporte al hogar − extras − aporte al fondo conjunto
         </div>
       </Card>
+
+      {/* Fondo conjunto */}
+      {(aporteFondoMarcela > 0 || aporteFondoJonatan > 0 || totalFamilyPaidConjunto > 0) && (
+        <Card>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+            🤝 Fondo Conjunto
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {aporteFondoMarcela > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "var(--text2)" }}>Aportó {names.marcela}</span>
+                <span style={{ fontWeight: 600, color: "var(--marce)" }}>{COP(aporteFondoMarcela)}</span>
+              </div>
+            )}
+            {aporteFondoJonatan > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "var(--text2)" }}>Aportó {names.jonatan}</span>
+                <span style={{ fontWeight: 600, color: "var(--jona)" }}>{COP(aporteFondoJonatan)}</span>
+              </div>
+            )}
+            {totalFamilyPaidConjunto > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <span style={{ color: "var(--text2)" }}>Gastado del fondo</span>
+                <span style={{ fontWeight: 600, color: "var(--danger)" }}>−{COP(totalFamilyPaidConjunto)}</span>
+              </div>
+            )}
+            <div style={{
+              borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center"
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Saldo del fondo</span>
+              <span style={{ fontSize: 20, fontWeight: 900, color: saldoFondo >= 0 ? "var(--accent)" : "var(--danger)", fontFamily: "var(--font-display)" }}>
+                {COP(saldoFondo)}
+              </span>
+            </div>
+            {saldoFondo < 0 && (
+              <div style={{ background: "rgba(var(--danger-rgb,220,53,69),0.1)", borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "var(--danger)", fontWeight: 600 }}>
+                ⚠️ El fondo necesita {COP(Math.abs(saldoFondo))} más para cubrir los gastos conjuntos
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Resumen por medio de pago */}
       {pmEntries.length > 0 && (

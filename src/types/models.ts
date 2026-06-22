@@ -46,6 +46,11 @@ export interface Extra {
   paymentMethodId?: string;
 }
 
+export interface FondoConjunto {
+  aporteMarcela: number;
+  aporteJonatan: number;
+}
+
 export interface MonthData {
   key: string;
   year: number;
@@ -57,6 +62,7 @@ export interface MonthData {
     jonatan: PersonalExpense[];
   };
   extras: Extra[];
+  fondoConjunto?: FondoConjunto;
 }
 
 export interface ItemMercado {
@@ -142,6 +148,9 @@ export interface ResumenFinanciero {
   saldoJonatan: number;
   diffMarcela: number;
   diffJonatan: number;
+  aporteFondoMarcela: number;
+  aporteFondoJonatan: number;
+  saldoFondo: number;
 }
 
 export interface MercadoTotals {
