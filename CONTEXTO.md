@@ -75,7 +75,7 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 4. No exponer credenciales ni rutas internas al cliente.
 5. Commits con formato `tipo(app-gastos): descripción`.
 
-## Estado actual (2026-06-19)
+## Estado actual (2026-06-22)
 
 - **Producción estable** en https://corpos-gastos.vercel.app/
 - **0 errores TypeScript**. Build limpio en ~3s.
@@ -129,6 +129,16 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 ---
 
 ## Historial de cambios
+
+### [2026-06-22] — Fondo conjunto con balance real
+
+- `FondoConjunto` (`aporteMarcela`, `aporteJonatan`) agregado a `MonthData`
+- `computeSummary` descuenta el aporte al fondo del saldo libre de cada persona
+- `saldoFondo` = total depositado − total gastado como conjunto
+- `TabSalaries`: card "🤝 Fondo Conjunto" para registrar aportes mensuales
+- `TabDashboard`: card con desglose (quién aportó, cuánto se gastó, saldo disponible) y alerta de déficit
+
+
 
 ### [2026-06-19] — Mercado UX + pagos conjuntos + formato COP + actualización PWA
 

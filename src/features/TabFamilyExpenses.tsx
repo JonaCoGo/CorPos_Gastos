@@ -265,7 +265,6 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
               label={`Pagó ${names.marcela}`}
               value={editForm.marcela}
               onChange={(v) => setEditForm({ ...editForm, marcela: v })}
-              hint={editEffective > 0 && Number(v => v) >= 0 ? undefined : undefined}
             />
             <CopField
               label={`Pagó ${names.jonatan}`}

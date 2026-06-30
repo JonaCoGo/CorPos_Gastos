@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { MonthData, Mercado } from '../types/models';
-import { COP } from '../utils/finanzas';
+import { COP, calculateMercadoTotals } from '../utils/finanzas';
 
 const STORAGE_KEY = 'corpos_notif_last_check';
 const NOTIF_ENABLED_KEY = 'corpos_notif_enabled';
@@ -30,10 +30,11 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function useNotifications(monthData: MonthData | null, _mercado: Mercado | null, permission?: NotificationPermission) {
+type FamilyExpense = MonthData['familyExpenses'][number];
+
+export function useNotifications(monthData: MonthData | null, mercado: Mercado | null, permission?: NotificationPermission) {
   const checked = useRef(false);
 
-  // Resetear checked cuando el permiso cambia a granted
   useEffect(() => {
     if (permission === 'granted') checked.current = false;
   }, [permission]);
@@ -55,37 +56,50 @@ export function useNotifications(monthData: MonthData | null, _mercado: Mercado 
     const dayOfMonth = new Date().getDate();
     const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
 
-    // Gastos personales sin pagar cuyo día ya pasó o es hoy
     const allPersonal = [
-      ...( monthData.personalExpenses?.marcela || []),
-      ...( monthData.personalExpenses?.jonatan || []),
+      ...(monthData.personalExpenses?.marcela || []),
+      ...(monthData.personalExpenses?.jonatan || []),
     ];
     const overdue = allPersonal.filter(
-      (e) => e.active !== false && !e.paid && e.day != null && (e.day as number) <= dayOfMonth
+      (expense) => expense.active !== false && !expense.paid && expense.day != null && expense.day <= dayOfMonth
     );
+
     if (overdue.length === 1) {
       notify('💸 Gasto pendiente', `${overdue[0].icon || '💰'} ${overdue[0].desc} — ${COP(overdue[0].amount)}`, 'personal-overdue');
     } else if (overdue.length > 1) {
       notify('💸 Gastos pendientes', `Tenés ${overdue.length} gastos personales sin pagar este mes`, 'personal-overdue');
     }
 
-    // Gastos del hogar sin pagar
-    const familyUnpaid = (monthData.familyExpenses || []).filter((e) => !e.paid);
+    const mercadoTotals = calculateMercadoTotals(mercado);
+    const getFamilyPaidAmount = (expense: FamilyExpense) => {
+      if (expense.id === 'mercado') {
+        return mercadoTotals.marcela + mercadoTotals.jonatan + mercadoTotals.conjunto;
+      }
+      return (expense.marcela || 0) + (expense.jonatan || 0) + (expense.conjunto || 0);
+    };
+    const isFamilyCovered = (expense: FamilyExpense) => {
+      const expected = expense.monthlyAmount ?? expense.budget ?? 0;
+      return expected <= 0 || getFamilyPaidAmount(expense) >= expected;
+    };
+
+    const activeFamilyExpenses = (monthData.familyExpenses || []).filter((expense) => expense.active !== false);
+    const familyUnpaid = activeFamilyExpenses.filter((expense) => !isFamilyCovered(expense));
     if (familyUnpaid.length > 0) {
-      const totalUnpaid = familyUnpaid.reduce((s, e) => s + (e.marcela || 0) + (e.jonatan || 0), 0);
+      const totalUnpaid = familyUnpaid.reduce((sum, expense) => {
+        const expected = expense.monthlyAmount ?? expense.budget ?? 0;
+        return sum + Math.max(0, expected - getFamilyPaidAmount(expense));
+      }, 0);
       notify('🏠 Hogar pendiente', `${familyUnpaid.length} gasto${familyUnpaid.length > 1 ? 's' : ''} del hogar por pagar — ${COP(totalUnpaid)}`, 'family-unpaid');
     }
 
-    // Resumen semanal — domingo
     if (new Date().getDay() === 0) {
-      const familyPaid = (monthData.familyExpenses || []).filter((e) => e.paid);
-      const pctFamily = monthData.familyExpenses?.length
-        ? Math.round((familyPaid.length / monthData.familyExpenses.length) * 100)
+      const familyPaid = activeFamilyExpenses.filter(isFamilyCovered);
+      const pctFamily = activeFamilyExpenses.length
+        ? Math.round((familyPaid.length / activeFamilyExpenses.length) * 100)
         : 0;
       notify('📊 Resumen semanal', `Hogar: ${pctFamily}% pagado. ${overdue.length > 0 ? `${overdue.length} personales pendientes.` : 'Personales al día ✅'}`, 'weekly');
     }
 
-    // Recordatorio cierre de mes — últimos 3 días
     if (dayOfMonth >= daysInMonth - 2) {
       const allPaid = familyUnpaid.length === 0 && overdue.length === 0;
       notify(
@@ -94,5 +108,5 @@ export function useNotifications(monthData: MonthData | null, _mercado: Mercado 
         'month-end'
       );
     }
-  }, [monthData, checked]);
+  }, [monthData, mercado]);
 }
