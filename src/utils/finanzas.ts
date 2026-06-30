@@ -151,10 +151,10 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
   // Saldo del fondo = total depositado - total gastado como "conjunto"
   const saldoFondo = (aporteFondoMarcela + aporteFondoJonatan) - totalFamilyPaidConjunto;
 
-  // Saldo libre = neto - lo que aún le falta pagar al hogar - extras
-  // (lo que ya pagó directamente + fondo ya cuenta, solo resta la diferencia)
-  const saldoMarcela = netoMarcela - Math.max(0, aporteFamiliarMarcela - pagoTotalMarcela) - extrasTotalMarcela;
-  const saldoJonatan = netoJonatan - Math.max(0, aporteFamiliarJonatan - pagoTotalJonatan) - extrasTotalJonatan;
+  // Saldo libre = neto − obligación ideal al hogar − extras
+  // El fondo es el mecanismo de pago, no una deducción adicional
+  const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela;
+  const saldoJonatan = netoJonatan - aporteFamiliarJonatan - extrasTotalJonatan;
 
   const diffMarcela = totalFamilyPaidMarcela - aporteFamiliarMarcela;
   const diffJonatan = totalFamilyPaidJonatan - aporteFamiliarJonatan;
