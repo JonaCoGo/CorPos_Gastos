@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, Suspense, lazy } from "react";
 import { useRegisterSW } from 'virtual:pwa-register/react';
+// autoUpdate: SW se actualiza en silencio, sin banner ni botón
 import { db } from "./firebase";
 import { MONTH_NAMES } from "./constants";
 import { computeSummary } from './utils/finanzas';
@@ -19,7 +20,7 @@ const TabMercado          = lazy(() => import('./features/TabMercado').then(m =>
 const TabSettings         = lazy(() => import('./features/TabSettings').then(m => ({ default: m.TabSettings })));
 
 export default function App() {
-  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
+  useRegisterSW();
 
   const data   = useAppStore((s) => s.data);
   const tab    = useAppStore((s) => s.tab);
@@ -35,14 +36,7 @@ export default function App() {
   const initFirestoreSync    = useAppStore((s) => s.initFirestoreSync);
 
   const [toast, setToast] = useState<string | null>(null);
-  const [updatingApp, setUpdatingApp] = useState(false);
   const showToast = useCallback((msg: string) => setToast(msg), []);
-
-  const handleAppUpdate = useCallback(() => {
-    if (updatingApp) return;
-    setUpdatingApp(true);
-    updateServiceWorker(true);
-  }, [updateServiceWorker, updatingApp]);
 
   useEffect(() => { checkAndAdvanceMonth(); }, [data.currentKey, checkAndAdvanceMonth]);
   useEffect(() => { const unsub = initFirestoreSync(); return () => unsub(); }, [initFirestoreSync]);
@@ -107,22 +101,6 @@ export default function App() {
 
   return (
     <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
-      {needRefresh && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999,
-          background: "#4f46e5", color: "#fff",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "12px 18px", gap: 12,
-          boxShadow: "0 2px 12px rgba(79,70,229,0.4)",
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>🔄 Nueva versión disponible</span>
-          <button onClick={handleAppUpdate} disabled={updatingApp} style={{
-            background: "#fff", color: "#4f46e5", border: "none", borderRadius: 8,
-            padding: "7px 14px", fontSize: 13, fontWeight: 800,
-            cursor: updatingApp ? "wait" : "pointer", opacity: updatingApp ? 0.75 : 1,
-          }}>{updatingApp ? "Actualizando..." : "Actualizar"}</button>
-        </div>
-      )}
       <Suspense fallback={<AppSkeleton />}>
         {renderTab()}
       </Suspense>
