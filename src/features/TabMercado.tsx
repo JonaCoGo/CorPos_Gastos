@@ -44,7 +44,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [confirmDelTrip,  setConfirmDelTrip]  = useState<string | null>(null);
   const [expandedTrip,    setExpandedTrip]    = useState<string | null>(null);
   const [editingTrip,     setEditingTrip]     = useState<string | null>(null);
-  const [editTripForm,    setEditTripForm]    = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string }>({ paidBy: 'conjunto', paymentMethodId: "" });
+  const [editTripForm,    setEditTripForm]    = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string; supermarket: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: SUPERMARKETS[0] });
 
   // ── Estado vista "productos" ────────────────────────────────────────────────
   const [filterCat,  setFilterCat]  = useState("Todas");
@@ -473,7 +473,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                     <button onClick={() => {
                       const first = trip.items[0];
                       setEditingTrip(trip.key);
-                      setEditTripForm({ paidBy: first?.paidBy ?? 'conjunto', paymentMethodId: first?.paymentMethodId ?? "" });
+                      setEditTripForm({ paidBy: first?.paidBy ?? 'conjunto', paymentMethodId: first?.paymentMethodId ?? "", supermarket: trip.supermarket });
                     }} aria-label="Editar viaje"
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: "14px 6px 14px 0", display: "flex", alignItems: "center" }}>
                       <Pencil size={15} />
@@ -629,6 +629,13 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         return (
           <Modal open={!!editingTrip} onClose={() => setEditingTrip(null)} title={trip ? `Editar · ${trip.supermarket} ${trip.date}` : ""}>
             <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Supermercado</div>
+              <select value={editTripForm.supermarket} onChange={(e) => setEditTripForm((f) => ({ ...f, supermarket: e.target.value }))}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
+                {SUPERMARKETS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>¿Quién pagó?</div>
               <div style={{ display: "flex", gap: 6 }}>
                 {([
@@ -663,6 +670,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 if (!trip) return;
                 const paidBy = editTripForm.paidBy;
                 const pmId = editTripForm.paymentMethodId || undefined;
+                const newSupermarket = editTripForm.supermarket;
                 const tripIds = new Set(trip.items.map((c) => c.id));
                 const updated = compras.map((c) => {
                   if (!tripIds.has(c.id)) return c;
@@ -672,6 +680,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                     jonatanAmount:  paidBy === 'jonatan'  ? c.total : 0,
                     conjuntoAmount: paidBy === 'conjunto' ? c.total : 0,
                     paymentMethodId: pmId,
+                    supermarket: newSupermarket,
                   };
                 });
                 onUpdate({ ...mercado, compras: updated });
