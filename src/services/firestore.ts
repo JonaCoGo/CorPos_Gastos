@@ -38,6 +38,18 @@ export function loadData() {
       if (parsed.config && !parsed.config.paymentMethods) {
         parsed.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
       }
+      // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'
+      if (parsed.months) {
+        Object.values(parsed.months).forEach((month: any) => {
+          if (!month.familyExpenses) return;
+          const hasMercadoId = month.familyExpenses.some((c: any) => c.id === 'mercado');
+          if (!hasMercadoId) {
+            month.familyExpenses = month.familyExpenses.map((c: any) =>
+              c.label?.trim().toLowerCase() === 'mercado' ? { ...c, id: 'mercado' } : c
+            );
+          }
+        });
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       return parsed;
     }
@@ -130,6 +142,19 @@ export function subscribeToFirestore(
         if (remote.config && !remote.config.paymentMethods) {
           remote.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
           changed = true;
+        }
+        // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'
+        if (remote.months) {
+          Object.values(remote.months).forEach((month: any) => {
+            if (!month.familyExpenses) return;
+            const hasMercadoId = month.familyExpenses.some((c: any) => c.id === 'mercado');
+            if (!hasMercadoId) {
+              month.familyExpenses = month.familyExpenses.map((c: any) =>
+                c.label?.trim().toLowerCase() === 'mercado' ? { ...c, id: 'mercado' } : c
+              );
+              changed = true;
+            }
+          });
         }
         if (changed) setDoc(ref, remote).catch(console.error);
 
