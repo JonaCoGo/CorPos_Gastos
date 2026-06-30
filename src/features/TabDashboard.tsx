@@ -21,15 +21,15 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
     personalTotalMarcela, personalTotalJonatan,
     extrasTotalMarcela, extrasTotalJonatan,
     totalFamilyBudget, totalFamilyPaid, totalFamilyPending,
-    totalFamilyPaidMarcela, totalFamilyPaidJonatan, totalFamilyPaidConjunto,
+    totalFamilyPaidConjunto,
     aporteFamiliarMarcela, aporteFamiliarJonatan,
-    aportePagadoIdealMarcela, aportePagadoIdealJonatan,
     saldoMarcela, saldoJonatan,
-    aporteFondoMarcela, aporteFondoJonatan, saldoFondo } = summary;
+    aporteFondoMarcela, aporteFondoJonatan,
+    pagoTotalMarcela, pagoTotalJonatan, saldoFondo } = summary;
 
-  // Calcular faltantes para llegar al ideal
-  const faltanteMarcela = Math.max(0, aporteFamiliarMarcela - totalFamilyPaidMarcela);
-  const faltanteJonatan = Math.max(0, aporteFamiliarJonatan - totalFamilyPaidJonatan);
+  // Faltante = lo que aún le queda por pagar (directo + fondo ya cuentan)
+  const faltanteMarcela = Math.max(0, aporteFamiliarMarcela - pagoTotalMarcela);
+  const faltanteJonatan = Math.max(0, aporteFamiliarJonatan - pagoTotalJonatan);
 
   // Resumen por medio de pago
   const paymentMethods = config?.paymentMethods ?? [];
@@ -105,8 +105,8 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
           ) : null}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-          {[{ label: `Pagó ${names.marcela}`, val: totalFamilyPaidMarcela, n: "marcela", ideal: aportePagadoIdealMarcela },
-            { label: `Pagó ${names.jonatan}`, val: totalFamilyPaidJonatan, n: "jonatan", ideal: aportePagadoIdealJonatan }].map(({ label, val, n, ideal }) => (
+          {[{ label: `Pagó ${names.marcela}`, val: pagoTotalMarcela, n: "marcela", ideal: aporteFamiliarMarcela },
+            { label: `Pagó ${names.jonatan}`, val: pagoTotalJonatan, n: "jonatan", ideal: aporteFamiliarJonatan }].map(({ label, val, n, ideal }) => (
             <div key={n} style={{ background: "var(--surface2)", borderRadius: 10, padding: "10px 12px" }}>
               <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 17, fontWeight: 800, color: `var(--${n})` }}>{COP(val)}</div>
@@ -137,21 +137,23 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
       <Card>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>Saldo Libre Estimado</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {[{ n: "marcela", label: names.marcela, saldo: saldoMarcela, aporte: aporteFamiliarMarcela, fondoAporte: aporteFondoMarcela },
-            { n: "jonatan", label: names.jonatan, saldo: saldoJonatan, aporte: aporteFamiliarJonatan, fondoAporte: aporteFondoJonatan }].map(({ n, label, saldo, aporte, fondoAporte }) => (
+          {[{ n: "marcela", label: names.marcela, saldo: saldoMarcela, faltante: faltanteMarcela, extras: extrasTotalMarcela },
+            { n: "jonatan", label: names.jonatan, saldo: saldoJonatan, faltante: faltanteJonatan, extras: extrasTotalJonatan }].map(({ n, label, saldo, faltante, extras }) => (
             <div key={n} style={{ background: "var(--surface2)", borderRadius: 12, padding: "14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <Avatar name={label} persona={n} size={24} />
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text2)" }}>{label}</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text2)" }}>Aporte ideal al hogar</div>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{COP(aporte)}</div>
-              <div style={{ fontSize: 11, color: "var(--text2)" }}>Gastos extra</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>−{COP(n === "marcela" ? extrasTotalMarcela : extrasTotalJonatan)}</div>
-              {fondoAporte > 0 && (
+              {faltante > 0 && (
                 <>
-                  <div style={{ fontSize: 11, color: "var(--text2)" }}>Aporte al fondo conjunto</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>−{COP(fondoAporte)}</div>
+                  <div style={{ fontSize: 11, color: "var(--text2)" }}>Falta pagar al hogar</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>−{COP(faltante)}</div>
+                </>
+              )}
+              {extras > 0 && (
+                <>
+                  <div style={{ fontSize: 11, color: "var(--text2)" }}>Gastos extra</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--danger)", marginBottom: 6 }}>−{COP(extras)}</div>
                 </>
               )}
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
@@ -164,7 +166,7 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
           ))}
         </div>
         <div style={{ marginTop: 8, fontSize: 11, color: "var(--text2)", padding: "8px 10px", background: "var(--surface2)", borderRadius: 8 }}>
-          Saldo libre = neto disponible − aporte al hogar − extras − aporte al fondo conjunto
+          Saldo libre = neto disponible − lo que falta pagar al hogar − extras
         </div>
       </Card>
 

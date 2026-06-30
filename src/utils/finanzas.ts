@@ -184,6 +184,8 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
     diffJonatan,
     aporteFondoMarcela,
     aporteFondoJonatan,
+    pagoTotalMarcela,
+    pagoTotalJonatan,
     saldoFondo,
   };
 }

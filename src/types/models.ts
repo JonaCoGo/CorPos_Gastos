@@ -156,6 +156,8 @@ export interface ResumenFinanciero {
   diffJonatan: number;
   aporteFondoMarcela: number;
   aporteFondoJonatan: number;
+  pagoTotalMarcela: number;
+  pagoTotalJonatan: number;
   saldoFondo: number;
 }
 
