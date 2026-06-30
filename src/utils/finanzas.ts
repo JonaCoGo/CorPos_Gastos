@@ -141,8 +141,9 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
   const aporteFamiliarJonatan = portionIndividual * ratio.jonatan;
 
   // Aportes al fondo conjunto (dinero que cada uno transfirió este mes)
-  const aporteFondoMarcela = monthData.fondoConjunto?.aporteMarcela ?? 0;
-  const aporteFondoJonatan = monthData.fondoConjunto?.aporteJonatan ?? 0;
+  const transferencias = monthData.fondoConjunto?.transferencias ?? [];
+  const aporteFondoMarcela = transferencias.filter(t => t.persona === 'marcela').reduce((s, t) => s + t.monto, 0);
+  const aporteFondoJonatan = transferencias.filter(t => t.persona === 'jonatan').reduce((s, t) => s + t.monto, 0);
 
   // Saldo libre = neto - aporte ideal al hogar - extras - aporte al fondo conjunto
   const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela - aporteFondoMarcela;

@@ -3,7 +3,7 @@ import { Trash2, Pause, Play, Undo2 } from 'lucide-react';
 import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar, PaymentChips } from '../components/ui';
 import { ICONS } from '../constants';
 import { COP } from '../utils/finanzas';
-import { MonthData, PersonalExpense } from '../types/models';
+import { MonthData, PersonalExpense, TransferenciaFondo } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
 interface TabPersonalExpensesProps {
@@ -18,6 +18,33 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
   const config = useAppStore((s) => s.data.config);
   const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
   const paymentMethods = config?.paymentMethods ?? [];
+
+  const [fondoModal, setFondoModal] = useState(false);
+  const [fondoForm, setFondoForm] = useState<{ persona: 'marcela' | 'jonatan'; monto: string }>({ persona: 'marcela', monto: '' });
+  const [confirmDelTransf, setConfirmDelTransf] = useState<TransferenciaFondo | null>(null);
+
+  const transferencias = monthData.fondoConjunto?.transferencias ?? [];
+  const aporteMarcela = transferencias.filter(t => t.persona === 'marcela').reduce((s, t) => s + t.monto, 0);
+  const aporteJonatan = transferencias.filter(t => t.persona === 'jonatan').reduce((s, t) => s + t.monto, 0);
+  const totalFondo = aporteMarcela + aporteJonatan;
+
+  const addTransferencia = () => {
+    if (!fondoForm.monto) return;
+    const nueva: TransferenciaFondo = {
+      id: `tf_${Date.now()}`,
+      persona: fondoForm.persona,
+      monto: Number(fondoForm.monto) || 0,
+      fecha: new Date().toISOString().slice(0, 10),
+    };
+    onUpdate({ ...monthData, fondoConjunto: { transferencias: [...transferencias, nueva] } });
+    setFondoModal(false);
+    setFondoForm({ persona: 'marcela', monto: '' });
+  };
+
+  const deleteTransferencia = (id: string) => {
+    onUpdate({ ...monthData, fondoConjunto: { transferencias: transferencias.filter(t => t.id !== id) } });
+    setConfirmDelTransf(null);
+  };
 
   const [addModal, setAddModal] = useState<string | null>(null);
   const [form, setForm] = useState({ desc: "", amount: "", day: "", icon: "", paymentMethodId: "" });
@@ -85,6 +112,50 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* Fondo Conjunto */}
+      <Card>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)" }}>🤝 Fondo Conjunto</div>
+          <Btn variant="primary" style={{ fontSize: 12, padding: "6px 12px" }} onClick={() => setFondoModal(true)}>+ Transferencia</Btn>
+        </div>
+
+        {transferencias.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--text2)", textAlign: "center", padding: "12px 0" }}>Sin transferencias este mes</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+            {transferencias.map((t) => (
+              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "var(--surface2)", borderRadius: 10 }}>
+                <Avatar name={t.persona} size={22} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{names[t.persona]}</div>
+                  <div style={{ fontSize: 11, color: "var(--text2)" }}>{t.fecha}</div>
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--accent)" }}>{COP(t.monto)}</span>
+                <button onClick={() => setConfirmDelTransf(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "2px 4px" }}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
+          {[{ persona: 'marcela' as const, aporte: aporteMarcela }, { persona: 'jonatan' as const, aporte: aporteJonatan }].map(({ persona, aporte }) => (
+            <div key={persona} style={{ background: "var(--surface2)", borderRadius: 8, padding: "8px 10px" }}>
+              <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>{names[persona]}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: persona === 'marcela' ? "var(--marce)" : "var(--jona)" }}>{COP(aporte)}</div>
+            </div>
+          ))}
+        </div>
+        {totalFondo > 0 && (
+          <div style={{ marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+            <span style={{ color: "var(--text2)", fontWeight: 600 }}>Total en el fondo</span>
+            <span style={{ fontWeight: 800, color: "var(--accent)" }}>{COP(totalFondo)}</span>
+          </div>
+        )}
+      </Card>
+
       {(["jonatan", "marcela"] as Persona[]).map((person) => {
         const expenses: PersonalExpense[] = monthData.personalExpenses[person] || [];
         const total = expenses.reduce((s, e) => s + e.amount, 0);
@@ -211,6 +282,40 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setEditExpense(null)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={saveEditExpense} style={{ flex: 1 }}>Guardar</Btn>
+        </div>
+      </Modal>
+
+      {/* Modal: nueva transferencia al fondo */}
+      <Modal open={fondoModal} onClose={() => setFondoModal(false)} title="Registrar transferencia al fondo">
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>¿Quién transfirió?</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(['marcela', 'jonatan'] as const).map((p) => (
+              <button key={p} onClick={() => setFondoForm(f => ({ ...f, persona: p }))} style={{
+                flex: 1, padding: "9px 4px", borderRadius: 10, border: "2px solid",
+                borderColor: fondoForm.persona === p ? (p === 'marcela' ? "var(--marce)" : "var(--jona)") : "var(--border)",
+                background: fondoForm.persona === p ? (p === 'marcela' ? "var(--marce)" : "var(--jona)") : "var(--surface2)",
+                color: fondoForm.persona === p ? "#fff" : "var(--text2)",
+                fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+              }}>{names[p]}</button>
+            ))}
+          </div>
+        </div>
+        <Field label="Monto transferido" value={fondoForm.monto} onChange={(v) => setFondoForm(f => ({ ...f, monto: v }))} placeholder="Ej: 150000" currency />
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <Btn variant="secondary" onClick={() => setFondoModal(false)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={addTransferencia} disabled={!fondoForm.monto} style={{ flex: 1 }}>Guardar</Btn>
+        </div>
+      </Modal>
+
+      {/* Modal: confirmar eliminar transferencia */}
+      <Modal open={!!confirmDelTransf} onClose={() => setConfirmDelTransf(null)} title="¿Eliminar transferencia?">
+        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
+          Vas a eliminar la transferencia de <strong>{confirmDelTransf ? names[confirmDelTransf.persona] : ''}</strong> por <strong>{COP(confirmDelTransf?.monto ?? 0)}</strong>.
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn variant="secondary" onClick={() => setConfirmDelTransf(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="danger" onClick={() => deleteTransferencia(confirmDelTransf!.id)} style={{ flex: 1 }}>Eliminar</Btn>
         </div>
       </Modal>
 

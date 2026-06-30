@@ -46,9 +46,15 @@ export interface Extra {
   paymentMethodId?: string;
 }
 
+export interface TransferenciaFondo {
+  id: string;
+  persona: 'marcela' | 'jonatan';
+  monto: number;
+  fecha: string;
+}
+
 export interface FondoConjunto {
-  aporteMarcela: number;
-  aporteJonatan: number;
+  transferencias: TransferenciaFondo[];
 }
 
 export interface MonthData {

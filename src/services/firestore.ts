@@ -39,6 +39,7 @@ export function loadData() {
         parsed.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
       }
       // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'
+      // Migración: convertir fondoConjunto { aporteMarcela, aporteJonatan } al nuevo formato con transferencias
       if (parsed.months) {
         Object.values(parsed.months).forEach((month: any) => {
           if (!month.familyExpenses) return;
@@ -47,6 +48,14 @@ export function loadData() {
             month.familyExpenses = month.familyExpenses.map((c: any) =>
               c.label?.trim().toLowerCase() === 'mercado' ? { ...c, id: 'mercado' } : c
             );
+          }
+          if (month.fondoConjunto && !Array.isArray(month.fondoConjunto.transferencias)) {
+            const transferencias = [];
+            if (month.fondoConjunto.aporteMarcela > 0)
+              transferencias.push({ id: `mig_m_${month.key}`, persona: 'marcela', monto: month.fondoConjunto.aporteMarcela, fecha: `${month.key}-01` });
+            if (month.fondoConjunto.aporteJonatan > 0)
+              transferencias.push({ id: `mig_j_${month.key}`, persona: 'jonatan', monto: month.fondoConjunto.aporteJonatan, fecha: `${month.key}-01` });
+            month.fondoConjunto = { transferencias };
           }
         });
       }
@@ -144,6 +153,7 @@ export function subscribeToFirestore(
           changed = true;
         }
         // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'
+        // Migración: convertir fondoConjunto { aporteMarcela, aporteJonatan } al nuevo formato con transferencias
         if (remote.months) {
           Object.values(remote.months).forEach((month: any) => {
             if (!month.familyExpenses) return;
@@ -152,6 +162,15 @@ export function subscribeToFirestore(
               month.familyExpenses = month.familyExpenses.map((c: any) =>
                 c.label?.trim().toLowerCase() === 'mercado' ? { ...c, id: 'mercado' } : c
               );
+              changed = true;
+            }
+            if (month.fondoConjunto && !Array.isArray(month.fondoConjunto.transferencias)) {
+              const transferencias: any[] = [];
+              if (month.fondoConjunto.aporteMarcela > 0)
+                transferencias.push({ id: `mig_m_${month.key}`, persona: 'marcela', monto: month.fondoConjunto.aporteMarcela, fecha: `${month.key}-01` });
+              if (month.fondoConjunto.aporteJonatan > 0)
+                transferencias.push({ id: `mig_j_${month.key}`, persona: 'jonatan', monto: month.fondoConjunto.aporteJonatan, fecha: `${month.key}-01` });
+              month.fondoConjunto = { transferencias };
               changed = true;
             }
           });
