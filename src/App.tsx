@@ -35,7 +35,21 @@ export default function App() {
   const initFirestoreSync    = useAppStore((s) => s.initFirestoreSync);
 
   const [toast, setToast] = useState<string | null>(null);
+  const [updatingApp, setUpdatingApp] = useState(false);
   const showToast = useCallback((msg: string) => setToast(msg), []);
+
+  const handleAppUpdate = useCallback(async () => {
+    if (updatingApp) return;
+    setUpdatingApp(true);
+
+    try {
+      await updateServiceWorker();
+    } catch (error) {
+      console.error("Error actualizando service worker:", error);
+    } finally {
+      window.setTimeout(() => window.location.reload(), 800);
+    }
+  }, [updateServiceWorker, updatingApp]);
 
   useEffect(() => { checkAndAdvanceMonth(); }, [data.currentKey, checkAndAdvanceMonth]);
   useEffect(() => { const unsub = initFirestoreSync(); return () => unsub(); }, [initFirestoreSync]);
@@ -109,10 +123,11 @@ export default function App() {
           boxShadow: "0 2px 12px rgba(79,70,229,0.4)",
         }}>
           <span style={{ fontSize: 13, fontWeight: 600 }}>🔄 Nueva versión disponible</span>
-          <button onClick={() => updateServiceWorker(true)} style={{
+          <button onClick={handleAppUpdate} disabled={updatingApp} style={{
             background: "#fff", color: "#4f46e5", border: "none", borderRadius: 8,
-            padding: "7px 14px", fontSize: 13, fontWeight: 800, cursor: "pointer",
-          }}>Actualizar</button>
+            padding: "7px 14px", fontSize: 13, fontWeight: 800,
+            cursor: updatingApp ? "wait" : "pointer", opacity: updatingApp ? 0.75 : 1,
+          }}>{updatingApp ? "Actualizando..." : "Actualizar"}</button>
         </div>
       )}
       <Suspense fallback={<AppSkeleton />}>
