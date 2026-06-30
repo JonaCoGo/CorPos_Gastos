@@ -137,10 +137,12 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
   const aporteFondoMarcela = transferencias.filter(t => t.persona === 'marcela').reduce((s, t) => s + t.monto, 0);
   const aporteFondoJonatan = transferencias.filter(t => t.persona === 'jonatan').reduce((s, t) => s + t.monto, 0);
 
-  // El pago total de cada persona incluye lo que metió al fondo
+  // El pago total de cada persona incluye lo que metió al fondo (para calcular su faltante individual)
   const pagoTotalMarcela = totalFamilyPaidMarcela + aporteFondoMarcela;
   const pagoTotalJonatan = totalFamilyPaidJonatan + aporteFondoJonatan;
-  const totalFamilyPaid = pagoTotalMarcela + pagoTotalJonatan + totalFamilyPaidConjunto;
+  // totalFamilyPaid = solo lo que se gastó realmente (directo + gastado del fondo)
+  // los depósitos al fondo NO cuentan como pagado hasta que se gasten
+  const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan + totalFamilyPaidConjunto;
   const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid);
 
   // Obligación ideal por persona sobre el presupuesto total
