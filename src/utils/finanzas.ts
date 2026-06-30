@@ -132,29 +132,29 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
     return sum + (cat.conjunto || 0);
   }, 0);
 
-  const totalFamilyPaid = totalFamilyPaidMarcela + totalFamilyPaidJonatan + totalFamilyPaidConjunto;
-
-  // Aportes al fondo conjunto (dinero que cada uno transfirió este mes)
+  // Aportes al fondo conjunto — cuentan directamente como pago al hogar por cada persona
   const transferencias = monthData.fondoConjunto?.transferencias ?? [];
   const aporteFondoMarcela = transferencias.filter(t => t.persona === 'marcela').reduce((s, t) => s + t.monto, 0);
   const aporteFondoJonatan = transferencias.filter(t => t.persona === 'jonatan').reduce((s, t) => s + t.monto, 0);
 
-  // Saldo del fondo = total depositado - total gastado como "conjunto"
-  const saldoFondo = (aporteFondoMarcela + aporteFondoJonatan) - totalFamilyPaidConjunto;
+  // El pago total de cada persona incluye lo que metió al fondo
+  const pagoTotalMarcela = totalFamilyPaidMarcela + aporteFondoMarcela;
+  const pagoTotalJonatan = totalFamilyPaidJonatan + aporteFondoJonatan;
+  const totalFamilyPaid = pagoTotalMarcela + pagoTotalJonatan + totalFamilyPaidConjunto;
+  const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid);
 
-  // El saldo positivo del fondo es dinero comprometido para gastos futuros:
-  // se descuenta de la obligación individual para evitar doble conteo
-  const fondoDisponible = Math.max(0, saldoFondo);
-  const portionIndividual = Math.max(0, totalFamilyBudget - totalFamilyPaidConjunto - fondoDisponible);
+  // Obligación ideal por persona sobre el presupuesto total
+  const portionIndividual = totalFamilyBudget;
   const aporteFamiliarMarcela = portionIndividual * ratio.marcela;
   const aporteFamiliarJonatan = portionIndividual * ratio.jonatan;
 
-  // Pendiente = lo que falta pagar contando el fondo disponible como cobertura
-  const totalFamilyPending = Math.max(0, totalFamilyBudget - totalFamilyPaid - fondoDisponible);
+  // Saldo del fondo = total depositado - total gastado como "conjunto"
+  const saldoFondo = (aporteFondoMarcela + aporteFondoJonatan) - totalFamilyPaidConjunto;
 
-  // Saldo libre = neto - aporte ideal al hogar - extras - aporte al fondo conjunto
-  const saldoMarcela = netoMarcela - aporteFamiliarMarcela - extrasTotalMarcela - aporteFondoMarcela;
-  const saldoJonatan = netoJonatan - aporteFamiliarJonatan - extrasTotalJonatan - aporteFondoJonatan;
+  // Saldo libre = neto - lo que aún le falta pagar al hogar - extras
+  // (lo que ya pagó directamente + fondo ya cuenta, solo resta la diferencia)
+  const saldoMarcela = netoMarcela - Math.max(0, aporteFamiliarMarcela - pagoTotalMarcela) - extrasTotalMarcela;
+  const saldoJonatan = netoJonatan - Math.max(0, aporteFamiliarJonatan - pagoTotalJonatan) - extrasTotalJonatan;
 
   const diffMarcela = totalFamilyPaidMarcela - aporteFamiliarMarcela;
   const diffJonatan = totalFamilyPaidJonatan - aporteFamiliarJonatan;
