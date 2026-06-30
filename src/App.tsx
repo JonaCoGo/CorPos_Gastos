@@ -38,17 +38,10 @@ export default function App() {
   const [updatingApp, setUpdatingApp] = useState(false);
   const showToast = useCallback((msg: string) => setToast(msg), []);
 
-  const handleAppUpdate = useCallback(async () => {
+  const handleAppUpdate = useCallback(() => {
     if (updatingApp) return;
     setUpdatingApp(true);
-
-    try {
-      await updateServiceWorker();
-    } catch (error) {
-      console.error("Error actualizando service worker:", error);
-    } finally {
-      window.setTimeout(() => window.location.reload(), 800);
-    }
+    updateServiceWorker(true);
   }, [updateServiceWorker, updatingApp]);
 
   useEffect(() => { checkAndAdvanceMonth(); }, [data.currentKey, checkAndAdvanceMonth]);
