@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { ShoppingCart, Pencil, Trash2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { ShoppingCart, Pencil, Trash2, ChevronDown, ChevronUp, Check, ClipboardList } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label, PaymentChips } from '../components/ui';
 import { SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
-import { Mercado, ItemMercado, Compra } from '../types/models';
+import { Mercado, ItemMercado, Compra, ListaItem } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
 interface TabMercadoProps {
@@ -11,7 +11,6 @@ interface TabMercadoProps {
   onUpdate: (data: Mercado) => void;
 }
 
-// ── Cart item: qué tiene seleccionado el usuario en este viaje ────────────────
 interface CartEntry {
   itemId: string;
   qty: string;
@@ -27,24 +26,33 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   const items   = mercado?.items   || [];
   const compras = mercado?.compras || [];
+  const lista   = mercado?.lista   || [];
 
-  const [view, setView] = useState<"hacer" | "historial" | "productos">("hacer");
+  const [view, setView] = useState<"lista" | "hacer" | "historial" | "productos">("lista");
+
+  // ── Estado vista "lista" ────────────────────────────────────────────────────
+  const [filterCatL,   setFilterCatL]   = useState("Todas");
+  const [searchL,      setSearchL]      = useState("");
+  const [listaSupermarket, setListaSupermarket] = useState(SUPERMARKETS[0]);
 
   // ── Estado vista "hacer mercado" ────────────────────────────────────────────
-  const [supermarket,   setSupermarket]   = useState(SUPERMARKETS[0]);
-  const [paymentId,     setPaymentId]     = useState<string>("");
-  const [tripPaidBy,    setTripPaidBy]    = useState<'marcela' | 'jonatan' | 'conjunto'>('conjunto');
-  const [cart,          setCart]          = useState<Record<string, CartEntry>>({});
-  const [expandedItem,  setExpandedItem]  = useState<string | null>(null);
-  const [filterCatH,    setFilterCatH]    = useState("Todas");
-  const [searchH,       setSearchH]       = useState("");
+  const [supermarket,  setSupermarket]  = useState(SUPERMARKETS[0]);
+  const [paymentId,    setPaymentId]    = useState<string>("");
+  const [tripPaidBy,   setTripPaidBy]   = useState<'marcela' | 'jonatan' | 'conjunto'>('conjunto');
+  const [cart,         setCart]         = useState<Record<string, CartEntry>>({});
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [filterCatH,   setFilterCatH]   = useState("Todas");
+  const [searchH,      setSearchH]      = useState("");
+  const [listaLoaded,  setListaLoaded]  = useState(false);
 
   // ── Estado vista "historial" ────────────────────────────────────────────────
-  const [confirmDelCompra, setConfirmDelCompra] = useState<Compra | null>(null);
-  const [confirmDelTrip,  setConfirmDelTrip]  = useState<string | null>(null);
-  const [expandedTrip,    setExpandedTrip]    = useState<string | null>(null);
-  const [editingTrip,     setEditingTrip]     = useState<string | null>(null);
-  const [editTripForm,    setEditTripForm]    = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string; supermarket: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: SUPERMARKETS[0] });
+  const [confirmDelCompra,  setConfirmDelCompra]  = useState<Compra | null>(null);
+  const [confirmDelTrip,    setConfirmDelTrip]    = useState<string | null>(null);
+  const [expandedTrip,      setExpandedTrip]      = useState<string | null>(null);
+  const [editingTrip,       setEditingTrip]       = useState<string | null>(null);
+  const [editTripForm,      setEditTripForm]      = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string; supermarket: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: SUPERMARKETS[0] });
+  const [editingCompra,     setEditingCompra]     = useState<Compra | null>(null);
+  const [editCompraForm,    setEditCompraForm]    = useState<{ qty: string; pricePer: string; unit: string; supermarket: string; paidBy: 'marcela' | 'jonatan' | 'conjunto' }>({ qty: "1", pricePer: "0", unit: "und", supermarket: SUPERMARKETS[0], paidBy: 'conjunto' });
 
   // ── Estado vista "productos" ────────────────────────────────────────────────
   const [filterCat,  setFilterCat]  = useState("Todas");
@@ -81,15 +89,20 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     setCart((prev) => ({ ...prev, [id]: { ...prev[id], ...changes } }));
   };
 
-  const cartTotal = useMemo(() => {
-    return Object.values(cart).reduce((s, e) => {
-      const qty = Number(e.qty) || 0;
-      const price = Number(e.pricePer) || 0;
-      return s + qty * price;
-    }, 0);
-  }, [cart]);
-
+  const cartTotal = useMemo(() => Object.values(cart).reduce((s, e) => s + (Number(e.qty) || 0) * (Number(e.pricePer) || 0), 0), [cart]);
   const cartCount = Object.keys(cart).length;
+
+  // Cargar lista en el carrito
+  const cargarLista = () => {
+    if (lista.length === 0) return;
+    const newCart: Record<string, CartEntry> = {};
+    lista.forEach((li) => {
+      newCart[li.itemId] = { itemId: li.itemId, qty: String(li.qty), pricePer: String(li.pricePer), unit: li.unit, paidBy: tripPaidBy };
+    });
+    setCart(newCart);
+    setListaLoaded(true);
+    setView("hacer");
+  };
 
   const registrarViaje = () => {
     if (cartCount === 0) return;
@@ -103,12 +116,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       const paidBy = e.paidBy || 'conjunto';
       return {
         id: `compra_${Date.now()}_${e.itemId}`,
-        itemId: item.id,
-        itemName: item.name,
-        qty,
-        unit,
-        pricePer,
-        total,
+        itemId: item.id, itemName: item.name,
+        qty, unit, pricePer, total,
         supermarket,
         date: today,
         notes: "",
@@ -119,64 +128,76 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         paymentMethodId: paymentId || undefined,
       };
     });
-    // Actualizar precios base si cambiaron
     const updatedItems = items.map((item) => {
       const e = cart[item.id];
-      if (e && Number(e.pricePer) && Number(e.pricePer) !== item.pricePer) {
+      if (e && Number(e.pricePer) && Number(e.pricePer) !== item.pricePer)
         return { ...item, pricePer: Number(e.pricePer) };
-      }
       return item;
     });
-    onUpdate({ ...mercado, items: updatedItems, compras: [...nuevasCompras, ...compras] });
+    onUpdate({ ...mercado, items: updatedItems, compras: [...nuevasCompras, ...compras], lista: [] });
     setCart({});
     setExpandedItem(null);
+    setListaLoaded(false);
     setView("historial");
   };
 
-  // ── Productos filtrados para "hacer mercado" ─────────────────────────────────
-  const itemsHacer = useMemo(() => {
-    return items.filter((i) => {
-      const matchCat  = filterCatH === "Todas" || i.category === filterCatH;
-      const matchText = i.name.toLowerCase().includes(searchH.toLowerCase());
-      return matchCat && matchText;
-    });
-  }, [items, filterCatH, searchH]);
+  // ── Helpers lista ────────────────────────────────────────────────────────────
+  const inLista = (itemId: string) => lista.some((l) => l.itemId === itemId);
 
-  // ── Productos filtrados para "lista/productos" ───────────────────────────────
-  const filtered = useMemo(() => {
-    return items.filter((i) => {
-      const matchCat  = filterCat === "Todas" || i.category === filterCat;
-      const matchText = i.name.toLowerCase().includes(search.toLowerCase());
-      return matchCat && matchText;
-    });
-  }, [items, filterCat, search]);
+  const toggleLista = (item: ItemMercado) => {
+    if (inLista(item.id)) {
+      onUpdate({ ...mercado, lista: lista.filter((l) => l.itemId !== item.id) });
+    } else {
+      const nuevo: ListaItem = {
+        id: `li_${Date.now()}_${item.id}`,
+        itemId: item.id, itemName: item.name,
+        qty: 1, unit: item.unit,
+        pricePer: item.pricePer,
+        supermarket: listaSupermarket,
+      };
+      onUpdate({ ...mercado, lista: [...lista, nuevo] });
+    }
+  };
+
+  const updateListaItem = (itemId: string, changes: Partial<ListaItem>) => {
+    onUpdate({ ...mercado, lista: lista.map((l) => l.itemId === itemId ? { ...l, ...changes } : l) });
+  };
+
+  // ── Filtros ──────────────────────────────────────────────────────────────────
+  const itemsLista = useMemo(() => items.filter((i) => {
+    const matchCat  = filterCatL === "Todas" || i.category === filterCatL;
+    const matchText = i.name.toLowerCase().includes(searchL.toLowerCase());
+    return matchCat && matchText;
+  }), [items, filterCatL, searchL]);
+
+  const itemsHacer = useMemo(() => items.filter((i) => {
+    const matchCat  = filterCatH === "Todas" || i.category === filterCatH;
+    const matchText = i.name.toLowerCase().includes(searchH.toLowerCase());
+    return matchCat && matchText;
+  }), [items, filterCatH, searchH]);
+
+  const filtered = useMemo(() => items.filter((i) => {
+    const matchCat  = filterCat === "Todas" || i.category === filterCat;
+    const matchText = i.name.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchText;
+  }), [items, filterCat, search]);
 
   const totalCompras = useMemo(() => compras.reduce((s, c) => s + c.total, 0), [compras]);
 
-  // Agrupar compras por viaje (fecha + supermercado)
   const trips = useMemo(() => {
     const map = new Map<string, { key: string; date: string; supermarket: string; items: Compra[]; total: number }>();
     compras.forEach((c) => {
       const key = `${c.date}__${c.supermarket}`;
       if (!map.has(key)) map.set(key, { key, date: c.date, supermarket: c.supermarket, items: [], total: 0 });
       const t = map.get(key)!;
-      t.items.push(c);
-      t.total += c.total;
+      t.items.push(c); t.total += c.total;
     });
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
   }, [compras]);
 
-  // ── Productos: guardar nuevo ─────────────────────────────────────────────────
   const saveItem = () => {
     if (!addForm.name || !addForm.pricePer) return;
-    const newItem: ItemMercado = {
-      id: `item_${Date.now()}`,
-      name: addForm.name,
-      pricePer: Number(addForm.pricePer),
-      unit: addForm.unit,
-      supermarket: addForm.supermarket,
-      category: addForm.category,
-    };
+    const newItem: ItemMercado = { id: `item_${Date.now()}`, name: addForm.name, pricePer: Number(addForm.pricePer), unit: addForm.unit, supermarket: addForm.supermarket, category: addForm.category };
     onUpdate({ ...mercado, items: [...items, newItem] });
     setShowAdd(false);
     setAddForm({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
@@ -191,29 +212,209 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     onUpdate({ ...mercado, items: items.map((i) => i.id === id ? { ...i, ...changes } : i) });
   };
 
+  const openEditCompra = (c: Compra) => {
+    setEditingCompra(c);
+    setEditCompraForm({ qty: String(c.qty), pricePer: String(c.pricePer), unit: c.unit, supermarket: c.supermarket, paidBy: c.paidBy ?? 'conjunto' });
+  };
+
+  const saveEditCompra = () => {
+    if (!editingCompra) return;
+    const qty = Number(editCompraForm.qty) || 1;
+    const pricePer = Number(editCompraForm.pricePer) || editingCompra.pricePer;
+    const total = qty * pricePer;
+    const paidBy = editCompraForm.paidBy;
+    const updated: Compra = {
+      ...editingCompra,
+      qty, pricePer, total,
+      unit: editCompraForm.unit,
+      supermarket: editCompraForm.supermarket,
+      paidBy,
+      marcelaAmount:  paidBy === 'marcela'  ? total : 0,
+      jonatanAmount:  paidBy === 'jonatan'  ? total : 0,
+      conjuntoAmount: paidBy === 'conjunto' ? total : 0,
+    };
+    onUpdate({ ...mercado, compras: compras.map((c) => c.id === editingCompra.id ? updated : c) });
+    setEditingCompra(null);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
       {/* Toggle de vistas */}
       <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 12, padding: 4, gap: 4 }}>
         {[
-          { id: "hacer",     label: "🛒 Hacer mercado" },
+          { id: "lista",     label: "📋 Lista" },
+          { id: "hacer",     label: "🛒 Hacer" },
           { id: "historial", label: "🧾 Historial" },
-          { id: "productos", label: "🧺 Productos" },
+          { id: "productos", label: "🧺 Items" },
         ].map((v) => (
           <button key={v.id} onClick={() => setView(v.id as typeof view)} style={{
             flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
             background: view === v.id ? "var(--surface)" : "transparent",
             color: view === v.id ? "var(--text1)" : "var(--text2)",
-            fontWeight: view === v.id ? 700 : 500, fontSize: 11, fontFamily: "var(--font-body)",
+            fontWeight: view === v.id ? 700 : 500, fontSize: 10, fontFamily: "var(--font-body)",
             boxShadow: view === v.id ? "0 1px 4px rgba(0,0,0,0.1)" : "none", transition: "all 0.15s",
-          }}>{v.label}</button>
+            position: "relative",
+          }}>
+            {v.label}
+            {v.id === "lista" && lista.length > 0 && (
+              <span style={{ position: "absolute", top: 2, right: 4, background: "var(--accent)", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 900, padding: "1px 5px", lineHeight: 1.4 }}>
+                {lista.length}
+              </span>
+            )}
+          </button>
         ))}
       </div>
+
+      {/* ── LISTA ─────────────────────────────────────────────────────────── */}
+      {view === "lista" && (
+        <>
+          {/* Supermercado de la lista */}
+          <Card>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>
+              ¿Dónde van a comprar?
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {SUPERMARKETS.map((s) => (
+                <button key={s} onClick={() => setListaSupermarket(s)} style={{
+                  padding: "8px 14px", borderRadius: 99, border: "2px solid",
+                  borderColor: listaSupermarket === s ? "var(--accent)" : "var(--border)",
+                  background: listaSupermarket === s ? "var(--accent)" : "var(--surface2)",
+                  color: listaSupermarket === s ? "#fff" : "var(--text2)",
+                  fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+                }}>{s}</button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Items en la lista actual */}
+          {lista.length > 0 && (
+            <Card>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>
+                Lista actual · {lista.length} producto{lista.length !== 1 ? "s" : ""}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {lista.map((li) => (
+                  <div key={li.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--surface2)", borderRadius: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{li.itemName}</div>
+                      <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>{COP(li.pricePer)}/{li.unit} · {li.supermarket}</div>
+                    </div>
+                    <input
+                      type="number"
+                      value={li.qty}
+                      onChange={(e) => updateListaItem(li.itemId, { qty: Number(e.target.value) || 1 })}
+                      style={{ width: 56, padding: "6px 8px", borderRadius: 8, border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontSize: 14, fontWeight: 700, textAlign: "right", fontFamily: "var(--font-body)", outline: "none" }}
+                    />
+                    <span style={{ fontSize: 11, color: "var(--text2)", minWidth: 20 }}>{li.unit}</span>
+                    <button onClick={() => onUpdate({ ...mercado, lista: lista.filter((l) => l.itemId !== li.itemId) })} aria-label="Quitar de lista"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", display: "flex", padding: 4 }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Búsqueda + categorías */}
+          <input
+            placeholder="🔍 Buscar producto..."
+            value={searchL} onChange={(e) => setSearchL(e.target.value)}
+            style={{ padding: "9px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none" }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+            onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
+          />
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+            {ALL_CATS.map((cat) => (
+              <button key={cat} onClick={() => setFilterCatL(cat)} style={{
+                whiteSpace: "nowrap", padding: "5px 12px", borderRadius: 99, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "var(--font-body)",
+                background: filterCatL === cat ? "var(--accent)" : "var(--surface2)",
+                color: filterCatL === cat ? "#fff" : "var(--text2)",
+              }}>{cat}</button>
+            ))}
+          </div>
+
+          {/* Catálogo para agregar a lista */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {itemsLista.map((item) => {
+              const checked = inLista(item.id);
+              const liItem = lista.find((l) => l.itemId === item.id);
+              return (
+                <div key={item.id} style={{
+                  background: "var(--surface)", borderRadius: 12,
+                  border: `2px solid ${checked ? "var(--accent)" : "var(--border)"}`,
+                  overflow: "hidden", transition: "border-color 0.15s",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px" }}>
+                    <button onClick={() => toggleLista(item)} aria-label={checked ? "Quitar de lista" : "Agregar a lista"} style={{
+                      width: 26, height: 26, borderRadius: "50%", border: "2px solid",
+                      borderColor: checked ? "var(--accent)" : "var(--border)",
+                      background: checked ? "var(--accent)" : "transparent",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    }}>
+                      {checked && <Check size={13} color="#fff" strokeWidth={3} />}
+                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: checked ? 700 : 500, color: checked ? "var(--text1)" : "var(--text2)" }}>{item.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>{item.category} · {COP(item.pricePer)}/{item.unit}</div>
+                    </div>
+                    {checked && liItem && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input
+                          type="number"
+                          value={liItem.qty}
+                          onChange={(e) => updateListaItem(item.id, { qty: Number(e.target.value) || 1 })}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ width: 52, padding: "5px 7px", borderRadius: 8, border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontSize: 13, fontWeight: 700, textAlign: "right", fontFamily: "var(--font-body)", outline: "none" }}
+                        />
+                        <span style={{ fontSize: 11, color: "var(--text2)" }}>{item.unit}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Barra ir al mercado */}
+          {lista.length > 0 && (
+            <div style={{ position: "sticky", bottom: 12, zIndex: 10 }}>
+              <button onClick={cargarLista} style={{
+                width: "100%", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 16,
+                padding: "16px 18px", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "var(--font-body)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                boxShadow: "0 4px 20px rgba(79,70,229,0.35)",
+              }}>
+                <ClipboardList size={18} /> Listo, voy al mercado ({lista.length} producto{lista.length !== 1 ? "s" : ""})
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {/* ── HACER MERCADO ─────────────────────────────────────────────────── */}
       {view === "hacer" && (
         <>
+          {/* Banner lista cargada */}
+          {listaLoaded && lista.length === 0 && (
+            <Card style={{ background: "rgba(79,70,229,0.07)", border: "1.5px solid var(--accent)", padding: "12px 16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
+                ✅ Lista cargada en el carrito — ajusta precios y cantidades en el mercado
+              </div>
+            </Card>
+          )}
+
+          {/* Banner lista pendiente */}
+          {lista.length > 0 && cartCount === 0 && (
+            <Card style={{ background: "rgba(79,70,229,0.07)", border: "1.5px solid var(--accent)", padding: "12px 16px" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>
+                📋 Tienes una lista de {lista.length} producto{lista.length !== 1 ? "s" : ""}
+              </div>
+              <Btn variant="primary" onClick={cargarLista} style={{ width: "100%" }}>Cargar lista en el carrito</Btn>
+            </Card>
+          )}
+
           {/* Supermercado */}
           <Card>
             <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>
@@ -227,13 +428,12 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   background: supermarket === s ? "var(--accent)" : "var(--surface2)",
                   color: supermarket === s ? "#fff" : "var(--text2)",
                   fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
-                  transition: "all 0.15s",
                 }}>{s}</button>
               ))}
             </div>
           </Card>
 
-          {/* Quién paga este viaje */}
+          {/* Quién paga */}
           <Card>
             <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>
               ¿Quién paga?
@@ -250,7 +450,6 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   background: tripPaidBy === p.id ? "var(--accent)" : "var(--surface2)",
                   color: tripPaidBy === p.id ? "#fff" : "var(--text2)",
                   fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
-                  transition: "all 0.15s",
                 }}>{p.label}</button>
               ))}
             </div>
@@ -262,25 +461,18 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>
                 ¿Con qué se paga?
               </div>
-              <PaymentChips
-                methods={paymentMethods}
-                selectedId={paymentId || undefined}
-                onChange={(id) => setPaymentId(id ?? "")}
-                ownerNames={names}
-              />
+              <PaymentChips methods={paymentMethods} selectedId={paymentId || undefined} onChange={(id) => setPaymentId(id ?? "")} ownerNames={names} />
             </Card>
           )}
 
           {/* Búsqueda + categorías */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              placeholder="🔍 Buscar producto..."
-              value={searchH} onChange={(e) => setSearchH(e.target.value)}
-              style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none" }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-              onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
-            />
-          </div>
+          <input
+            placeholder="🔍 Buscar producto..."
+            value={searchH} onChange={(e) => setSearchH(e.target.value)}
+            style={{ padding: "9px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none" }}
+            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+            onBlur={(e)  => (e.target.style.borderColor = "var(--border)")}
+          />
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
             {ALL_CATS.map((cat) => (
               <button key={cat} onClick={() => setFilterCatH(cat)} style={{
@@ -291,13 +483,11 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             ))}
           </div>
 
-          {/* Lista de productos */}
           {items.length === 0 ? (
             <Card style={{ textAlign: "center", padding: "36px 20px" }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>🧺</div>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Sin productos</div>
-              <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>Agrega productos en la pestaña Productos para empezar.</div>
-              <Btn variant="secondary" onClick={() => setView("productos")}>Ir a Productos</Btn>
+              <Btn variant="secondary" onClick={() => setView("productos")}>Ir a Items</Btn>
             </Card>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -310,80 +500,55 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 const qty = checked ? (Number(entry.qty) || 1) : 1;
                 const total = checked ? pricePer * qty : null;
                 const priceChanged = checked && Number(entry.pricePer) > 0 && Number(entry.pricePer) !== item.pricePer;
+                const enLista = inLista(item.id);
 
                 return (
                   <div key={item.id} style={{
                     background: "var(--surface)", borderRadius: 14,
-                    border: `2px solid ${checked ? "var(--accent)" : "var(--border)"}`,
+                    border: `2px solid ${checked ? "var(--accent)" : enLista ? "rgba(79,70,229,0.35)" : "var(--border)"}`,
                     overflow: "hidden", transition: "border-color 0.15s",
                   }}>
-                    {/* Fila principal */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
-                      {/* Checkbox */}
-                      <button
-                        onClick={() => toggleCart(item)}
-                        aria-label={checked ? "Quitar del carrito" : "Agregar al carrito"}
-                        style={{
-                          width: 28, height: 28, borderRadius: "50%", border: "2px solid",
-                          borderColor: checked ? "var(--accent)" : "var(--border)",
-                          background: checked ? "var(--accent)" : "transparent",
-                          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                          flexShrink: 0, transition: "all 0.15s",
-                        }}>
+                      <button onClick={() => toggleCart(item)} aria-label={checked ? "Quitar del carrito" : "Agregar"} style={{
+                        width: 28, height: 28, borderRadius: "50%", border: "2px solid",
+                        borderColor: checked ? "var(--accent)" : "var(--border)",
+                        background: checked ? "var(--accent)" : "transparent",
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      }}>
                         {checked && <Check size={14} color="#fff" strokeWidth={3} />}
                       </button>
-
-                      {/* Nombre + info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: checked ? 700 : 500, color: checked ? "var(--text1)" : "var(--text2)" }}>
-                          {item.name}
+                          {item.name} {enLista && !checked ? <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 700 }}>· en lista</span> : null}
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>
-                          {item.category} · {COP(item.pricePer)}/{item.unit}
-                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>{item.category} · {COP(item.pricePer)}/{item.unit}</div>
                       </div>
-
-                      {/* Total o precio */}
-                      {checked && total !== null ? (
+                      {checked && total !== null && (
                         <div style={{ textAlign: "right", flexShrink: 0 }}>
                           <div style={{ fontSize: 15, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>{COP(total)}</div>
                           <div style={{ fontSize: 10, color: "var(--text2)" }}>{qty} {unit}</div>
                         </div>
-                      ) : null}
-
-                      {/* Expandir/colapsar (solo si está en carrito) */}
+                      )}
                       {checked && (
-                        <button
-                          onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: 4, display: "flex", flexShrink: 0 }}>
+                        <button onClick={() => setExpandedItem(isExpanded ? null : item.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: 4, display: "flex", flexShrink: 0 }}>
                           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
                       )}
                     </div>
-
-                    {/* Panel expandido: editar qty, precio y unidad */}
                     {checked && isExpanded && (
                       <div style={{ borderTop: "1px solid var(--border)", padding: "12px 14px", background: "var(--surface2)", display: "flex", flexDirection: "column", gap: 10 }}>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                           <div>
                             <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>Cantidad</div>
-                            <input
-                              type="number"
-                              value={entry.qty}
-                              onChange={(e) => updateCartEntry(item.id, { qty: e.target.value })}
-                              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }}
-                            />
+                            <input type="number" value={entry.qty} onChange={(e) => updateCartEntry(item.id, { qty: e.target.value })}
+                              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }} />
                           </div>
                           <div>
                             <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: priceChanged ? "var(--jona)" : "var(--text2)", marginBottom: 6 }}>
                               Precio hoy {priceChanged ? "↑" : ""}
                             </div>
-                            <input
-                              type="number"
-                              value={entry.pricePer}
-                              onChange={(e) => updateCartEntry(item.id, { pricePer: e.target.value })}
-                              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: `2px solid ${priceChanged ? "var(--jona)" : "var(--border)"}`, background: priceChanged ? "#fff7f0" : "var(--surface)", color: priceChanged ? "var(--jona)" : "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }}
-                            />
+                            <input type="number" value={entry.pricePer} onChange={(e) => updateCartEntry(item.id, { pricePer: e.target.value })}
+                              style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: `2px solid ${priceChanged ? "var(--jona)" : "var(--border)"}`, background: priceChanged ? "#fff7f0" : "var(--surface)", color: priceChanged ? "var(--jona)" : "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }} />
                           </div>
                         </div>
                         <div>
@@ -408,7 +573,6 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             </div>
           )}
 
-          {/* Barra inferior de carrito */}
           {cartCount > 0 && (
             <div style={{ position: "sticky", bottom: 12, zIndex: 10 }}>
               <div style={{ background: "var(--accent)", borderRadius: 16, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 4px 20px rgba(79,70,229,0.35)" }}>
@@ -416,9 +580,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginBottom: 2 }}>
                     {cartCount} producto{cartCount !== 1 ? "s" : ""} · {supermarket}
                   </div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", fontFamily: "var(--font-display)", lineHeight: 1 }}>
-                    {COP(cartTotal)}
-                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", fontFamily: "var(--font-display)", lineHeight: 1 }}>{COP(cartTotal)}</div>
                 </div>
                 <button onClick={registrarViaje} style={{
                   background: "#fff", color: "var(--accent)", border: "none", borderRadius: 12,
@@ -450,10 +612,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               const isOpen = expandedTrip === trip.key;
               return (
                 <Card key={trip.key} style={{ padding: 0, overflow: "hidden" }}>
-                  {/* Cabecera del viaje */}
                   <div style={{ display: "flex", alignItems: "center" }}>
-                    <button
-                      onClick={() => setExpandedTrip(isOpen ? null : trip.key)}
+                    <button onClick={() => setExpandedTrip(isOpen ? null : trip.key)}
                       style={{ flex: 1, background: "none", border: "none", cursor: "pointer", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "var(--font-body)", textAlign: "left" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -478,25 +638,28 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: "14px 6px 14px 0", display: "flex", alignItems: "center" }}>
                       <Pencil size={15} />
                     </button>
-                    <button onClick={() => setConfirmDelTrip(trip.key)} aria-label="Eliminar viaje completo"
+                    <button onClick={() => setConfirmDelTrip(trip.key)} aria-label="Eliminar viaje"
                       style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", padding: "14px 14px 14px 0", display: "flex", alignItems: "center" }}>
                       <Trash2 size={16} />
                     </button>
                   </div>
 
-                  {/* Detalle expandido */}
                   {isOpen && (
                     <div style={{ borderTop: "1px solid var(--border)" }}>
                       {trip.items.map((c, idx) => (
                         <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 18px", borderBottom: idx < trip.items.length - 1 ? "1px solid var(--border)" : "none" }}>
-                          <div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 600 }}>{c.itemName}</div>
                             <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>
                               {c.qty} {c.unit} · {COP(c.pricePer)}/{c.unit}
                             </div>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 14, fontWeight: 700 }}>{COP(c.total)}</span>
+                            <button onClick={() => openEditCompra(c)} aria-label="Editar compra"
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", display: "flex", padding: 4 }}>
+                              <Pencil size={13} />
+                            </button>
                             <button onClick={() => setConfirmDelCompra(c)} aria-label="Eliminar"
                               style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", display: "flex", padding: 4 }}>
                               <Trash2 size={13} />
@@ -542,15 +705,10 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             <Card style={{ textAlign: "center", padding: "36px 20px" }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>🛒</div>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Sin resultados</div>
-              <div style={{ fontSize: 13, color: "var(--text2)" }}>Prueba con otra categoría o búsqueda.</div>
             </Card>
           ) : (
             filtered.map((item) => (
-              <ProductCard
-                key={item.id} item={item}
-                onUpdate={(changes) => updateItem(item.id, changes)}
-                onDelete={() => setConfirmDel(item)}
-              />
+              <ProductCard key={item.id} item={item} onUpdate={(changes) => updateItem(item.id, changes)} onDelete={() => setConfirmDel(item)} />
             ))
           )}
         </>
@@ -589,7 +747,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         </div>
       </Modal>
 
-      {/* Modal: confirmar eliminar producto */}
+      {/* Modal: eliminar producto */}
       <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="¿Eliminar producto?">
         <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
           Vas a eliminar <strong>{confirmDel?.name}</strong>. También se eliminarán sus compras del historial.
@@ -600,14 +758,14 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         </div>
       </Modal>
 
-      {/* Modal: confirmar eliminar viaje completo */}
+      {/* Modal: eliminar viaje */}
       <Modal open={!!confirmDelTrip} onClose={() => setConfirmDelTrip(null)} title="¿Eliminar viaje completo?">
         {(() => {
           const trip = trips.find((t) => t.key === confirmDelTrip);
           return (
             <>
               <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
-                Vas a eliminar <strong>{trip?.items.length} producto{trip?.items.length !== 1 ? "s" : ""}</strong> del viaje a <strong>{trip?.supermarket}</strong> del {trip?.date}. Esta acción no se puede deshacer.
+                Vas a eliminar <strong>{trip?.items.length} producto{trip?.items.length !== 1 ? "s" : ""}</strong> del viaje a <strong>{trip?.supermarket}</strong> del {trip?.date}.
               </p>
               <div style={{ display: "flex", gap: 10 }}>
                 <Btn variant="secondary" onClick={() => setConfirmDelTrip(null)} style={{ flex: 1 }}>Cancelar</Btn>
@@ -623,7 +781,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         })()}
       </Modal>
 
-      {/* Modal: editar pagador y medio de pago del viaje completo */}
+      {/* Modal: editar viaje completo (pagador + supermercado) */}
       {(() => {
         const trip = trips.find((t) => t.key === editingTrip);
         return (
@@ -638,11 +796,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>¿Quién pagó?</div>
               <div style={{ display: "flex", gap: 6 }}>
-                {([
-                  { id: 'marcela',  label: names.marcela },
-                  { id: 'jonatan',  label: names.jonatan },
-                  { id: 'conjunto', label: 'Los dos' },
-                ] as const).map((p) => (
+                {([{ id: 'marcela', label: names.marcela }, { id: 'jonatan', label: names.jonatan }, { id: 'conjunto', label: 'Los dos' }] as const).map((p) => (
                   <button key={p.id} onClick={() => setEditTripForm((f) => ({ ...f, paidBy: p.id }))} style={{
                     flex: 1, padding: "9px 4px", borderRadius: 10, border: "2px solid",
                     borderColor: editTripForm.paidBy === p.id ? "var(--accent)" : "var(--border)",
@@ -656,12 +810,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             {paymentMethods.length > 0 && (
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Medio de pago</div>
-                <PaymentChips
-                  methods={paymentMethods}
-                  selectedId={editTripForm.paymentMethodId || undefined}
-                  onChange={(id) => setEditTripForm((f) => ({ ...f, paymentMethodId: id ?? "" }))}
-                  ownerNames={names}
-                />
+                <PaymentChips methods={paymentMethods} selectedId={editTripForm.paymentMethodId || undefined} onChange={(id) => setEditTripForm((f) => ({ ...f, paymentMethodId: id ?? "" }))} ownerNames={names} />
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
@@ -674,14 +823,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 const tripIds = new Set(trip.items.map((c) => c.id));
                 const updated = compras.map((c) => {
                   if (!tripIds.has(c.id)) return c;
-                  return {
-                    ...c, paidBy,
-                    marcelaAmount:  paidBy === 'marcela'  ? c.total : 0,
-                    jonatanAmount:  paidBy === 'jonatan'  ? c.total : 0,
-                    conjuntoAmount: paidBy === 'conjunto' ? c.total : 0,
-                    paymentMethodId: pmId,
-                    supermarket: newSupermarket,
-                  };
+                  return { ...c, paidBy, marcelaAmount: paidBy === 'marcela' ? c.total : 0, jonatanAmount: paidBy === 'jonatan' ? c.total : 0, conjuntoAmount: paidBy === 'conjunto' ? c.total : 0, paymentMethodId: pmId, supermarket: newSupermarket };
                 });
                 onUpdate({ ...mercado, compras: updated });
                 setEditingTrip(null);
@@ -691,7 +833,62 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         );
       })()}
 
-      {/* Modal: confirmar eliminar compra */}
+      {/* Modal: editar compra individual */}
+      <Modal open={!!editingCompra} onClose={() => setEditingCompra(null)} title={`Editar · ${editingCompra?.itemName ?? ""}`}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+          <Field label="Cantidad" value={editCompraForm.qty} onChange={(v) => setEditCompraForm((f) => ({ ...f, qty: v }))} />
+          <Field label="Precio unitario" value={editCompraForm.pricePer} onChange={(v) => setEditCompraForm((f) => ({ ...f, pricePer: v }))} />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <Label>Unidad</Label>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {UNITS.map((u) => (
+              <button key={u.id} onClick={() => setEditCompraForm((f) => ({ ...f, unit: u.id }))} style={{
+                padding: "6px 12px", borderRadius: 8, border: "2px solid",
+                borderColor: editCompraForm.unit === u.id ? "var(--accent)" : "var(--border)",
+                background: editCompraForm.unit === u.id ? "var(--accent)" : "var(--surface2)",
+                color: editCompraForm.unit === u.id ? "#fff" : "var(--text2)",
+                fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-body)",
+              }}>{u.id}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <Label>Supermercado</Label>
+          <select value={editCompraForm.supermarket} onChange={(e) => setEditCompraForm((f) => ({ ...f, supermarket: e.target.value }))}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
+            {SUPERMARKETS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <Label>¿Quién pagó?</Label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {([{ id: 'marcela', label: names.marcela }, { id: 'jonatan', label: names.jonatan }, { id: 'conjunto', label: 'Los dos' }] as const).map((p) => (
+              <button key={p.id} onClick={() => setEditCompraForm((f) => ({ ...f, paidBy: p.id }))} style={{
+                flex: 1, padding: "9px 4px", borderRadius: 10, border: "2px solid",
+                borderColor: editCompraForm.paidBy === p.id ? "var(--accent)" : "var(--border)",
+                background: editCompraForm.paidBy === p.id ? "var(--accent)" : "var(--surface2)",
+                color: editCompraForm.paidBy === p.id ? "#fff" : "var(--text2)",
+                fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+              }}>{p.label}</button>
+            ))}
+          </div>
+        </div>
+        {editingCompra && (
+          <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>Total estimado</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>
+              {COP((Number(editCompraForm.qty) || 0) * (Number(editCompraForm.pricePer) || 0))}
+            </div>
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn variant="secondary" onClick={() => setEditingCompra(null)} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={saveEditCompra} style={{ flex: 1 }}>Guardar</Btn>
+        </div>
+      </Modal>
+
+      {/* Modal: eliminar compra individual */}
       <Modal open={!!confirmDelCompra} onClose={() => setConfirmDelCompra(null)} title="¿Eliminar compra?">
         <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
           Vas a eliminar la compra de <strong>{confirmDelCompra?.itemName}</strong> del {confirmDelCompra?.date}.
@@ -708,7 +905,6 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   );
 }
 
-// ── ProductCard: edición del catálogo (sin calculadora) ───────────────────────
 function ProductCard({ item, onUpdate, onDelete }: { item: ItemMercado; onUpdate: (c: Partial<ItemMercado>) => void; onDelete: () => void }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: item.name, pricePer: String(item.pricePer), unit: item.unit, supermarket: item.supermarket, category: item.category });

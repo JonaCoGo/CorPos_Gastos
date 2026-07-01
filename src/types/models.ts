@@ -98,9 +98,20 @@ export interface Compra {
   paymentMethodId?: string;
 }
 
+export interface ListaItem {
+  id: string;
+  itemId: string;
+  itemName: string;
+  qty: number;
+  unit: string;
+  pricePer: number;
+  supermarket: string;
+}
+
 export interface Mercado {
   items: ItemMercado[];
   compras: Compra[];
+  lista?: ListaItem[];
 }
 
 export type PaymentMethodType = 'ahorro' | 'credito' | 'efectivo' | 'conjunto';
