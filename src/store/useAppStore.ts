@@ -13,6 +13,7 @@ interface AppState {
   data: AppData;
   tab: string;
   synced: boolean;
+  firestoreReady: boolean;
 
   // ── Acciones de UI ──────────────────────────────────────────────────────────
   setTab: (tab: string) => void;
@@ -36,6 +37,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   data: loadData(),
   tab: 'dashboard',
   synced: false,
+  firestoreReady: false,
 
   setTab: (tab) => set({ tab }),
 
@@ -106,12 +108,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   checkAndAdvanceMonth: () => {
-    const { data } = get();
+    const { data, firestoreReady } = get();
+    // No avanzar hasta que Firestore haya confirmado los datos reales
+    if (!firestoreReady) return;
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     const todayKey = getMonthKey(currentYear, currentMonth);
-    
+
     if (!data.months[todayKey] && data.currentKey && data.currentKey < todayKey) {
       const lastMonth = data.months[data.currentKey];
       const newMonth = createEmptyMonth(currentYear, currentMonth, lastMonth?.salaries || { marcela: 0, jonatan: 0 });
@@ -129,7 +133,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   initFirestoreSync: () => {
     return subscribeToFirestore(
-      (remoteData) => set({ data: remoteData }),
+      (remoteData) => {
+        set({ data: remoteData, firestoreReady: true });
+        // Ahora que tenemos datos reales, verificar si hay que avanzar el mes
+        get().checkAndAdvanceMonth();
+      },
       (syncStatus) => set({ synced: syncStatus })
     );
   }
