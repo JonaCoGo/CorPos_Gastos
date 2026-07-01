@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Bell, BellOff } from 'lucide-react';
+import { Plus, Trash2, Bell, BellOff, Download } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, PaymentMethodType } from '../types/models';
@@ -15,9 +15,21 @@ const PRESET_COLORS = ["#FBBF24", "#820AD1", "#0ea5e9", "#059669", "#dc2626", "#
 
 export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () => void }) {
   const config              = useAppStore((s) => s.data.config);
+  const data                = useAppStore((s) => s.data);
   const updateConfig        = useAppStore((s) => s.updateConfig);
   const resetMercadoCompras = useAppStore((s) => s.resetMercadoCompras);
   const comprasCount        = useAppStore((s) => s.data.mercado.compras.length);
+
+  const handleExportBackup = () => {
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `corpos_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
   const methods = config?.paymentMethods ?? [];
@@ -191,6 +203,19 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
             </div>
           </div>
         )}
+      </Card>
+
+      {/* Backup */}
+      <Card>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+          Copia de seguridad
+        </div>
+        <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
+          Descarga todos tus datos en un archivo JSON. Guárdalo en un lugar seguro como respaldo.
+        </div>
+        <Btn variant="secondary" onClick={handleExportBackup} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Download size={16} /> Descargar backup
+        </Btn>
       </Card>
 
       {/* Reset mercado */}
