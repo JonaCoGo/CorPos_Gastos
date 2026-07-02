@@ -113,6 +113,18 @@ export function saveData(d: AppData) {
  * @param onSyncChange Callback para notificar el estado de la sincronización.
  * @returns Función para cancelar la suscripción (unsubscribe).
  */
+// Detecta si los datos de Firestore están vacíos (sin gastos reales configurados)
+function firestoreIsEmpty(data: AppData): boolean {
+  if (!data?.months) return true;
+  return Object.values(data.months).every((month: any) => {
+    const hasFamily  = (month.familyExpenses  || []).some((c: any) => (c.marcela || 0) + (c.jonatan || 0) + (c.conjunto || 0) > 0);
+    const hasPersonal = [...(month.personalExpenses?.marcela || []), ...(month.personalExpenses?.jonatan || [])].some((e: any) => e.amount > 0);
+    const hasExtras  = (month.extras || []).length > 0;
+    const hasSalary  = (month.salaries?.marcela || 0) + (month.salaries?.jonatan || 0) > 0;
+    return !hasFamily && !hasPersonal && !hasExtras && !hasSalary;
+  });
+}
+
 export function subscribeToFirestore(
   onData: (data: AppData) => void,
   onSyncChange: (synced: boolean) => void
@@ -125,11 +137,13 @@ export function subscribeToFirestore(
   const [col, docId] = FIRESTORE_DOC.split("/");
   const ref = doc(db, col, docId);
 
-  // Primera carga: si Firestore está vacío, empujar datos locales
+  // Primera carga: si Firestore no existe o tiene datos vacíos, empujar datos locales
   getDoc(ref).then((snap) => {
-    if (!snap.exists()) {
+    if (!snap.exists() || firestoreIsEmpty(snap.data() as AppData)) {
       const local = loadData();
-      setDoc(ref, local).catch(console.error);
+      if (!firestoreIsEmpty(local)) {
+        setDoc(ref, local).catch(console.error);
+      }
     }
   });
 
@@ -139,6 +153,17 @@ export function subscribeToFirestore(
     (snap) => {
       if (snap.exists()) {
         const remote = snap.data() as AppData;
+
+        // Si Firestore tiene datos vacíos pero localStorage tiene datos reales, rescatar local
+        if (firestoreIsEmpty(remote)) {
+          const local = loadData();
+          if (!firestoreIsEmpty(local)) {
+            setDoc(ref, local).catch(console.error);
+            onData(local);
+            onSyncChange(true);
+            return;
+          }
+        }
         let changed = false;
         if (!remote.mercado || !remote.mercado.items || remote.mercado.items.length === 0) {
           remote.mercado = { items: SEED_MARKET_ITEMS, compras: remote.mercado?.compras || [] };
