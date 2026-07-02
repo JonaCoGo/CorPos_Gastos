@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Plus, Trash2, Bell, BellOff, Download } from 'lucide-react';
+import { useState, useRef } from "react";
+import { Plus, Trash2, Bell, BellOff, Download, Upload } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, PaymentMethodType } from '../types/models';
 import { requestNotifPermission, getNotifEnabled, setNotifEnabled } from '../hooks/useNotifications';
+import { saveData } from '../services/firestore';
 
 const TYPE_OPTIONS: { value: PaymentMethodType; label: string; icon: string }[] = [
   { value: "ahorro",   label: "Cuenta ahorro", icon: "🏦" },
@@ -19,6 +20,29 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   const updateConfig        = useAppStore((s) => s.updateConfig);
   const resetMercadoCompras = useAppStore((s) => s.resetMercadoCompras);
   const comprasCount        = useAppStore((s) => s.data.mercado.compras.length);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess] = useState(false);
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        if (!parsed.months || !parsed.currentKey) throw new Error("Formato inválido");
+        saveData(parsed);
+        window.location.reload();
+      } catch {
+        setImportError("El archivo no es válido. Asegúrate de usar un backup exportado desde esta app.");
+        setTimeout(() => setImportError(null), 4000);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
 
   const handleExportBackup = () => {
     const json = JSON.stringify(data, null, 2);
@@ -213,9 +237,23 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
           Descarga todos tus datos en un archivo JSON. Guárdalo en un lugar seguro como respaldo.
         </div>
-        <Btn variant="secondary" onClick={handleExportBackup} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+        <Btn variant="secondary" onClick={handleExportBackup} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
           <Download size={16} /> Descargar backup
         </Btn>
+        <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportBackup} style={{ display: "none" }} />
+        <Btn variant="secondary" onClick={() => fileInputRef.current?.click()} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Upload size={16} /> Restaurar desde backup
+        </Btn>
+        {importError && (
+          <div style={{ marginTop: 10, padding: "10px 12px", background: "rgba(220,38,38,0.1)", borderRadius: 8, fontSize: 13, color: "var(--danger)" }}>
+            {importError}
+          </div>
+        )}
+        {importSuccess && (
+          <div style={{ marginTop: 10, padding: "10px 12px", background: "rgba(5,150,105,0.1)", borderRadius: 8, fontSize: 13, color: "var(--success)" }}>
+            ✅ Backup restaurado correctamente
+          </div>
+        )}
       </Card>
 
       {/* Reset mercado */}
