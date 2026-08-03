@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ShoppingCart, Pencil, Trash2, ChevronDown, ChevronUp, Check, ClipboardList } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label, PaymentChips } from '../components/ui';
 import { SUPERMARKETS as DEFAULT_SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
-import { COP } from '../utils/finanzas';
+import { COP, sanitizeDecimalInput, parseFlexibleNumber } from '../utils/finanzas';
 import { Mercado, ItemMercado, Compra, ListaItem } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
@@ -100,7 +100,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     setCart((prev) => ({ ...prev, [id]: { ...prev[id], ...changes } }));
   };
 
-  const cartTotal = useMemo(() => Object.values(cart).reduce((s, e) => s + (Number(e.qty) || 0) * (Number(e.pricePer) || 0), 0), [cart]);
+  const cartTotal = useMemo(() => Object.values(cart).reduce((s, e) => s + (parseFlexibleNumber(e.qty) || 0) * (parseFlexibleNumber(e.pricePer) || 0), 0), [cart]);
   const cartCount = Object.keys(cart).length;
 
   // Cargar lista en el carrito
@@ -120,8 +120,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     const today = new Date().toISOString().slice(0, 10);
     const nuevasCompras: Compra[] = Object.values(cart).map((e) => {
       const item = items.find((i) => i.id === e.itemId)!;
-      const qty = Number(e.qty) || 1;
-      const pricePer = Number(e.pricePer) || item.pricePer;
+      const qty = parseFlexibleNumber(e.qty) || 1;
+      const pricePer = parseFlexibleNumber(e.pricePer) || item.pricePer;
       const unit = e.unit || item.unit;
       const total = qty * pricePer;
       const paidBy = e.paidBy || 'conjunto';
@@ -141,8 +141,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     });
     const updatedItems = items.map((item) => {
       const e = cart[item.id];
-      if (e && Number(e.pricePer) && Number(e.pricePer) !== item.pricePer)
-        return { ...item, pricePer: Number(e.pricePer) };
+      if (e && parseFlexibleNumber(e.pricePer) && parseFlexibleNumber(e.pricePer) !== item.pricePer)
+        return { ...item, pricePer: parseFlexibleNumber(e.pricePer) };
       return item;
     });
     onUpdate({ ...mercado, items: updatedItems, compras: [...nuevasCompras, ...compras], lista: [] });
@@ -313,10 +313,9 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                       <div style={{ fontSize: 13, fontWeight: 700 }}>{li.itemName}</div>
                       <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 1 }}>{COP(li.pricePer)}/{li.unit} · {li.supermarket}</div>
                     </div>
-                    <input
-                      type="number"
+                    <QtyTextInput
                       value={li.qty}
-                      onChange={(e) => updateListaItem(li.itemId, { qty: Number(e.target.value) || 1 })}
+                      onCommit={(qty) => updateListaItem(li.itemId, { qty })}
                       style={{ width: 56, padding: "6px 8px", borderRadius: 8, border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontSize: 14, fontWeight: 700, textAlign: "right", fontFamily: "var(--font-body)", outline: "none" }}
                     />
                     <span style={{ fontSize: 11, color: "var(--text2)", minWidth: 20 }}>{li.unit}</span>
@@ -374,10 +373,9 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                     </div>
                     {checked && liItem && (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <input
-                          type="number"
+                        <QtyTextInput
                           value={liItem.qty}
-                          onChange={(e) => updateListaItem(item.id, { qty: Number(e.target.value) || 1 })}
+                          onCommit={(qty) => updateListaItem(item.id, { qty })}
                           onClick={(e) => e.stopPropagation()}
                           style={{ width: 52, padding: "5px 7px", borderRadius: 8, border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontSize: 13, fontWeight: 700, textAlign: "right", fontFamily: "var(--font-body)", outline: "none" }}
                         />
@@ -507,11 +505,11 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 const checked = inCart(item.id);
                 const entry = cart[item.id];
                 const isExpanded = expandedItem === item.id;
-                const pricePer = checked ? (Number(entry.pricePer) || item.pricePer) : item.pricePer;
+                const pricePer = checked ? (parseFlexibleNumber(entry.pricePer) || item.pricePer) : item.pricePer;
                 const unit = checked ? (entry.unit || item.unit) : item.unit;
-                const qty = checked ? (Number(entry.qty) || 1) : 1;
+                const qty = checked ? (parseFlexibleNumber(entry.qty) || 1) : 1;
                 const total = checked ? pricePer * qty : null;
-                const priceChanged = checked && Number(entry.pricePer) > 0 && Number(entry.pricePer) !== item.pricePer;
+                const priceChanged = checked && parseFlexibleNumber(entry.pricePer) > 0 && parseFlexibleNumber(entry.pricePer) !== item.pricePer;
                 const enLista = inLista(item.id);
 
                 return (
@@ -552,14 +550,14 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                           <div>
                             <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>Cantidad</div>
-                            <input type="number" value={entry.qty} onChange={(e) => updateCartEntry(item.id, { qty: e.target.value })}
+                            <input type="text" inputMode="decimal" value={entry.qty} onChange={(e) => updateCartEntry(item.id, { qty: sanitizeDecimalInput(e.target.value) })}
                               style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }} />
                           </div>
                           <div>
                             <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: priceChanged ? "var(--jona)" : "var(--text2)", marginBottom: 6 }}>
                               Precio hoy {priceChanged ? "↑" : ""}
                             </div>
-                            <input type="number" value={entry.pricePer} onChange={(e) => updateCartEntry(item.id, { pricePer: e.target.value })}
+                            <input type="text" inputMode="decimal" value={entry.pricePer} onChange={(e) => updateCartEntry(item.id, { pricePer: sanitizeDecimalInput(e.target.value) })}
                               style={{ width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 9, fontSize: 16, fontWeight: 700, textAlign: "right", border: `2px solid ${priceChanged ? "var(--jona)" : "var(--border)"}`, background: priceChanged ? "#fff7f0" : "var(--surface)", color: priceChanged ? "var(--jona)" : "var(--text1)", fontFamily: "var(--font-body)", outline: "none" }} />
                           </div>
                         </div>
@@ -1005,6 +1003,40 @@ function ProductCard({ item, supermarkets, onUpdate, onDelete }: { item: ItemMer
         </div>
       </div>
     </Card>
+  );
+}
+
+// Input de cantidad con buffer de texto propio: si el valor se formatea directo
+// desde el número en cada tecla, se pierde el "." mientras se escribe un decimal
+// (ej. "1." se re-renderiza como "1"). Mientras el input está enfocado se respeta
+// lo que la persona está escribiendo, y solo se sincroniza contra el valor real
+// al perder el foco.
+function QtyTextInput({ value, onCommit, style, onClick }: {
+  value: number;
+  onCommit: (n: number) => void;
+  style: React.CSSProperties;
+  onClick?: (e: React.MouseEvent) => void;
+}) {
+  const [text, setText] = useState(String(value));
+  const focused = useRef(false);
+
+  useEffect(() => { if (!focused.current) setText(String(value)); }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={text}
+      onClick={onClick}
+      onFocus={() => { focused.current = true; }}
+      onBlur={() => { focused.current = false; setText(String(value)); }}
+      onChange={(e) => {
+        const sanitized = sanitizeDecimalInput(e.target.value);
+        setText(sanitized);
+        onCommit(parseFlexibleNumber(sanitized) || 1);
+      }}
+      style={style}
+    />
   );
 }
 

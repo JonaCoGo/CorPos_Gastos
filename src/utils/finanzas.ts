@@ -23,6 +23,26 @@ export const COP = (n: number): string =>
     maximumFractionDigits: 0,
   }).format(n || 0);
 
+// ─── ENTRADA DECIMAL FLEXIBLE ─────────────────────────────────────────────────
+// El teclado numérico de Android en locale es-CO suele mostrar "," como separador
+// decimal y bloquea el "." (o viceversa según el teclado). Estas funciones aceptan
+// ambos separadores en los inputs de texto para que no se pierda lo que se escribe
+// (ej. el peso que marca la báscula: 1.250 lb o 1,250 lb).
+export function sanitizeDecimalInput(raw: string): string {
+  let v = raw.replace(",", ".");
+  v = v.replace(/[^0-9.]/g, "");
+  const firstDot = v.indexOf(".");
+  if (firstDot !== -1) {
+    v = v.slice(0, firstDot + 1) + v.slice(firstDot + 1).replace(/\./g, "");
+  }
+  return v;
+}
+
+export function parseFlexibleNumber(raw: string): number {
+  const n = Number(sanitizeDecimalInput(raw));
+  return Number.isFinite(n) ? n : 0;
+}
+
 // ─── HELPERS DE FECHA ─────────────────────────────────────────────────────────
 export function getMonthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;

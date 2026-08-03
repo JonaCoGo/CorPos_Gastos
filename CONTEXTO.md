@@ -132,6 +132,18 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 
 ## Historial de cambios
 
+### [2026-08-03] — Fix entrada decimal en cantidad/precio de Mercado (báscula en lb/kg)
+
+Jonatan reportó que al pesar productos por libra (ej. plátano verde, la báscula marca "1.250" = 1 lb con 250 g) la app no aceptaba el número: escribir "1250" lo tomaba como 1250 unidades, "1.250" o ".750" no se dejaban escribir o no cuadraban. **Causa raíz:** los inputs de cantidad/precio eran `<input type="number">`, cuyo comportamiento de sanitización de decimales depende del teclado numérico del celular — en locale es-CO el teclado suele exigir "," como separador y bloquear el ".", lo que invalida el campo (el navegador lo vacía o rechaza el carácter).
+
+**Fix:**
+- `parseFlexibleNumber` / `sanitizeDecimalInput` nuevos en `src/utils/finanzas.ts` — aceptan tanto "," como "." como separador decimal y normalizan a ".".
+- `components/ui/Field.tsx`: los campos numéricos ahora son `type="text" inputMode="decimal"` (conserva el teclado numérico del celular pero sin la validación nativa que rompía el "."); el valor se sanitiza en cada `onChange`. Afecta Cantidad/Precio en los modales de editar compra y editar/crear producto.
+- `TabMercado.tsx`: cantidad y precio del carrito ("Hacer mercado") con el mismo tratamiento; todos los `Number(...)` sobre esos campos pasaron a `parseFlexibleNumber(...)`.
+- Cantidad en la vista "Lista" (bindeada directo a un número en el store, no a un string local) necesitaba un fix distinto: nuevo componente `QtyTextInput` con buffer de texto propio que solo se resincroniza contra el valor real cuando el input pierde el foco — así no se pierde el "." mientras la persona todavía está escribiendo el decimal.
+
+**Verificado en navegador:** en "Hacer mercado", escribir "1.250" en Cantidad da 1.25 und (total $14.313 = 1.25 × $11.450); escribir "0,750" se normaliza a "0.750" y calcula 0.75 und correctamente. En "Lista", el campo de cantidad permite escribir "1.5" letra por letra sin resetearse. `npx tsc --noEmit` limpio.
+
 ### [2026-08-03] — App Android nativa (Capacitor) con actualización en caliente
 
 Después de varios intentos de arreglar el flujo de actualización de la PWA (ver entradas anteriores de hoy), Jonatan seguía teniendo que borrar la app + historial del navegador para ver versiones nuevas — confirmado como **limitación real de PWAs instaladas en iOS/Android** (WebAPK en Android revisa manifest/SW con su propio calendario interno, ~1 vez al día, sin API para forzarlo; iOS es aún más agresivo cacheando "web clips"). Se decidió no seguir peleando con eso y envolver la misma app en una **app Android nativa real** con Capacitor. iOS queda pendiente (Jonatan no tiene Mac disponible por ahora — Xcode es obligatorio para compilar iOS).
