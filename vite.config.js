@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         clientsClaim: true,
+        skipWaiting: true,
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         runtimeCaching: [
           {

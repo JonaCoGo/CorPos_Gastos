@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState, useCallback, Suspense, lazy } from "react";
 import { useRegisterSW } from 'virtual:pwa-register/react';
-// autoUpdate: SW se actualiza en silencio, sin banner ni botón
+// autoUpdate: SW se actualiza en silencio, sin banner ni botón.
+// Ojo: el navegador solo revisa si hay SW nuevo cuando algo se lo pide — una PWA
+// instalada en el celular casi nunca hace esa revisión sola (se "reanuda", no navega).
+// Por eso forzamos el chequeo cada hora y cada vez que se reabre la app.
+const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 import { db } from "./firebase";
 import { MONTH_NAMES } from "./constants";
 import { computeSummary } from './utils/finanzas';
@@ -20,7 +24,22 @@ const TabMercado          = lazy(() => import('./features/TabMercado').then(m =>
 const TabSettings         = lazy(() => import('./features/TabSettings').then(m => ({ default: m.TabSettings })));
 
 export default function App() {
-  useRegisterSW();
+  useRegisterSW({
+    onRegisteredSW(_swUrl, registration) {
+      if (!registration) return;
+
+      const checkForUpdate = () => { registration.update().catch(() => {}); };
+
+      // Revisión periódica mientras la app está abierta
+      setInterval(checkForUpdate, SW_UPDATE_CHECK_INTERVAL_MS);
+
+      // Revisión inmediata al volver a primer plano (reabrir desde el celular) —
+      // el momento en el que más probablemente se perdió una actualización.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdate();
+      });
+    },
+  });
 
   const data   = useAppStore((s) => s.data);
   const tab    = useAppStore((s) => s.tab);

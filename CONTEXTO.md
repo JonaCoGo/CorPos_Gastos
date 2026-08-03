@@ -130,6 +130,17 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 
 ## Historial de cambios
 
+### [2026-08-03] — Fix real de actualización PWA (sin borrar caché/historial)
+
+**Síntoma reportado:** las actualizaciones nunca llegaban solas — había que borrar el historial del navegador del celular para ver la versión nueva, tanto en Android como iOS.
+
+**Causa raíz:** el service worker solo revisa si hay versión nueva cuando el navegador decide hacerlo por su cuenta (típicamente en una navegación real), y una PWA agregada a la pantalla de inicio casi nunca navega — el sistema operativo la "reanuda" congelada. No había ningún chequeo periódico forzado en el código, así que en la práctica el SW nunca se enteraba de que había una versión nueva. Además faltaba `skipWaiting: true` explícito en Workbox (solo estaba `clientsClaim`), lo que podía dejar una versión nueva "esperando" sin activarse.
+
+- `vite.config.js`: agregado `workbox.skipWaiting: true`.
+- `App.tsx`: `useRegisterSW` ahora fuerza `registration.update()` cada hora mientras la app está abierta, y además al instante cada vez que la app vuelve a primer plano (`visibilitychange` → `visible`) — el momento típico de reabrir la PWA desde el celular. El reload automático al detectar versión nueva ya lo maneja `registerType: 'autoUpdate'` internamente (evento `activated` → `window.location.reload()`), no se duplicó esa lógica.
+- **Pendiente de validar en producción real:** este mecanismo no se puede probar completo en dev — necesita un deploy real y probar en los celulares (Android y iPhone) reabriendo la app después de que salga una versión nueva, sin tocar caché/historial manualmente.
+- `0 errores TypeScript`, build de producción verificado.
+
 ### [2026-08-03] — Supermercados configurables (CRUD + quick-add)
 
 **Problema:** `SUPERMARKETS` era una constante fija en `constants.ts` — no había forma de agregar un supermercado nuevo desde la app.
