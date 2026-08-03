@@ -6,7 +6,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 // Por eso forzamos el chequeo cada hora y cada vez que se reabre la app.
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 import { db } from "./firebase";
-import { MONTH_NAMES } from "./constants";
+import { MONTH_NAMES, SW_LAST_CHECK_KEY } from "./constants";
 import { computeSummary } from './utils/finanzas';
 import { useAppStore } from './store/useAppStore';
 import MainLayout from './layouts/MainLayout';
@@ -28,9 +28,13 @@ export default function App() {
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
 
-      const checkForUpdate = () => { registration.update().catch(() => {}); };
+      const checkForUpdate = () => {
+        localStorage.setItem(SW_LAST_CHECK_KEY, new Date().toISOString());
+        registration.update().catch(() => {});
+      };
 
-      // Revisión periódica mientras la app está abierta
+      // Revisión inmediata al registrar el SW, y luego periódica
+      checkForUpdate();
       setInterval(checkForUpdate, SW_UPDATE_CHECK_INTERVAL_MS);
 
       // Revisión inmediata al volver a primer plano (reabrir desde el celular) —

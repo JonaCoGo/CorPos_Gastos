@@ -1,10 +1,24 @@
-import { useState, useRef } from "react";
-import { Plus, Trash2, Bell, BellOff, Download, Upload } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { Plus, Trash2, Bell, BellOff, Download, Upload, RefreshCw } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, PaymentMethodType } from '../types/models';
 import { requestNotifPermission, getNotifEnabled, setNotifEnabled } from '../hooks/useNotifications';
 import { saveData } from '../services/firestore';
+import { SW_LAST_CHECK_KEY } from '../constants';
+
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+const formatRelative = (iso: string) => {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "hace un momento";
+  if (min < 60) return `hace ${min} min`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `hace ${hr} h`;
+  return `hace ${Math.floor(hr / 24)} d`;
+};
 
 const TYPE_OPTIONS: { value: PaymentMethodType; label: string; icon: string }[] = [
   { value: "ahorro",   label: "Cuenta ahorro", icon: "🏦" },
@@ -105,6 +119,23 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   };
 
   const handleReset = () => { resetMercadoCompras(); setConfirmReset(false); };
+
+  // Versión de la app / última revisión de actualización
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, []);
+  const lastCheck = localStorage.getItem(SW_LAST_CHECK_KEY);
+  void now; // fuerza re-render periódico para que "hace X min" se mantenga actualizado
+
+  const checkNow = () => {
+    navigator.serviceWorker?.getRegistration().then((reg) => {
+      localStorage.setItem(SW_LAST_CHECK_KEY, new Date().toISOString());
+      setNow(Date.now());
+      reg?.update().catch(() => {});
+    });
+  };
 
   const addMethod = () => {
     if (!methodForm.label.trim()) return;
@@ -332,6 +363,26 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         )}
         <Btn variant="danger" onClick={() => setConfirmReset(true)} disabled={comprasCount === 0} style={{ width: "100%" }}>
           Reiniciar compras del mercado
+        </Btn>
+      </Card>
+
+      {/* Versión de la app */}
+      <Card>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+          Versión de la app
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+            <span style={{ color: "var(--text2)" }}>Versión instalada</span>
+            <span style={{ fontWeight: 700 }}>{formatDateTime(__BUILD_TIME__)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+            <span style={{ color: "var(--text2)" }}>Última revisión de actualización</span>
+            <span style={{ fontWeight: 700 }}>{lastCheck ? formatRelative(lastCheck) : "aún no revisada"}</span>
+          </div>
+        </div>
+        <Btn variant="secondary" onClick={checkNow} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <RefreshCw size={16} /> Revisar ahora
         </Btn>
       </Card>
 

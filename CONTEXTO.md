@@ -130,6 +130,16 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 
 ## Historial de cambios
 
+### [2026-08-03] — Indicador visible de versión y revisión de actualización
+
+El chequeo de actualización del service worker es un proceso interno sin ninguna señal visible — no había forma de confirmar que estuviera funcionando sin conectar el celular a devtools remoto. Se agregó una card "Versión de la app" en Ajustes:
+
+- **Versión instalada**: fecha/hora del build actual (`__BUILD_TIME__`, constante inyectada por Vite en build time vía `define`, ver `vite.config.js` y `vite-env.d.ts`).
+- **Última revisión de actualización**: timestamp guardado en `localStorage` (`SW_LAST_CHECK_KEY` en `constants.ts`) cada vez que `App.tsx` dispara `registration.update()` — al registrar el SW, cada hora, y al volver la app a primer plano.
+- Botón **"Revisar ahora"** para forzar el chequeo manualmente y ver el timestamp cambiar al instante.
+
+QA manual en navegador: card renderiza correctamente, muestra fecha de build y "aún no revisada" en dev (esperado — el SW real no se registra en modo dev). La validación completa de "hace X min" con SW real requiere el próximo deploy.
+
 ### [2026-08-03] — Fix real de actualización PWA (sin borrar caché/historial)
 
 **Síntoma reportado:** las actualizaciones nunca llegaban solas — había que borrar el historial del navegador del celular para ver la versión nueva, tanto en Android como iOS.
