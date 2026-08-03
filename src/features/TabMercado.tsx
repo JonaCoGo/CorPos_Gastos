@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { ShoppingCart, Pencil, Trash2, ChevronDown, ChevronUp, Check, ClipboardList } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label, PaymentChips } from '../components/ui';
 import { SUPERMARKETS as DEFAULT_SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
-import { COP, sanitizeDecimalInput, parseFlexibleNumber } from '../utils/finanzas';
+import { COP, sanitizeDecimalInput, parseFlexibleNumber, convertQty } from '../utils/finanzas';
 import { Mercado, ItemMercado, Compra, ListaItem } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
@@ -100,7 +100,13 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     setCart((prev) => ({ ...prev, [id]: { ...prev[id], ...changes } }));
   };
 
-  const cartTotal = useMemo(() => Object.values(cart).reduce((s, e) => s + (parseFlexibleNumber(e.qty) || 0) * (parseFlexibleNumber(e.pricePer) || 0), 0), [cart]);
+  const cartTotal = useMemo(() => Object.values(cart).reduce((s, e) => {
+    const item = items.find((i) => i.id === e.itemId);
+    if (!item) return s;
+    const qty = convertQty(parseFlexibleNumber(e.qty) || 0, e.unit || item.unit, item.unit);
+    const pricePer = parseFlexibleNumber(e.pricePer) || item.pricePer;
+    return s + qty * pricePer;
+  }, 0), [cart, items]);
   const cartCount = Object.keys(cart).length;
 
   // Cargar lista en el carrito
@@ -120,9 +126,13 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     const today = new Date().toISOString().slice(0, 10);
     const nuevasCompras: Compra[] = Object.values(cart).map((e) => {
       const item = items.find((i) => i.id === e.itemId)!;
-      const qty = parseFlexibleNumber(e.qty) || 1;
+      const rawQty = parseFlexibleNumber(e.qty) || 1;
       const pricePer = parseFlexibleNumber(e.pricePer) || item.pricePer;
-      const unit = e.unit || item.unit;
+      const enteredUnit = e.unit || item.unit;
+      // Se guarda siempre en la unidad del producto (ej. lb) aunque se haya
+      // pesado en otra (ej. la báscula en kg) — así el historial queda consistente.
+      const qty = convertQty(rawQty, enteredUnit, item.unit);
+      const unit = item.unit;
       const total = qty * pricePer;
       const paidBy = e.paidBy || 'conjunto';
       return {
@@ -230,14 +240,17 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   const saveEditCompra = () => {
     if (!editingCompra) return;
-    const qty = Number(editCompraForm.qty) || 1;
-    const pricePer = Number(editCompraForm.pricePer) || editingCompra.pricePer;
+    const item = items.find((i) => i.id === editingCompra.itemId);
+    const targetUnit = item?.unit ?? editCompraForm.unit;
+    const rawQty = parseFlexibleNumber(editCompraForm.qty) || 1;
+    const qty = convertQty(rawQty, editCompraForm.unit, targetUnit);
+    const pricePer = parseFlexibleNumber(editCompraForm.pricePer) || editingCompra.pricePer;
     const total = qty * pricePer;
     const paidBy = editCompraForm.paidBy;
     const updated: Compra = {
       ...editingCompra,
       qty, pricePer, total,
-      unit: editCompraForm.unit,
+      unit: targetUnit,
       supermarket: editCompraForm.supermarket,
       paidBy,
       marcelaAmount:  paidBy === 'marcela'  ? total : 0,
@@ -508,7 +521,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                 const pricePer = checked ? (parseFlexibleNumber(entry.pricePer) || item.pricePer) : item.pricePer;
                 const unit = checked ? (entry.unit || item.unit) : item.unit;
                 const qty = checked ? (parseFlexibleNumber(entry.qty) || 1) : 1;
-                const total = checked ? pricePer * qty : null;
+                const qtyEnItemUnit = checked ? convertQty(qty, unit, item.unit) : qty;
+                const total = checked ? pricePer * qtyEnItemUnit : null;
                 const priceChanged = checked && parseFlexibleNumber(entry.pricePer) > 0 && parseFlexibleNumber(entry.pricePer) !== item.pricePer;
                 const enLista = inLista(item.id);
 
@@ -907,14 +921,20 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             label="Medio de pago (opcional)"
           />
         )}
-        {editingCompra && (
-          <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>Total estimado</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>
-              {COP((Number(editCompraForm.qty) || 0) * (Number(editCompraForm.pricePer) || 0))}
+        {editingCompra && (() => {
+          const item = items.find((i) => i.id === editingCompra.itemId);
+          const targetUnit = item?.unit ?? editCompraForm.unit;
+          const qty = convertQty(parseFlexibleNumber(editCompraForm.qty) || 0, editCompraForm.unit, targetUnit);
+          const pricePer = parseFlexibleNumber(editCompraForm.pricePer) || 0;
+          return (
+            <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>Total estimado</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "var(--accent)", fontFamily: "var(--font-display)" }}>
+                {COP(qty * pricePer)}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setEditingCompra(null)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={saveEditCompra} style={{ flex: 1 }}>Guardar</Btn>

@@ -43,6 +43,21 @@ export function parseFlexibleNumber(raw: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// ─── CONVERSIÓN DE UNIDADES DE PESO ───────────────────────────────────────────
+// 1 libra = 500 g — convención de plaza/supermercado en Colombia (no la libra
+// científica de 453.6 g), que es como Jonatan y Marcela pesan y cobran en la
+// práctica. Permite pesar en la unidad que marque la báscula (kg, lb o gr) y
+// convertir al precio por unidad configurado en el producto (ej. $/lb).
+const WEIGHT_UNIT_TO_GRAMS: Record<string, number> = { kg: 1000, lb: 500, gr: 1 };
+
+export function convertQty(qty: number, fromUnit: string, toUnit: string): number {
+  if (fromUnit === toUnit) return qty;
+  const fromG = WEIGHT_UNIT_TO_GRAMS[fromUnit];
+  const toG = WEIGHT_UNIT_TO_GRAMS[toUnit];
+  if (!fromG || !toG) return qty;
+  return (qty * fromG) / toG;
+}
+
 // ─── HELPERS DE FECHA ─────────────────────────────────────────────────────────
 export function getMonthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;

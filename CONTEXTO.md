@@ -132,6 +132,20 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 
 ## Historial de cambios
 
+### [2026-08-03] — Conversión de unidades lb/kg en cantidad de Mercado
+
+Después del fix de entrada decimal (ver entrada siguiente), Jonatan reportó que el problema seguía: la Cebolla de Huevo está a $1.950/lb, pero al pesar en la báscula (que da el peso en kg, ej. 0.75) la app multiplicaba directo 0.75 × 1.950 sin convertir, dando un precio incorrecto — la app no sabía que "0.75" estaba en kg y el precio estaba fijado en lb. **No era un problema de parseo del número (ya arreglado), sino de conversión de unidades: faltaba del todo.**
+
+**Decisión confirmada con Jonatan (afecta cálculos de dinero, se consultó antes de programar):** usar **1 libra = 500 g**, la convención de plaza/supermercado en Colombia (no la libra científica de 453.6 g) — así es como él pesa y cobra en la práctica.
+
+**Fix:**
+- `convertQty(qty, fromUnit, toUnit)` nuevo en `src/utils/finanzas.ts`, con tabla `kg: 1000, lb: 500, gr: 1` gramos por unidad.
+- El selector "Unidad" del carrito (que ya existía) ahora sí convierte: si pesás en una unidad distinta a la del producto (ej. producto en lb, pesás en kg), el total se calcula convirtiendo la cantidad a la unidad del producto antes de multiplicar por el precio.
+- Al registrar el viaje (`registrarViaje`), la compra se guarda siempre en la unidad canónica del producto (ej. lb), con la cantidad ya convertida — así el historial no queda con unidades mezcladas para el mismo producto.
+- Mismo tratamiento en editar compra individual (`saveEditCompra` y el total estimado del modal).
+
+**Verificado en navegador:** Cebolla de Huevo ($1.950/lb) con cantidad 0.75 y unidad "kg" da **$2.925** (0.75 kg = 1.5 lb × $1.950), no los $1.462 que daba antes de convertir. `npx tsc --noEmit` limpio.
+
 ### [2026-08-03] — Fix entrada decimal en cantidad/precio de Mercado (báscula en lb/kg)
 
 Jonatan reportó que al pesar productos por libra (ej. plátano verde, la báscula marca "1.250" = 1 lb con 250 g) la app no aceptaba el número: escribir "1250" lo tomaba como 1250 unidades, "1.250" o ".750" no se dejaban escribir o no cuadraban. **Causa raíz:** los inputs de cantidad/precio eran `<input type="number">`, cuyo comportamiento de sanitización de decimales depende del teclado numérico del celular — en locale es-CO el teclado suele exigir "," como separador y bloquear el ".", lo que invalida el campo (el navegador lo vacía o rechaza el carácter).
