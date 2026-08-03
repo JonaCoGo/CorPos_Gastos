@@ -75,7 +75,7 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 4. No exponer credenciales ni rutas internas al cliente.
 5. Commits con formato `tipo(app-gastos): descripción`.
 
-## Estado actual (2026-06-22)
+## Estado actual (2026-06-30)
 
 - **Producción estable** en https://corpos-gastos.vercel.app/
 - **0 errores TypeScript**. Build limpio en ~3s.
@@ -129,6 +129,28 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 ---
 
 ## Historial de cambios
+
+### [2026-08-03] — Medios de pago independientes por persona (Gastos del hogar + Mercado)
+
+**Problema:** un gasto ya se dividía en montos por persona (Marcela / Jonatan / fondo conjunto), pero solo admitía **un** medio de pago para todo el registro — sin trazabilidad cuando cada quien paga su parte desde su propia cuenta (ej. Bancolombia de Marcela vs. Bancolombia de Jonatan).
+
+- **Modelo:** `FamilyExpense.paymentMethodId` (único) → `paymentMethodByPerson?: { marcela?, jonatan?, conjunto? }`. Migración automática en `services/firestore.ts` (loadData + subscribeToFirestore): asigna el medio antiguo a cada persona que tuviera monto > 0 en ese gasto.
+- **Gastos del hogar** (`TabFamilyExpenses`): selector de cuenta independiente debajo de cada campo de monto (Marcela / Jonatan / Los dos), solo visible si ese monto es > 0. La categoría "Mercado" no lo muestra — su detalle real vive en cada compra.
+- **Mercado** (`TabMercado`): `Compra.paymentMethodId` ya era por ítem, pero "Hacer mercado" forzaba un solo medio de pago a todo el carrito. Ahora cada ítem del carrito tiene su propio selector (filtrado a cuentas del pagador de ese ítem + cuentas conjuntas), y el modal de editar compra individual también lo permite editar. El bulk-edit de "viaje completo" se mantiene como atajo (aplica un pagador + cuenta a todos los ítems del viaje de una vez).
+- **Dashboard** (resumen por medio de pago): ajustado a sumar por persona vía `paymentMethodByPerson`. De paso corrige un doble conteo latente: la categoría "Mercado" de gastos del hogar ya no se computa ahí (su total ya se cuenta vía `mercado.compras`).
+- QA manual en navegador (datos reales de producción vía Firestore): confirmado que Marcela y Jonatan pueden seleccionar cuentas distintas para su parte del mismo gasto sin pisarse; cancelado sin guardar tras validar.
+- `0 errores TypeScript`, build de producción verificado (`npm run build`).
+
+### [2026-07-03] — Skill agent-browser disponible para QA
+
+- Skill `agent-browser` (Vercel Labs) instalado globalmente en `~/.claude/skills/` — CLI de automatización de navegador para probar la app en un browser real (navegación, clicks, screenshots) en vez de solo describir el comportamiento esperado.
+- Aplica al rol 🧪 QA de este proyecto: usarlo para validar flujos críticos (mercado, fondo conjunto, PWA) antes de cerrar tareas con cambios de UI.
+
+### [2026-06-30] — Fix botón Actualizar PWA
+
+- Eliminado conflicto entre `registerType: 'prompt'` y `skipWaiting: true` en workbox
+- `handleAppUpdate` simplificado a `updateServiceWorker(true)` — el plugin maneja el reload automáticamente
+- El botón "Actualizar" ahora funciona correctamente al hacer deploy
 
 ### [2026-06-22] — Fondo conjunto con balance real
 

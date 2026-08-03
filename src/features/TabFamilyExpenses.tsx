@@ -61,7 +61,8 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
   const [editCat, setEditCat] = useState<FamilyExpense | null>(null);
   const [editForm, setEditForm] = useState({
     marcela: "", jonatan: "", conjunto: "", budget: "", monthlyAmount: "",
-    label: "", icon: "", paymentMethodId: "",
+    label: "", icon: "",
+    paymentMethodMarcela: "", paymentMethodJonatan: "", paymentMethodConjunto: "",
   });
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({ label: "", budget: "", icon: "📦" });
@@ -81,7 +82,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
         budget: String(cat.budget || 0),
         monthlyAmount: cat.monthlyAmount != null ? String(cat.monthlyAmount) : "",
         label: cat.label, icon: cat.icon,
-        paymentMethodId: cat.paymentMethodId ?? "",
+        paymentMethodMarcela: "", paymentMethodJonatan: "", paymentMethodConjunto: "",
       });
     } else {
       setEditForm({
@@ -91,22 +92,28 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
         budget: String(cat.budget || 0),
         monthlyAmount: cat.monthlyAmount != null ? String(cat.monthlyAmount) : "",
         label: cat.label, icon: cat.icon,
-        paymentMethodId: cat.paymentMethodId ?? "",
+        paymentMethodMarcela: cat.paymentMethodByPerson?.marcela ?? "",
+        paymentMethodJonatan: cat.paymentMethodByPerson?.jonatan ?? "",
+        paymentMethodConjunto: cat.paymentMethodByPerson?.conjunto ?? "",
       });
     }
   };
 
   const saveEdit = () => {
     if (!editCat) return;
-    const pmId = editForm.paymentMethodId || undefined;
     const catId = editCat.id;
     const isMercado = catId === "mercado";
     const monthlyAmount = Number(editForm.monthlyAmount) > 0 ? Number(editForm.monthlyAmount) : undefined;
+    const paymentMethodByPerson = {
+      marcela: editForm.paymentMethodMarcela || undefined,
+      jonatan: editForm.paymentMethodJonatan || undefined,
+      conjunto: editForm.paymentMethodConjunto || undefined,
+    };
     const updated = monthData.familyExpenses.map((c: FamilyExpense) =>
       c.id === catId
         ? isMercado
-          ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, conjunto: mercadoTotals.conjunto, budget: Number(editForm.budget) || 0, monthlyAmount, label: editForm.label, icon: editForm.icon, paymentMethodId: pmId }
-          : { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, conjunto: Number(editForm.conjunto) || 0, budget: Number(editForm.budget) || 0, monthlyAmount, label: editForm.label, icon: editForm.icon, paymentMethodId: pmId }
+          ? { ...c, marcela: mercadoTotals.marcela, jonatan: mercadoTotals.jonatan, conjunto: mercadoTotals.conjunto, budget: Number(editForm.budget) || 0, monthlyAmount, label: editForm.label, icon: editForm.icon }
+          : { ...c, marcela: Number(editForm.marcela) || 0, jonatan: Number(editForm.jonatan) || 0, conjunto: Number(editForm.conjunto) || 0, budget: Number(editForm.budget) || 0, monthlyAmount, label: editForm.label, icon: editForm.icon, paymentMethodByPerson }
         : c
     );
     setEditCat(null);
@@ -266,16 +273,43 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
               value={editForm.marcela}
               onChange={(v) => setEditForm({ ...editForm, marcela: v })}
             />
+            {Number(editForm.marcela) > 0 && (
+              <PaymentChips
+                methods={paymentMethods}
+                selectedId={editForm.paymentMethodMarcela || undefined}
+                onChange={(id) => setEditForm({ ...editForm, paymentMethodMarcela: id ?? "" })}
+                ownerNames={names}
+                label={`Cuenta de ${names.marcela} (opcional)`}
+              />
+            )}
             <CopField
               label={`Pagó ${names.jonatan}`}
               value={editForm.jonatan}
               onChange={(v) => setEditForm({ ...editForm, jonatan: v })}
             />
+            {Number(editForm.jonatan) > 0 && (
+              <PaymentChips
+                methods={paymentMethods}
+                selectedId={editForm.paymentMethodJonatan || undefined}
+                onChange={(id) => setEditForm({ ...editForm, paymentMethodJonatan: id ?? "" })}
+                ownerNames={names}
+                label={`Cuenta de ${names.jonatan} (opcional)`}
+              />
+            )}
             <CopField
               label="Los dos (fondo conjunto)"
               value={editForm.conjunto}
               onChange={(v) => setEditForm({ ...editForm, conjunto: v })}
             />
+            {Number(editForm.conjunto) > 0 && (
+              <PaymentChips
+                methods={paymentMethods}
+                selectedId={editForm.paymentMethodConjunto || undefined}
+                onChange={(id) => setEditForm({ ...editForm, paymentMethodConjunto: id ?? "" })}
+                ownerNames={names}
+                label="Cuenta del fondo conjunto (opcional)"
+              />
+            )}
           </>
         )}
 
@@ -321,13 +355,6 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
 
         <Field label="Nombre de la categoría" value={editForm.label}
           onChange={(v) => setEditForm({ ...editForm, label: v })} type="text" placeholder="Ej: Servicios" />
-
-        <PaymentChips
-          methods={paymentMethods}
-          selectedId={editForm.paymentMethodId || undefined}
-          onChange={(id) => setEditForm({ ...editForm, paymentMethodId: id ?? "" })}
-          ownerNames={names}
-        />
 
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setEditCat(null)} style={{ flex: 1 }}>Cancelar</Btn>

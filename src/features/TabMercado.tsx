@@ -17,6 +17,7 @@ interface CartEntry {
   pricePer: string;
   unit: string;
   paidBy: 'marcela' | 'jonatan' | 'conjunto';
+  paymentMethodId: string;
 }
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
@@ -37,7 +38,6 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   // ── Estado vista "hacer mercado" ────────────────────────────────────────────
   const [supermarket,  setSupermarket]  = useState(SUPERMARKETS[0]);
-  const [paymentId,    setPaymentId]    = useState<string>("");
   const [tripPaidBy,   setTripPaidBy]   = useState<'marcela' | 'jonatan' | 'conjunto'>('conjunto');
   const [cart,         setCart]         = useState<Record<string, CartEntry>>({});
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [editingTrip,       setEditingTrip]       = useState<string | null>(null);
   const [editTripForm,      setEditTripForm]      = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string; supermarket: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: SUPERMARKETS[0] });
   const [editingCompra,     setEditingCompra]     = useState<Compra | null>(null);
-  const [editCompraForm,    setEditCompraForm]    = useState<{ qty: string; pricePer: string; unit: string; supermarket: string; paidBy: 'marcela' | 'jonatan' | 'conjunto' }>({ qty: "1", pricePer: "0", unit: "und", supermarket: SUPERMARKETS[0], paidBy: 'conjunto' });
+  const [editCompraForm,    setEditCompraForm]    = useState<{ qty: string; pricePer: string; unit: string; supermarket: string; paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string }>({ qty: "1", pricePer: "0", unit: "und", supermarket: SUPERMARKETS[0], paidBy: 'conjunto', paymentMethodId: "" });
 
   // ── Estado vista "productos" ────────────────────────────────────────────────
   const [filterCat,  setFilterCat]  = useState("Todas");
@@ -64,11 +64,15 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   // ── Helpers carrito ─────────────────────────────────────────────────────────
   const inCart = (id: string) => !!cart[id];
 
+  // Cuentas disponibles para quien paga: si paga "los dos" no se filtra (no hay cuentas dueño=conjunto configuradas)
+  const methodsFor = (payer: 'marcela' | 'jonatan' | 'conjunto') =>
+    payer === 'conjunto' ? paymentMethods : paymentMethods.filter((m) => m.owner === payer || m.owner === 'conjunto');
+
   const setTripPayer = (payer: 'marcela' | 'jonatan' | 'conjunto') => {
     setTripPaidBy(payer);
     setCart((prev) => {
       const next = { ...prev };
-      Object.keys(next).forEach((id) => { next[id] = { ...next[id], paidBy: payer }; });
+      Object.keys(next).forEach((id) => { next[id] = { ...next[id], paidBy: payer, paymentMethodId: "" }; });
       return next;
     });
   };
@@ -80,7 +84,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       setCart(next);
       if (expandedItem === item.id) setExpandedItem(null);
     } else {
-      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer), unit: item.unit, paidBy: tripPaidBy } });
+      setCart({ ...cart, [item.id]: { itemId: item.id, qty: "1", pricePer: String(item.pricePer), unit: item.unit, paidBy: tripPaidBy, paymentMethodId: "" } });
       setExpandedItem(item.id);
     }
   };
@@ -97,7 +101,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
     if (lista.length === 0) return;
     const newCart: Record<string, CartEntry> = {};
     lista.forEach((li) => {
-      newCart[li.itemId] = { itemId: li.itemId, qty: String(li.qty), pricePer: String(li.pricePer), unit: li.unit, paidBy: tripPaidBy };
+      newCart[li.itemId] = { itemId: li.itemId, qty: String(li.qty), pricePer: String(li.pricePer), unit: li.unit, paidBy: tripPaidBy, paymentMethodId: "" };
     });
     setCart(newCart);
     setListaLoaded(true);
@@ -125,7 +129,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
         jonatanAmount:  paidBy === 'jonatan'  ? total : 0,
         conjuntoAmount: paidBy === 'conjunto' ? total : 0,
         paidBy,
-        paymentMethodId: paymentId || undefined,
+        paymentMethodId: e.paymentMethodId || undefined,
       };
     });
     const updatedItems = items.map((item) => {
@@ -214,7 +218,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
 
   const openEditCompra = (c: Compra) => {
     setEditingCompra(c);
-    setEditCompraForm({ qty: String(c.qty), pricePer: String(c.pricePer), unit: c.unit, supermarket: c.supermarket, paidBy: c.paidBy ?? 'conjunto' });
+    setEditCompraForm({ qty: String(c.qty), pricePer: String(c.pricePer), unit: c.unit, supermarket: c.supermarket, paidBy: c.paidBy ?? 'conjunto', paymentMethodId: c.paymentMethodId ?? "" });
   };
 
   const saveEditCompra = () => {
@@ -232,6 +236,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       marcelaAmount:  paidBy === 'marcela'  ? total : 0,
       jonatanAmount:  paidBy === 'jonatan'  ? total : 0,
       conjuntoAmount: paidBy === 'conjunto' ? total : 0,
+      paymentMethodId: editCompraForm.paymentMethodId || undefined,
     };
     onUpdate({ ...mercado, compras: compras.map((c) => c.id === editingCompra.id ? updated : c) });
     setEditingCompra(null);
@@ -455,13 +460,11 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             </div>
           </Card>
 
-          {/* Medio de pago */}
           {paymentMethods.length > 0 && (
-            <Card>
-              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 10 }}>
-                ¿Con qué se paga?
+            <Card style={{ background: "rgba(79,70,229,0.05)", padding: "10px 14px" }}>
+              <div style={{ fontSize: 11, color: "var(--text2)" }}>
+                💡 El medio de pago se escoge por producto — expande cada ítem del carrito para asignarlo.
               </div>
-              <PaymentChips methods={paymentMethods} selectedId={paymentId || undefined} onChange={(id) => setPaymentId(id ?? "")} ownerNames={names} />
             </Card>
           )}
 
@@ -565,6 +568,20 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                             ))}
                           </div>
                         </div>
+                        {paymentMethods.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 6 }}>
+                              ¿Con qué paga {entry.paidBy === 'conjunto' ? 'el fondo conjunto' : names[entry.paidBy]}?
+                            </div>
+                            <PaymentChips
+                              methods={methodsFor(entry.paidBy)}
+                              selectedId={entry.paymentMethodId || undefined}
+                              onChange={(id) => updateCartEntry(item.id, { paymentMethodId: id ?? "" })}
+                              ownerNames={names}
+                              label=""
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -797,7 +814,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>¿Quién pagó?</div>
               <div style={{ display: "flex", gap: 6 }}>
                 {([{ id: 'marcela', label: names.marcela }, { id: 'jonatan', label: names.jonatan }, { id: 'conjunto', label: 'Los dos' }] as const).map((p) => (
-                  <button key={p.id} onClick={() => setEditTripForm((f) => ({ ...f, paidBy: p.id }))} style={{
+                  <button key={p.id} onClick={() => setEditTripForm((f) => ({ ...f, paidBy: p.id, paymentMethodId: "" }))} style={{
                     flex: 1, padding: "9px 4px", borderRadius: 10, border: "2px solid",
                     borderColor: editTripForm.paidBy === p.id ? "var(--accent)" : "var(--border)",
                     background: editTripForm.paidBy === p.id ? "var(--accent)" : "var(--surface2)",
@@ -809,8 +826,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             </div>
             {paymentMethods.length > 0 && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Medio de pago</div>
-                <PaymentChips methods={paymentMethods} selectedId={editTripForm.paymentMethodId || undefined} onChange={(id) => setEditTripForm((f) => ({ ...f, paymentMethodId: id ?? "" }))} ownerNames={names} />
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Medio de pago (aplica a todos los ítems del viaje)</div>
+                <PaymentChips methods={methodsFor(editTripForm.paidBy)} selectedId={editTripForm.paymentMethodId || undefined} onChange={(id) => setEditTripForm((f) => ({ ...f, paymentMethodId: id ?? "" }))} ownerNames={names} />
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
@@ -864,7 +881,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
           <Label>¿Quién pagó?</Label>
           <div style={{ display: "flex", gap: 6 }}>
             {([{ id: 'marcela', label: names.marcela }, { id: 'jonatan', label: names.jonatan }, { id: 'conjunto', label: 'Los dos' }] as const).map((p) => (
-              <button key={p.id} onClick={() => setEditCompraForm((f) => ({ ...f, paidBy: p.id }))} style={{
+              <button key={p.id} onClick={() => setEditCompraForm((f) => ({ ...f, paidBy: p.id, paymentMethodId: "" }))} style={{
                 flex: 1, padding: "9px 4px", borderRadius: 10, border: "2px solid",
                 borderColor: editCompraForm.paidBy === p.id ? "var(--accent)" : "var(--border)",
                 background: editCompraForm.paidBy === p.id ? "var(--accent)" : "var(--surface2)",
@@ -874,6 +891,15 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             ))}
           </div>
         </div>
+        {paymentMethods.length > 0 && (
+          <PaymentChips
+            methods={methodsFor(editCompraForm.paidBy)}
+            selectedId={editCompraForm.paymentMethodId || undefined}
+            onChange={(id) => setEditCompraForm((f) => ({ ...f, paymentMethodId: id ?? "" }))}
+            ownerNames={names}
+            label="Medio de pago (opcional)"
+          />
+        )}
         {editingCompra && (
           <div style={{ padding: "10px 14px", background: "var(--surface2)", borderRadius: 10, marginBottom: 14, textAlign: "center" }}>
             <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 2 }}>Total estimado</div>

@@ -35,7 +35,13 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
   const paymentMethods = config?.paymentMethods ?? [];
   const pmTotals: Record<string, number> = {};
   if (paymentMethods.length > 0) {
-    monthData.familyExpenses.forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + (e.marcela || 0) + (e.jonatan || 0) + (e.conjunto || 0); });
+    monthData.familyExpenses.forEach((e) => {
+      if (e.id === "mercado") return; // el detalle real vive en cada compra del mercado
+      const pm = e.paymentMethodByPerson;
+      if (pm?.marcela)  pmTotals[pm.marcela]  = (pmTotals[pm.marcela]  || 0) + (e.marcela  || 0);
+      if (pm?.jonatan)  pmTotals[pm.jonatan]  = (pmTotals[pm.jonatan]  || 0) + (e.jonatan  || 0);
+      if (pm?.conjunto) pmTotals[pm.conjunto] = (pmTotals[pm.conjunto] || 0) + (e.conjunto || 0);
+    });
     (monthData.personalExpenses?.marcela || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
     (monthData.personalExpenses?.jonatan || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
     (monthData.extras || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });

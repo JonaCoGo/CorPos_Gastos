@@ -21,7 +21,7 @@ export interface FamilyExpense {
   conjunto?: number;        // pagado desde cuenta/fondo conjunto
   active: boolean;
   disableNext: boolean;
-  paymentMethodId?: string;
+  paymentMethodByPerson?: { marcela?: string; jonatan?: string; conjunto?: string };
 }
 
 export interface PersonalExpense {

@@ -57,6 +57,16 @@ export function loadData() {
               transferencias.push({ id: `mig_j_${month.key}`, persona: 'jonatan', monto: month.fondoConjunto.aporteJonatan, fecha: `${month.key}-01` });
             month.fondoConjunto = { transferencias };
           }
+          // Migración: paymentMethodId único → paymentMethodByPerson (uno por cada monto ya dividido)
+          month.familyExpenses = month.familyExpenses.map((c: any) => {
+            if (!c.paymentMethodId || c.paymentMethodByPerson) return c;
+            const paymentMethodByPerson: Record<string, string> = {};
+            if ((c.marcela  || 0) > 0) paymentMethodByPerson.marcela  = c.paymentMethodId;
+            if ((c.jonatan  || 0) > 0) paymentMethodByPerson.jonatan  = c.paymentMethodId;
+            if ((c.conjunto || 0) > 0) paymentMethodByPerson.conjunto = c.paymentMethodId;
+            const { paymentMethodId, ...rest } = c;
+            return { ...rest, paymentMethodByPerson };
+          });
         });
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
@@ -196,6 +206,20 @@ export function subscribeToFirestore(
               if (month.fondoConjunto.aporteJonatan > 0)
                 transferencias.push({ id: `mig_j_${month.key}`, persona: 'jonatan', monto: month.fondoConjunto.aporteJonatan, fecha: `${month.key}-01` });
               month.fondoConjunto = { transferencias };
+              changed = true;
+            }
+            // Migración: paymentMethodId único → paymentMethodByPerson (uno por cada monto ya dividido)
+            const hasOldPaymentId = month.familyExpenses.some((c: any) => c.paymentMethodId && !c.paymentMethodByPerson);
+            if (hasOldPaymentId) {
+              month.familyExpenses = month.familyExpenses.map((c: any) => {
+                if (!c.paymentMethodId || c.paymentMethodByPerson) return c;
+                const paymentMethodByPerson: Record<string, string> = {};
+                if ((c.marcela  || 0) > 0) paymentMethodByPerson.marcela  = c.paymentMethodId;
+                if ((c.jonatan  || 0) > 0) paymentMethodByPerson.jonatan  = c.paymentMethodId;
+                if ((c.conjunto || 0) > 0) paymentMethodByPerson.conjunto = c.paymentMethodId;
+                const { paymentMethodId, ...rest } = c;
+                return { ...rest, paymentMethodByPerson };
+              });
               changed = true;
             }
           });
