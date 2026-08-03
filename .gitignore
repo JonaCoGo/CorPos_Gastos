@@ -21,3 +21,16 @@ yarn-error.log*
 # IDEs
 .vscode/
 .idea/
+
+# Android (Capacitor) — build local, no se comparte entre equipos
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+android/.cxx/
+android/app/release/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+*.keystore
+*.jks

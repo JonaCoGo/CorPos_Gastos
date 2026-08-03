@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CorPos</string>
+    <string name="title_activity_main">CorPos</string>
+    <string name="package_name">com.corpos.gastos</string>
+    <string name="custom_url_scheme">com.corpos.gastos</string>
+</resources>

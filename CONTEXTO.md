@@ -2,7 +2,7 @@
 
 ## Propósito
 
-App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre salarios, gastos del hogar, gastos personales, extras, mercado mensual con historial de compras e historial por mes. Instalable como PWA en Android e iOS.
+App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre salarios, gastos del hogar, gastos personales, extras, mercado mensual con historial de compras e historial por mes. Disponible como web/PWA (Android e iOS vía navegador) y como app Android nativa instalable (Capacitor) con actualización de código en caliente — ver `docs/DISTRIBUCION_ANDROID.md`.
 
 ## Stack
 
@@ -13,7 +13,9 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 | Estado global | Zustand |
 | Backend/DB | Firebase Firestore (tiempo real) |
 | Persistencia local | localStorage (respaldo offline) |
-| PWA | vite-plugin-pwa (generateSW, workbox) |
+| PWA (web) | vite-plugin-pwa (generateSW, workbox) |
+| App Android nativa | Capacitor (`android/`) — mismo código React envuelto en WebView |
+| Actualización en caliente (Android) | @capgo/capacitor-updater, self-hosted (sin cuenta Capgo) — ver `src/hooks/useOtaUpdate.ts` y `scripts/build-ota-bundle.mjs` |
 | Hosting | Vercel (CI/CD desde GitHub) |
 | URL producción | https://corpos-gastos.vercel.app/ |
 
@@ -129,6 +131,25 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 ---
 
 ## Historial de cambios
+
+### [2026-08-03] — App Android nativa (Capacitor) con actualización en caliente
+
+Después de varios intentos de arreglar el flujo de actualización de la PWA (ver entradas anteriores de hoy), Jonatan seguía teniendo que borrar la app + historial del navegador para ver versiones nuevas — confirmado como **limitación real de PWAs instaladas en iOS/Android** (WebAPK en Android revisa manifest/SW con su propio calendario interno, ~1 vez al día, sin API para forzarlo; iOS es aún más agresivo cacheando "web clips"). Se decidió no seguir peleando con eso y envolver la misma app en una **app Android nativa real** con Capacitor. iOS queda pendiente (Jonatan no tiene Mac disponible por ahora — Xcode es obligatorio para compilar iOS).
+
+**Decisiones de arquitectura (confirmadas con Jonatan):**
+- Solo Android por ahora, no iPhone.
+- Actualización de código **en caliente** (no reinstalar manualmente en cada cambio) — se evaluó y se descartó "reinstalar cuando haya cambios grandes" por ser más simple pero perpetuar la fricción que se quería resolver.
+- Compartir datos en familia (Marcela+Jonatan viendo lo mismo) ya estaba resuelto por el modelo de instancia compartida (Firestore `corpos/shared`) — no cambia con este pivote, se preserva tal cual.
+
+**Qué se agregó:**
+- `@capacitor/core`, `@capacitor/cli`, `@capacitor/android` — wrapper nativo. `capacitor.config.ts` (`appId: com.corpos.gastos`, `webDir: dist`).
+- `android/` — proyecto nativo generado con `npx cap add android`, commiteado a git (carpetas de build ignoradas, ver `.gitignore`).
+- `@capgo/capacitor-updater` (self-hosted, sin cuenta/servicio de Capgo) — permite reemplazar el código JS/HTML/CSS dentro de la app instalada sin pasar por ningún store. Lógica de chequeo en `src/hooks/useOtaUpdate.ts`: revisa `https://corpos-gastos.vercel.app/updates/version.json` al abrir la app y cada hora; si la versión difiere, descarga y aplica el bundle nuevo solo. `notifyAppReady()` obligatorio en cada arranque para no revertir automáticamente.
+- `scripts/build-ota-bundle.mjs` (`postbuild` en `package.json`) — zippea el `dist/` de cada build y escribe `dist/updates/version.json`; como `dist/` se despliega tal cual a Vercel, cada `git push` a main deja la actualización disponible sin pasos manuales. Mantiene solo los últimos 5 bundles para no acumular basura.
+- `App.tsx`: el registro del service worker (`PwaUpdater`) ahora solo se monta si `!Capacitor.isNativePlatform()` — dentro del WebView de Android un SW registrado interceptaría archivos viejos por encima de las actualizaciones en caliente de CapacitorUpdater. La web (Vercel) sigue funcionando exactamente igual que antes.
+- `docs/DISTRIBUCION_ANDROID.md`: guía completa para Jonatan — instalar Android Studio, generar el keystore de firma (**crítico: hacer backup, perderlo impide firmar actualizaciones nativas futuras para instalaciones existentes**), compilar el APK, distribuirlo por link directo (sin Play Store), y qué tipo de cambios sí requieren reinstalar (solo cambios nativos: nuevo plugin, ícono, permisos — no cambios de código normales).
+
+**Pendiente / no ejecutable desde acá:** instalar Android Studio, generar el keystore, compilar y firmar el primer APK, y probarlo en un celular real son pasos que Jonatan tiene que correr en su máquina — no hay Android SDK/JDK en este entorno para hacerlo. QA verificado hasta donde se pudo: `npx cap add android` y `npx cap sync` corren limpios, `0 errores TypeScript`, build web completo (incluyendo el bundle OTA) verificado, la web en el navegador sigue funcionando idéntico sin errores de consola.
 
 ### [2026-08-03] — Fix botón "Revisar ahora" sin feedback
 

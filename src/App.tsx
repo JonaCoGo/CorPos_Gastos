@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, Suspense, lazy } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useRegisterSW } from 'virtual:pwa-register/react';
-// autoUpdate: SW se actualiza en silencio, sin banner ni botón.
-// Ojo: el navegador solo revisa si hay SW nuevo cuando algo se lo pide — una PWA
-// instalada en el celular casi nunca hace esa revisión sola (se "reanuda", no navega).
-// Por eso forzamos el chequeo cada hora y cada vez que se reabre la app.
-const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 import { db } from "./firebase";
 import { MONTH_NAMES, SW_LAST_CHECK_KEY } from "./constants";
 import { computeSummary } from './utils/finanzas';
@@ -13,17 +9,19 @@ import MainLayout from './layouts/MainLayout';
 import { Toast, AppSkeleton } from './components/ui';
 import { TabMore } from './features/TabMore';
 import { useNotifications } from './hooks/useNotifications';
+import { useOtaUpdate } from './hooks/useOtaUpdate';
 
-const TabDashboard        = lazy(() => import('./features/TabDashboard').then(m => ({ default: m.TabDashboard })));
-const TabFamilyExpenses   = lazy(() => import('./features/TabFamilyExpenses').then(m => ({ default: m.TabFamilyExpenses })));
-const TabPersonalExpenses = lazy(() => import('./features/TabPersonalExpenses').then(m => ({ default: m.TabPersonalExpenses })));
-const TabSalaries         = lazy(() => import('./features/TabSalaries').then(m => ({ default: m.TabSalaries })));
-const TabHistory          = lazy(() => import('./features/TabHistory').then(m => ({ default: m.TabHistory })));
-const TabExtras           = lazy(() => import('./features/TabExtras').then(m => ({ default: m.TabExtras })));
-const TabMercado          = lazy(() => import('./features/TabMercado').then(m => ({ default: m.TabMercado })));
-const TabSettings         = lazy(() => import('./features/TabSettings').then(m => ({ default: m.TabSettings })));
+// autoUpdate: SW se actualiza en silencio, sin banner ni botón.
+// Ojo: el navegador solo revisa si hay SW nuevo cuando algo se lo pide — una PWA
+// instalada en el celular casi nunca hace esa revisión sola (se "reanuda", no navega).
+// Por eso forzamos el chequeo cada hora y cada vez que se reabre la app.
+const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
-export default function App() {
+// El registro del service worker vive en un componente aparte que solo se monta
+// en la web: dentro de la app nativa (Android) el WebView de Capacitor también
+// soporta service workers, y uno registrado ahí interceptaría los assets viejos
+// por encima de las actualizaciones en caliente de CapacitorUpdater.
+function PwaUpdater() {
   useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
@@ -44,6 +42,20 @@ export default function App() {
       });
     },
   });
+  return null;
+}
+
+const TabDashboard        = lazy(() => import('./features/TabDashboard').then(m => ({ default: m.TabDashboard })));
+const TabFamilyExpenses   = lazy(() => import('./features/TabFamilyExpenses').then(m => ({ default: m.TabFamilyExpenses })));
+const TabPersonalExpenses = lazy(() => import('./features/TabPersonalExpenses').then(m => ({ default: m.TabPersonalExpenses })));
+const TabSalaries         = lazy(() => import('./features/TabSalaries').then(m => ({ default: m.TabSalaries })));
+const TabHistory          = lazy(() => import('./features/TabHistory').then(m => ({ default: m.TabHistory })));
+const TabExtras           = lazy(() => import('./features/TabExtras').then(m => ({ default: m.TabExtras })));
+const TabMercado          = lazy(() => import('./features/TabMercado').then(m => ({ default: m.TabMercado })));
+const TabSettings         = lazy(() => import('./features/TabSettings').then(m => ({ default: m.TabSettings })));
+
+export default function App() {
+  useOtaUpdate();
 
   const data   = useAppStore((s) => s.data);
   const tab    = useAppStore((s) => s.tab);
@@ -79,10 +91,15 @@ export default function App() {
   const syncStatus = !db ? "offline" : synced ? "synced" : "connecting";
   const monthLabel = currentMonth ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : "";
 
+  const isNative = Capacitor.isNativePlatform();
+
   if (!currentMonth) return (
-    <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel="">
-      <AppSkeleton />
-    </MainLayout>
+    <>
+      {!isNative && <PwaUpdater />}
+      <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel="">
+        <AppSkeleton />
+      </MainLayout>
+    </>
   );
 
   const withToast = (fn: (d: typeof currentMonth) => void, msg: string) =>
@@ -123,11 +140,14 @@ export default function App() {
   };
 
   return (
-    <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
-      <Suspense fallback={<AppSkeleton />}>
-        {renderTab()}
-      </Suspense>
-      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
-    </MainLayout>
+    <>
+      {!isNative && <PwaUpdater />}
+      <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
+        <Suspense fallback={<AppSkeleton />}>
+          {renderTab()}
+        </Suspense>
+        {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      </MainLayout>
+    </>
   );
 }
