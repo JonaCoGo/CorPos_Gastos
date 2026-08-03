@@ -130,6 +130,16 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 
 ## Historial de cambios
 
+### [2026-08-03] — Fix botón "Revisar ahora" sin feedback
+
+Jonatan reportó que el botón "Revisar ahora" (Ajustes → Versión de la app) no parecía hacer nada. Causa: el `localStorage.setItem` y el `setNow` que refrescan el texto vivían **dentro** del `.then()` de `navigator.serviceWorker.getRegistration()` — si esa promesa no resolvía como se esperaba, no había ningún cambio visible ni señal de error.
+
+- `checkNow` ahora actualiza el timestamp y dispara el re-render **de inmediato, de forma síncrona**, sin depender de la promesa del service worker. El `registration.update()` real sigue intentándose después, como best-effort.
+- El botón muestra "✅ Revisado" por 2 segundos como confirmación visual (mismo patrón que "Guardar nombres").
+- QA en navegador: confirmado que el timestamp en `localStorage` cambia al clic y el botón muestra el estado de confirmación.
+
+Nota aparte para Jonatan: la primera vez que se despliega el fix de actualización PWA, todavía hace falta un refresh manual una vez — un service worker viejo no puede auto-mejorar su propia lógica de revisión hasta que la versión nueva (con esa lógica) quede activa. De ahí en adelante no debería volver a pasar.
+
 ### [2026-08-03] — Indicador visible de versión y revisión de actualización
 
 El chequeo de actualización del service worker es un proceso interno sin ninguna señal visible — no había forma de confirmar que estuviera funcionando sin conectar el celular a devtools remoto. Se agregó una card "Versión de la app" en Ajustes:

@@ -128,13 +128,20 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   }, []);
   const lastCheck = localStorage.getItem(SW_LAST_CHECK_KEY);
   void now; // fuerza re-render periódico para que "hace X min" se mantenga actualizado
+  const [justChecked, setJustChecked] = useState(false);
 
   const checkNow = () => {
-    navigator.serviceWorker?.getRegistration().then((reg) => {
-      localStorage.setItem(SW_LAST_CHECK_KEY, new Date().toISOString());
-      setNow(Date.now());
-      reg?.update().catch(() => {});
-    });
+    // Actualizamos el timestamp y el feedback visual de inmediato — no depende
+    // de que la promesa de abajo resuelva ni de que haya un SW registrado.
+    localStorage.setItem(SW_LAST_CHECK_KEY, new Date().toISOString());
+    setNow(Date.now());
+    setJustChecked(true);
+    setTimeout(() => setJustChecked(false), 2000);
+
+    // Best-effort: si hay un service worker registrado, pedirle que revise si hay versión nueva.
+    navigator.serviceWorker?.getRegistration()
+      .then((reg) => reg?.update())
+      .catch(() => {});
   };
 
   const addMethod = () => {
@@ -382,7 +389,7 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
           </div>
         </div>
         <Btn variant="secondary" onClick={checkNow} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <RefreshCw size={16} /> Revisar ahora
+          {justChecked ? <>✅ Revisado</> : <><RefreshCw size={16} /> Revisar ahora</>}
         </Btn>
       </Card>
 
