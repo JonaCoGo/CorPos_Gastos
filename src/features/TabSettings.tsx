@@ -57,6 +57,7 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
 
   const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
   const methods = config?.paymentMethods ?? [];
+  const supermarkets = config?.supermarkets ?? [];
 
   const [marcelaName, setMarcelaName] = useState(names.marcela);
   const [jonatanName, setJonatanName] = useState(names.jonatan);
@@ -124,6 +125,20 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
     updateConfig({ ...config, paymentMethods: methods.filter((m) => m.id !== id) });
   };
 
+  // Supermercados
+  const [newSupermarket, setNewSupermarket] = useState("");
+
+  const addSupermarket = () => {
+    const name = newSupermarket.trim();
+    if (!name || supermarkets.includes(name)) return;
+    updateConfig({ ...config, supermarkets: [...supermarkets, name] });
+    setNewSupermarket("");
+  };
+
+  const deleteSupermarket = (name: string) => {
+    updateConfig({ ...config, supermarkets: supermarkets.filter((s) => s !== name) });
+  };
+
   const ownerLabel = (owner: string) => owner === "marcela" ? names.marcela : owner === "jonatan" ? names.jonatan : "Los dos";
   const typeInfo = (type: string) => TYPE_OPTIONS.find((t) => t.value === type);
 
@@ -176,6 +191,48 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
                 <button onClick={() => deleteMethod(m.id)} aria-label={`Eliminar ${m.label}`}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "4px", display: "flex", alignItems: "center" }}>
                   <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Supermercados */}
+      <Card>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+          Supermercados
+        </div>
+        <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
+          Lugares donde suelen hacer mercado. Aparecen como opciones al registrar un viaje.
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <div style={{ flex: 1 }}>
+            <input
+              value={newSupermarket}
+              onChange={(e) => setNewSupermarket(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addSupermarket(); }}
+              placeholder="Ej: Justo y Bueno"
+              style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none" }}
+            />
+          </div>
+          <button onClick={addSupermarket} disabled={!newSupermarket.trim()} aria-label="Añadir supermercado"
+            style={{ display: "flex", alignItems: "center", gap: 5, background: "var(--accent)", color: "#fff", border: "none", borderRadius: 10, padding: "0 14px", cursor: newSupermarket.trim() ? "pointer" : "not-allowed", opacity: newSupermarket.trim() ? 1 : 0.5, fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)" }}>
+            <Plus size={14} /> Añadir
+          </button>
+        </div>
+        {supermarkets.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text2)", fontSize: 13 }}>
+            Sin supermercados configurados
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {supermarkets.map((s) => (
+              <div key={s} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 6px 6px 12px", background: "var(--surface2)", borderRadius: 99 }}>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{s}</span>
+                <button onClick={() => deleteSupermarket(s)} aria-label={`Eliminar ${s}`}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text2)", padding: "4px", display: "flex", alignItems: "center" }}>
+                  <Trash2 size={13} />
                 </button>
               </div>
             ))}

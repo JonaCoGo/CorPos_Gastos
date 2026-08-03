@@ -129,6 +129,7 @@ export interface AppConfig {
   marcelaName: string;
   jonatanName: string;
   paymentMethods: PaymentMethod[];
+  supermarkets: string[];
 }
 
 export interface AppData {

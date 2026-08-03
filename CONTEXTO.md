@@ -130,6 +130,20 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 
 ## Historial de cambios
 
+### [2026-08-03] — Supermercados configurables (CRUD + quick-add)
+
+**Problema:** `SUPERMARKETS` era una constante fija en `constants.ts` — no había forma de agregar un supermercado nuevo desde la app.
+
+- **Modelo:** `AppConfig.supermarkets: string[]` (antes vivía solo en `constants.ts`). Migración automática en `services/firestore.ts`: si `config.supermarkets` no existe, se siembra con la constante `SUPERMARKETS` (ahora usada solo como default/semilla, importada como `DEFAULT_SUPERMARKETS` en `TabMercado`).
+- **Ajustes** (`TabSettings`): nueva card "Supermercados" — agregar/eliminar, mismo patrón que medios de pago.
+- **Mercado** (`TabMercado`): botón "+ Nuevo" inline en los selectores de "¿Dónde van a comprar?" (Lista) y "¿Dónde vas hoy?" (Hacer) — agrega el lugar a `config.supermarkets` y lo selecciona de inmediato, sin salir del flujo. Los `<select>` de Productos, editar viaje y editar compra ahora leen de `config.supermarkets`.
+- QA manual en navegador (datos reales de producción): agregado "Justo y Bueno" desde Mercado, confirmado que aparece también en Ajustes, eliminado tras validar.
+- `0 errores TypeScript`, build de producción verificado.
+
+### [2026-08-03] — Instancia separada para otra familia (sin multi-usuario)
+
+Jonatan quiere compartir la app con su hermano y su esposa sin mezclar datos. Se descartó multi-usuario con Auth (sobre-ingeniería para 2 hogares conocidos, no un producto para terceros desconocidos) a favor de **desplegar una segunda instancia independiente** del mismo código: proyecto de Firebase propio + proyecto de Vercel propio, cada uno con su `.env` distinto (`firebase.ts` ya lee todo de `import.meta.env.VITE_FIREBASE_*`, cero cambios de código necesarios). Ver guía de despliegue en `docs/`.
+
 ### [2026-08-03] — Medios de pago independientes por persona (Gastos del hogar + Mercado)
 
 **Problema:** un gasto ya se dividía en montos por persona (Marcela / Jonatan / fondo conjunto), pero solo admitía **un** medio de pago para todo el registro — sin trazabilidad cuando cada quien paga su parte desde su propia cuenta (ej. Bancolombia de Marcela vs. Bancolombia de Jonatan).

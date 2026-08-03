@@ -1,6 +1,6 @@
 import { db } from "../firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
-import { FIRESTORE_DOC, STORAGE_KEY, SEED_MARKET_ITEMS } from "../constants";
+import { FIRESTORE_DOC, STORAGE_KEY, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
 import { createEmptyMonth } from "../utils/finanzas";
 import { AppData, AppConfig, PaymentMethod } from "../types/models";
 
@@ -15,6 +15,7 @@ const DEFAULT_CONFIG: AppConfig = {
   marcelaName: "Marcela",
   jonatanName: "Jonatan",
   paymentMethods: DEFAULT_PAYMENT_METHODS,
+  supermarkets: SUPERMARKETS,
 };
 
 /**
@@ -37,6 +38,10 @@ export function loadData() {
       // Migración: si config existe pero no tiene paymentMethods
       if (parsed.config && !parsed.config.paymentMethods) {
         parsed.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
+      }
+      // Migración: si config existe pero no tiene supermarkets
+      if (parsed.config && !parsed.config.supermarkets) {
+        parsed.config.supermarkets = SUPERMARKETS;
       }
       // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'
       // Migración: convertir fondoConjunto { aporteMarcela, aporteJonatan } al nuevo formato con transferencias
@@ -185,6 +190,10 @@ export function subscribeToFirestore(
         }
         if (remote.config && !remote.config.paymentMethods) {
           remote.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
+          changed = true;
+        }
+        if (remote.config && !remote.config.supermarkets) {
+          remote.config.supermarkets = SUPERMARKETS;
           changed = true;
         }
         // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'

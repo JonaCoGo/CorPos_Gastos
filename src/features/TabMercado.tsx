@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { ShoppingCart, Pencil, Trash2, ChevronDown, ChevronUp, Check, ClipboardList } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label, PaymentChips } from '../components/ui';
-import { SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
+import { SUPERMARKETS as DEFAULT_SUPERMARKETS, UNITS, ALL_CATS } from '../constants';
 import { COP } from '../utils/finanzas';
 import { Mercado, ItemMercado, Compra, ListaItem } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
@@ -22,8 +22,15 @@ interface CartEntry {
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const config = useAppStore((s) => s.data.config);
+  const updateConfig = useAppStore((s) => s.updateConfig);
   const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
   const paymentMethods = config?.paymentMethods ?? [];
+  const supermarkets = config?.supermarkets ?? DEFAULT_SUPERMARKETS;
+
+  const addSupermarket = (name: string) => {
+    if (supermarkets.includes(name)) return;
+    updateConfig({ ...config, supermarkets: [...supermarkets, name] });
+  };
 
   const items   = mercado?.items   || [];
   const compras = mercado?.compras || [];
@@ -34,10 +41,10 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   // ── Estado vista "lista" ────────────────────────────────────────────────────
   const [filterCatL,   setFilterCatL]   = useState("Todas");
   const [searchL,      setSearchL]      = useState("");
-  const [listaSupermarket, setListaSupermarket] = useState(SUPERMARKETS[0]);
+  const [listaSupermarket, setListaSupermarket] = useState(supermarkets[0]);
 
   // ── Estado vista "hacer mercado" ────────────────────────────────────────────
-  const [supermarket,  setSupermarket]  = useState(SUPERMARKETS[0]);
+  const [supermarket,  setSupermarket]  = useState(supermarkets[0]);
   const [tripPaidBy,   setTripPaidBy]   = useState<'marcela' | 'jonatan' | 'conjunto'>('conjunto');
   const [cart,         setCart]         = useState<Record<string, CartEntry>>({});
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
@@ -50,16 +57,16 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const [confirmDelTrip,    setConfirmDelTrip]    = useState<string | null>(null);
   const [expandedTrip,      setExpandedTrip]      = useState<string | null>(null);
   const [editingTrip,       setEditingTrip]       = useState<string | null>(null);
-  const [editTripForm,      setEditTripForm]      = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string; supermarket: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: SUPERMARKETS[0] });
+  const [editTripForm,      setEditTripForm]      = useState<{ paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string; supermarket: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: supermarkets[0] });
   const [editingCompra,     setEditingCompra]     = useState<Compra | null>(null);
-  const [editCompraForm,    setEditCompraForm]    = useState<{ qty: string; pricePer: string; unit: string; supermarket: string; paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string }>({ qty: "1", pricePer: "0", unit: "und", supermarket: SUPERMARKETS[0], paidBy: 'conjunto', paymentMethodId: "" });
+  const [editCompraForm,    setEditCompraForm]    = useState<{ qty: string; pricePer: string; unit: string; supermarket: string; paidBy: 'marcela' | 'jonatan' | 'conjunto'; paymentMethodId: string }>({ qty: "1", pricePer: "0", unit: "und", supermarket: supermarkets[0], paidBy: 'conjunto', paymentMethodId: "" });
 
   // ── Estado vista "productos" ────────────────────────────────────────────────
   const [filterCat,  setFilterCat]  = useState("Todas");
   const [search,     setSearch]     = useState("");
   const [showAdd,    setShowAdd]    = useState(false);
   const [confirmDel, setConfirmDel] = useState<ItemMercado | null>(null);
-  const [addForm, setAddForm] = useState({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
+  const [addForm, setAddForm] = useState({ name: "", pricePer: "", unit: "und", supermarket: supermarkets[0], category: "Despensa" });
 
   // ── Helpers carrito ─────────────────────────────────────────────────────────
   const inCart = (id: string) => !!cart[id];
@@ -280,7 +287,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               ¿Dónde van a comprar?
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {SUPERMARKETS.map((s) => (
+              {supermarkets.map((s) => (
                 <button key={s} onClick={() => setListaSupermarket(s)} style={{
                   padding: "8px 14px", borderRadius: 99, border: "2px solid",
                   borderColor: listaSupermarket === s ? "var(--accent)" : "var(--border)",
@@ -289,6 +296,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
                 }}>{s}</button>
               ))}
+              <AddSupermarketChip onAdd={(name) => { addSupermarket(name); setListaSupermarket(name); }} />
             </div>
           </Card>
 
@@ -426,7 +434,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               ¿Dónde vas hoy?
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {SUPERMARKETS.map((s) => (
+              {supermarkets.map((s) => (
                 <button key={s} onClick={() => setSupermarket(s)} style={{
                   padding: "8px 14px", borderRadius: 99, border: "2px solid",
                   borderColor: supermarket === s ? "var(--accent)" : "var(--border)",
@@ -435,6 +443,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
                   fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
                 }}>{s}</button>
               ))}
+              <AddSupermarketChip onAdd={(name) => { addSupermarket(name); setSupermarket(name); }} />
             </div>
           </Card>
 
@@ -725,7 +734,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             </Card>
           ) : (
             filtered.map((item) => (
-              <ProductCard key={item.id} item={item} onUpdate={(changes) => updateItem(item.id, changes)} onDelete={() => setConfirmDel(item)} />
+              <ProductCard key={item.id} item={item} supermarkets={supermarkets} onUpdate={(changes) => updateItem(item.id, changes)} onDelete={() => setConfirmDel(item)} />
             ))
           )}
         </>
@@ -755,7 +764,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
           <Label>Supermercado habitual</Label>
           <select value={addForm.supermarket} onChange={(e) => setAddForm({ ...addForm, supermarket: e.target.value })}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
-            {SUPERMARKETS.map((s) => <option key={s}>{s}</option>)}
+            {supermarkets.map((s) => <option key={s}>{s}</option>)}
           </select>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -807,7 +816,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Supermercado</div>
               <select value={editTripForm.supermarket} onChange={(e) => setEditTripForm((f) => ({ ...f, supermarket: e.target.value }))}
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
-                {SUPERMARKETS.map((s) => <option key={s} value={s}>{s}</option>)}
+                {supermarkets.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: 14 }}>
@@ -874,7 +883,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
           <Label>Supermercado</Label>
           <select value={editCompraForm.supermarket} onChange={(e) => setEditCompraForm((f) => ({ ...f, supermarket: e.target.value }))}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
-            {SUPERMARKETS.map((s) => <option key={s} value={s}>{s}</option>)}
+            {supermarkets.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div style={{ marginBottom: 14 }}>
@@ -931,7 +940,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   );
 }
 
-function ProductCard({ item, onUpdate, onDelete }: { item: ItemMercado; onUpdate: (c: Partial<ItemMercado>) => void; onDelete: () => void }) {
+function ProductCard({ item, supermarkets, onUpdate, onDelete }: { item: ItemMercado; supermarkets: string[]; onUpdate: (c: Partial<ItemMercado>) => void; onDelete: () => void }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: item.name, pricePer: String(item.pricePer), unit: item.unit, supermarket: item.supermarket, category: item.category });
 
@@ -966,7 +975,7 @@ function ProductCard({ item, onUpdate, onDelete }: { item: ItemMercado; onUpdate
           <Label>Supermercado</Label>
           <select value={editForm.supermarket} onChange={(e) => setEditForm({ ...editForm, supermarket: e.target.value })}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
-            {SUPERMARKETS.map((s) => <option key={s}>{s}</option>)}
+            {supermarkets.map((s) => <option key={s}>{s}</option>)}
           </select>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -996,5 +1005,45 @@ function ProductCard({ item, onUpdate, onDelete }: { item: ItemMercado; onUpdate
         </div>
       </div>
     </Card>
+  );
+}
+
+function AddSupermarketChip({ onAdd }: { onAdd: (name: string) => void }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+
+  const submit = () => {
+    const trimmed = name.trim();
+    if (trimmed) onAdd(trimmed);
+    setName("");
+    setAdding(false);
+  };
+
+  if (!adding) {
+    return (
+      <button onClick={() => setAdding(true)} style={{
+        padding: "8px 14px", borderRadius: 99, border: "2px dashed var(--border)",
+        background: "transparent", color: "var(--text2)",
+        fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
+      }}>+ Nuevo</button>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 4 }}>
+      <input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setAdding(false); setName(""); } }}
+        onBlur={() => { if (!name.trim()) setAdding(false); }}
+        placeholder="Nombre del lugar..."
+        style={{ padding: "7px 10px", borderRadius: 99, border: "2px solid var(--accent)", background: "var(--surface)", color: "var(--text1)", fontSize: 13, fontFamily: "var(--font-body)", outline: "none", width: 140 }}
+      />
+      <button onClick={submit} aria-label="Confirmar supermercado" style={{
+        padding: "0 12px", borderRadius: 99, border: "none",
+        background: "var(--accent)", color: "#fff", cursor: "pointer", fontWeight: 700, fontFamily: "var(--font-body)",
+      }}>✓</button>
+    </div>
   );
 }
