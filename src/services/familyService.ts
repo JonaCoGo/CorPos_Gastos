@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
 import { AppData } from "../types/models";
 import { SEED_MARKET_ITEMS } from "../constants";
@@ -52,35 +52,33 @@ export async function createFamily(
 ): Promise<string> {
   const familyId = generateFamilyId();
   const inviteCode = generateInviteCode();
-  const batch = writeBatch(db);
 
-  // 1. Crear doc de la familia
-  batch.set(doc(db, "families", familyId), {
+  // Paso 1: Crear familia + miembro + usuario (sin data/current)
+  // Firestore rules verifican exists() contra el estado actual de la BD,
+  // así que el miembro debe existir ANTES de poder escribir en data/.
+  const batch1 = writeBatch(db);
+  batch1.set(doc(db, "families", familyId), {
     name: familyName,
     createdAt: new Date().toISOString(),
     createdBy: uid,
     inviteCode,
   });
-
-  // 2. Agregar al usuario como admin de la familia
-  batch.set(doc(db, "families", familyId, "members", uid), {
+  batch1.set(doc(db, "families", familyId, "members", uid), {
     role: "admin",
     displayName,
     joinedAt: new Date().toISOString(),
   });
-
-  // 3. Guardar datos iniciales de la familia (o migrar los existentes)
-  const data = existingData ?? createInitialData();
-  batch.set(doc(db, "families", familyId, "data", "current"), data);
-
-  // 4. Actualizar doc del usuario con familyId
-  batch.set(doc(db, "users", uid), {
+  batch1.set(doc(db, "users", uid), {
     familyId,
     displayName,
     email,
   });
+  await batch1.commit();
 
-  await batch.commit();
+  // Paso 2: Guardar datos (ahora el member doc ya existe, las rules lo permiten)
+  const data = existingData ?? createInitialData();
+  await setDoc(doc(db, "families", familyId, "data", "current"), data);
+
   return familyId;
 }
 
