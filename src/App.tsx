@@ -5,7 +5,7 @@ import { db } from "./firebase";
 import { MONTH_NAMES, SW_LAST_CHECK_KEY } from "./constants";
 import { computeSummary } from "./utils/finanzas";
 import { useAppStore } from "./store/useAppStore";
-import { onAuthChange } from "./services/auth";
+import { onAuthChange, handleRedirectResult } from "./services/auth";
 import { getUserFamilyId, createFamily } from "./services/familyService";
 import { loadLegacyData } from "./services/firestore";
 import MainLayout from "./layouts/MainLayout";
@@ -70,6 +70,11 @@ export default function App() {
   // ── Auth listener ───────────────────────────────────────────────────────
   const [authLoading, setAuthLoading] = useState(true);
   const [legacyData, setLegacyData] = useState<any>(null);
+
+  // Completar redirect de Google (necesario en Capacitor después de signInWithRedirect)
+  useEffect(() => {
+    handleRedirectResult();
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthChange(async (firebaseUser) => {
