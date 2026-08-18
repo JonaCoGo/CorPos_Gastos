@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState, useCallback, useRef, Suspense, lazy } fro
 import { Capacitor } from "@capacitor/core";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { db } from "./firebase";
+import { AppData } from "./types/models";
 import { MONTH_NAMES, SW_LAST_CHECK_KEY } from "./constants";
 import { computeSummary } from "./utils/finanzas";
 import { useAppStore } from "./store/useAppStore";
 import { onAuthChange, handleRedirectResult } from "./services/auth";
-import { getUserFamilyId, createFamily } from "./services/familyService";
+import { getUserFamilyId } from "./services/familyService";
 import { loadLegacyData } from "./services/firestore";
 import MainLayout from "./layouts/MainLayout";
 import { Toast, AppSkeleton } from "./components/ui";
@@ -79,28 +80,25 @@ export default function App() {
       const unsub = onAuthChange(async (firebaseUser) => {
         console.log("[App] Auth state changed:", firebaseUser?.email ?? "(no user)");
         if (firebaseUser) {
-          const fId = await getUserFamilyId(firebaseUser.uid);
+          let fId: string | null = null;
+          try {
+            fId = await getUserFamilyId(firebaseUser.uid);
+          } catch (err) {
+            console.error("[App] Error reading user family:", (err as any).message);
+          }
 
           if (!fId) {
-            const hasLocalData = useAppStore.getState().hasLegacyData();
-
-            if (hasLocalData) {
-              const localData = useAppStore.getState().data;
-              const newFamilyId = await createFamily(
-                firebaseUser.uid,
-                "Mi familia",
-                firebaseUser.displayName || "Sin nombre",
-                firebaseUser.email || "",
-                localData
-              );
-              setAuth(firebaseUser, newFamilyId);
-            } else {
-              const legacy = await loadLegacyData();
-              if (legacy) {
-                setLegacyData(legacy);
-              }
-              setAuth(firebaseUser, null);
+            // Sin familia: intentar cargar datos legacy de corpos/shared
+            let legacy: AppData | null = null;
+            try {
+              legacy = await loadLegacyData();
+            } catch (err) {
+              console.error("[App] Error loading legacy data:", (err as any).message);
             }
+            if (legacy) {
+              setLegacyData(legacy);
+            }
+            setAuth(firebaseUser, null);
           } else {
             setAuth(firebaseUser, fId);
           }
@@ -109,7 +107,6 @@ export default function App() {
         }
         setAuthLoading(false);
       });
-      // Store unsub for cleanup — use a ref-like pattern
       authUnsubRef.current = unsub;
     });
 
