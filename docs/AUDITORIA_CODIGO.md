@@ -18,44 +18,19 @@ Prioridad recomendada:
 
 ## Hallazgos críticos
 
-### 1. Firestore está completamente abierto
+### 1. ~~Firestore está completamente abierto~~ ✅ RESUELTO (2026-08-18)
 
-- Archivo: `firestore.rules`
-- Línea relevante: `allow read, write: if true;`
-- Impacto: cualquier persona o script con datos del proyecto Firebase puede leer, modificar o borrar el documento compartido `corpos/shared`.
-- Severidad: crítica.
-- Evidencia adicional: `PLAN_MEJORAS.md` reconoce que Auth y datos privados están pendientes.
+- Se implementó Firebase Auth con Google login.
+- Se reescribieron las reglas Firestore por UID/familia (`firestore.rules`).
+- Modelo: `families/{familyId}/data/current` con reglas de membresía.
+- `corpos/shared` queda como backup de solo lectura temporal.
+- Ver Fase 4 en `PLAN_MEJORAS.md`.
 
-Recomendación:
+### 2. ~~Documento global compartido para todos los datos~~ ✅ RESUELTO (2026-08-18)
 
-- Implementar Firebase Auth.
-- Cambiar el modelo de datos de un documento global (`corpos/shared`) a rutas por usuario/familia, por ejemplo `families/{familyId}/data/months/{monthId}`.
-- Aplicar reglas con membresía:
-  - Solo usuarios autenticados.
-  - Solo miembros de la familia.
-  - Validación mínima de esquema y tipos.
-
-Ejemplo conceptual:
-
-```txt
-match /families/{familyId}/{document=**} {
-  allow read, write: if request.auth != null
-    && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
-}
-```
-
-### 2. Documento global compartido para todos los datos
-
-- Archivo: `src/constants.ts`
-- Línea relevante: `FIRESTORE_DOC = "corpos/shared"`
-- Impacto: todos los clientes sincronizan contra el mismo documento, sin aislamiento por usuario, familia, ambiente o tenant.
-- Severidad: crítica si la app se comparte con más personas.
-
-Recomendación:
-
-- Separar `familyId`, `userId` y ambiente (`dev`, `prod`).
-- Evitar que staging/dev escriban sobre producción.
-- Considerar subcolecciones por mes para reducir tamaño y conflictos.
+- Cada familia tiene su propio documento: `families/{familyId}/data/current`.
+- Aislamiento por familia garantizado via Firestore rules + `members/{uid}`.
+- `corpos/shared` queda como backup temporal de solo lectura.
 
 ## Bugs confirmados
 

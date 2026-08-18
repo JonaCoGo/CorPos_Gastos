@@ -155,18 +155,18 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 - Nombre de familia configurable desde el onboarding.
 
 **Archivos creados:**
-- `src/services/auth.ts` — Login/logout con Google (`loginWithGoogle`, `logout`, `onAuthChange`).
-- `src/services/familyService.ts` — Crear familia (`createFamily`), unirse con código (`joinFamily`), regenerar código (`regenerateInviteCode`).
-- `src/features/LoginScreen.tsx` — Pantalla de login con botón Google.
+- `src/services/auth.ts` — Login/logout con Google. Browser usa `signInWithPopup`, Capacitor usa `signInWithRedirect`.
+- `src/services/familyService.ts` — Crear familia (`createFamily` en 2 pasos), unirse con código (`joinFamily`), regenerar código (`regenerateInviteCode`).
+- `src/features/LoginScreen.tsx` — Pantalla de login con botón Google, mensajes de error específicos por tipo.
 - `src/features/OnboardingScreen.tsx` — Onboarding: crear familia (con nombre) o unirse con código.
 
 **Archivos modificados:**
 - `src/firebase.ts` — Exporta `app` (antes solo exportaba `db`).
 - `src/services/firestore.ts` — Reescrito: rutas por `families/{familyId}/data/current`, `loadLegacyData()` para migración, `createInitialData()` para familias nuevas.
 - `src/store/useAppStore.ts` — Agrega `user`, `familyId`, `authReady` al estado; `saveData` pasa `familyId`; `initFirestoreSync` requiere `familyId`.
-- `src/App.tsx` — Wrapper auth: LoginScreen → OnboardingScreen → app normal. Auto-crea familia si hay datos en localStorage.
+- `src/App.tsx` — Wrapper auth: LoginScreen → OnboardingScreen → app normal. Try/catch en `getUserFamilyId` para no crashear si las reglas fallan. Eliminada auto-creación de familia (siempre muestra onboarding).
 - `src/features/TabSettings.tsx` — Cards "Compartir familia" (invite code + copiar + regenerar) y "Cerrar sesión" (logout + info de usuario).
-- `firestore.rules` — Reglas completas por UID/familia: usuarios solo ven su doc, familias solo ven sus datos, miembros ven members, `corpos/shared` de solo lectura temporal.
+- `firestore.rules` — Reglas completas por UID/familia.
 
 **Modelo Firestore nuevo:**
 ```
@@ -177,7 +177,7 @@ families/{familyId} → { name, createdAt, createdBy, inviteCode }
 ```
 
 **Migración de datos existentes:**
-- Primer login de Jonatan: detecta `corpos/shared` o datos en localStorage → crea familia con esos datos.
+- Primer login de Jonatan: `getUserFamilyId` retorna null → OnboardingScreen detecta datos en `corpos/shared` → usuario crea familia → datos se migran.
 - `corpos/shared` queda como backup de solo lectura temporal (reglas: `allow read: if request.auth != null; allow write: if false;`).
 - Marcela: se le comparte el código de invitación → se une a la misma familia.
 - Hermano: crea su propia familia independiente con sus propios datos.
@@ -185,11 +185,18 @@ families/{familyId} → { name, createdAt, createdBy, inviteCode }
 **Flujo de usuario:**
 1. Sin sesión → LoginScreen (botón Google)
 2. Con sesión, sin familia → OnboardingScreen (crear familia con nombre, o unirse con código)
-3. Con sesión + familia → App normal ( Firestore por familia)
+3. Con sesión + familia → App normal (Firestore por familia)
 
 **Lo que NO cambió:** types, utils/finanzas.ts, todos los features (tabs), UI completa.
 
-**Verificado:** `npx tsc --noEmit` limpio, `npm run build` exitoso (~4s), bundle principal ~654KB (Firebase Auth agregado).
+**Verificado:** `npx tsc --noEmit` limpio, `npm run build` exitoso (~4s), bundle principal ~654KB.
+
+**Bugs resueltos durante implementación:**
+- **API key con comillas en Vercel:** el `VITE_FIREBASE_API_KEY` en Vercel tenía `"` alrededor del valor, causando `auth/api-key-not-valid` al hacer `signInWithPopup`. Causa: Vite lee `.env` con dotenv (que strips comillas), pero Vercel lee de `process.env` directamente.
+- **Firestore rules sin publicar:** el error `Missing or insufficient permissions` al leer `users/{uid}` indicaba que las reglas no se habían publicado desde Firebase Console.
+- **writeBatch + exists() conflict:** `createFamily` usaba un `writeBatch` para crear familia, miembro y datos juntos. Pero Firestore rules evalúa `exists()` contra el estado actual de la BD (no los cambios pendientes del batch), así que `data/current` fallaba porque `members/{uid}` no existía aún. Fix: separar en dos operaciones — primero familia+miembro, después datos.
+- **signInWithRedirect causaba loop:** el redirect de Google volvía a la app pero `onAuthChange` no se activaba correctamente. Fix: volver a `signInWithPopup` para browser (que funciona desde que se corrigieron las comillas de la API key), mantener `signInWithRedirect` solo para Capacitor (WebView).
+- **Auto-creación de familia con datos vacíos:** la app creaba automáticamente una familia con datos semilla si `hasLegacyData()` era true en el browser (localStorage viejo). Fix: eliminar auto-creación, siempre mostrar OnboardingScreen para que el usuario migre datos manualmente.
 
 ### [2026-08-03] — Conversión de unidades lb/kg en cantidad de Mercado
 
