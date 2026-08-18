@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, Suspense, lazy } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, Suspense, lazy } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { db } from "./firebase";
@@ -70,49 +70,52 @@ export default function App() {
   // ── Auth listener ───────────────────────────────────────────────────────
   const [authLoading, setAuthLoading] = useState(true);
   const [legacyData, setLegacyData] = useState<any>(null);
-
-  // Completar redirect de Google (necesario en Capacitor después de signInWithRedirect)
-  useEffect(() => {
-    handleRedirectResult();
-  }, []);
+  const authUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const unsub = onAuthChange(async (firebaseUser) => {
-      if (firebaseUser) {
-        const fId = await getUserFamilyId(firebaseUser.uid);
+    // Procesar redirect de Google primero (Capacitor), DESPUÉS escuchar auth.
+    // onAuthStateChanged se dispara automáticamente después de getRedirectResult.
+    handleRedirectResult().then(() => {
+      const unsub = onAuthChange(async (firebaseUser) => {
+        console.log("[App] Auth state changed:", firebaseUser?.email ?? "(no user)");
+        if (firebaseUser) {
+          const fId = await getUserFamilyId(firebaseUser.uid);
 
-        // Auto-crear familia si hay datos en localStorage o corpos/shared
-        if (!fId) {
-          // Verificar si hay datos locales significativos en el store actual
-          const hasLocalData = useAppStore.getState().hasLegacyData();
+          if (!fId) {
+            const hasLocalData = useAppStore.getState().hasLegacyData();
 
-          if (hasLocalData) {
-            const localData = useAppStore.getState().data;
-            const newFamilyId = await createFamily(
-              firebaseUser.uid,
-              "Mi familia",
-              firebaseUser.displayName || "Sin nombre",
-              firebaseUser.email || "",
-              localData
-            );
-            setAuth(firebaseUser, newFamilyId);
-          } else {
-            // Intentar cargar de corpos/shared (legacy)
-            const legacy = await loadLegacyData();
-            if (legacy) {
-              setLegacyData(legacy);
+            if (hasLocalData) {
+              const localData = useAppStore.getState().data;
+              const newFamilyId = await createFamily(
+                firebaseUser.uid,
+                "Mi familia",
+                firebaseUser.displayName || "Sin nombre",
+                firebaseUser.email || "",
+                localData
+              );
+              setAuth(firebaseUser, newFamilyId);
+            } else {
+              const legacy = await loadLegacyData();
+              if (legacy) {
+                setLegacyData(legacy);
+              }
+              setAuth(firebaseUser, null);
             }
-            setAuth(firebaseUser, null);
+          } else {
+            setAuth(firebaseUser, fId);
           }
         } else {
-          setAuth(firebaseUser, fId);
+          setAuth(null, null);
         }
-      } else {
-        setAuth(null, null);
-      }
-      setAuthLoading(false);
+        setAuthLoading(false);
+      });
+      // Store unsub for cleanup — use a ref-like pattern
+      authUnsubRef.current = unsub;
     });
-    return unsub;
+
+    return () => {
+      authUnsubRef.current?.();
+    };
   }, [setAuth]);
 
   // ── Firestore sync (solo cuando hay familyId) ───────────────────────────

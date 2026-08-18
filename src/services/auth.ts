@@ -14,13 +14,21 @@ export type AuthUser = User;
  * - En Capacitor (app nativa): usa redirect (el popup no funciona en WebView).
  */
 export async function loginWithGoogle(): Promise<AuthUser | null> {
-  if (isNative) {
-    // Redirect: navega toda la página. Al volver, getRedirectResult resuelve.
-    await signInWithRedirect(auth, provider);
-    return null; // nunca llega acá — la página recarga
+  try {
+    if (isNative) {
+      // Redirect: navega toda la página. Al volver, getRedirectResult resuelve.
+      console.log("[Auth] Capacitor detected — using signInWithRedirect");
+      await signInWithRedirect(auth, provider);
+      return null; // nunca llega acá — la página recarga
+    }
+    console.log("[Auth] Browser detected — using signInWithPopup");
+    const cred = await signInWithPopup(auth, provider);
+    console.log("[Auth] Popup login successful:", cred.user.email);
+    return cred.user;
+  } catch (err) {
+    console.error("[Auth] Login failed:", (err as any).code, (err as any).message);
+    throw err;
   }
-  const cred = await signInWithPopup(auth, provider);
-  return cred.user;
 }
 
 /**
@@ -29,9 +37,16 @@ export async function loginWithGoogle(): Promise<AuthUser | null> {
  */
 export async function handleRedirectResult(): Promise<AuthUser | null> {
   try {
+    console.log("[Auth] Checking redirect result...");
     const result = await getRedirectResult(auth);
-    return result?.user ?? null;
-  } catch {
+    if (result?.user) {
+      console.log("[Auth] Redirect login successful:", result.user.email);
+      return result.user;
+    }
+    console.log("[Auth] No redirect result found");
+    return null;
+  } catch (err) {
+    console.error("[Auth] Redirect result error:", (err as any).code, (err as any).message);
     return null;
   }
 }

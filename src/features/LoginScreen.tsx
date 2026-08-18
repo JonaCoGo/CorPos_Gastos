@@ -11,10 +11,17 @@ export function LoginScreen() {
     try {
       await loginWithGoogle();
     } catch (err: any) {
+      console.error("[LoginScreen] Error:", err.code, err.message);
       if (err.code === "auth/popup-closed-by-user") {
         setError(null);
+      } else if (err.code === "auth/unauthorized-domain") {
+        setError("Dominio no autorizado. Configuralo en Firebase Console → Authentication → Configuración.");
+      } else if (err.code === "auth/operation-not-allowed") {
+        setError("Google login no está habilitado. Activarlo en Firebase Console → Authentication → Sign-in method.");
+      } else if (err.code === "auth/popup-blocked-by-browser") {
+        setError("El navegador bloqueó el popup. Permití popups para este sitio.");
       } else {
-        setError("No se pudo iniciar sesión. Intentá de nuevo.");
+        setError(`Error: ${err.code || err.message || "desconocido"}`);
       }
       setLoading(false);
     }
