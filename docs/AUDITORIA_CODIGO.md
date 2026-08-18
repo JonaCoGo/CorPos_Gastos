@@ -1,338 +1,137 @@
-# Auditoría técnica — CorPos APP Gastos
+# Auditoría técnica y registro de fixes — CorPos APP Gastos
 
-Fecha: 2026-06-30  
-Alcance: revisión estática del código, configuración, build, type-check, dependencias y riesgos operativos/seguridad.
+> Última actualización: 2026-08-18
 
-## Resumen ejecutivo
+---
 
-La app compila para producción (`npm.cmd run build`), pero no pasa TypeScript (`npx.cmd tsc --noEmit`) y tiene un problema crítico de seguridad: Firestore permite lectura y escritura pública. Para una app financiera/familiar con salarios, gastos y nombres reales, esto debe corregirse antes de considerar la app segura para producción.
+## Estado general
 
-Prioridad recomendada:
+| Aspecto | Estado |
+|---------|--------|
+| TypeCheck | ✅ 0 errores |
+| Build | ✅ Producción en ~4s |
+| Seguridad Firestore | ✅ Reglas por UID/familia |
+| Auth | ✅ Firebase Auth (Google login) |
+| Tests | 🔴 Ninguno |
+| Lint/Format | 🔴 No configurado |
+| Dependencias | 6 runtime + 11 dev |
 
-1. Cerrar Firestore con Firebase Auth y reglas por usuario/familia.
-2. Corregir errores TypeScript y bug de notificaciones.
-3. Actualizar dependencias vulnerables.
-4. Quitar sourcemaps de producción o restringirlos.
-5. Corregir codificación mojibake en textos/emoji.
-6. Mejorar arquitectura de sincronización para evitar pérdida de datos por sobrescritura.
+---
 
-## Hallazgos críticos
+## Hallazgos de auditoría (2026-06-30)
 
-### 1. ~~Firestore está completamente abierto~~ ✅ RESUELTO (2026-08-18)
+### Resueltos
 
-- Se implementó Firebase Auth con Google login.
-- Se reescribieron las reglas Firestore por UID/familia (`firestore.rules`).
-- Modelo: `families/{familyId}/data/current` con reglas de membresía.
-- `corpos/shared` queda como backup de solo lectura temporal.
-- Ver Fase 4 en `PLAN_MEJORAS.md`.
+| # | Hallazgo | Estado | Fecha fix |
+|---|----------|--------|-----------|
+| 1 | Firestore abierto al mundo (`allow read, write: if true`) | ✅ Resuelto | 2026-08-18 |
+| 2 | Documento global compartido (`corpos/shared`) | ✅ Resuelto | 2026-08-18 |
+| 3 | TypeScript no pasaba (4 errores) | ✅ Resuelto | 2026-08-18 |
+| 4 | `apple-mobile-web-app-capable` deprecated | ⚠️ Pendiente menor |
 
-### 2. ~~Documento global compartido para todos los datos~~ ✅ RESUELTO (2026-08-18)
+### Pendientes
 
-- Cada familia tiene su propio documento: `families/{familyId}/data/current`.
-- Aislamiento por familia garantizado via Firestore rules + `members/{uid}`.
-- `corpos/shared` queda como backup temporal de solo lectura.
+| # | Hallazgo | Severidad | Recomendación |
+|---|----------|-----------|---------------|
+| 5 | Sin tests unitarios | Alta | Tests para `computeSummary`, `convertQty`, `calculateMercadoTotals` |
+| 6 | Dependencias con vulnerabilidades | Media | `npm audit fix`, actualizar Firebase |
+| 7 | Sourcemaps en producción | Media | Desactivar `sourcemap: true` en Vite |
+| 8 | Sin lint/format | Baja | ESLint + Prettier |
+| 9 | localStorage expone datos financieros | Baja | Aceptar riesgo o cifrar |
+| 10 | Sin control de concurrencia en Firestore | Baja | `updateDoc` en vez de `setDoc` completo |
+| 11 | Firestore guarda todo en un solo documento | Baja | Separar por mes/subcolección (escala) |
+| 12 | Chunk principal ~654KB | Baja | `manualChunks` para Firebase y lucide-react |
+| 13 | Modales sin focus trap | Baja | Accesibilidad |
+| 14 | Google Fonts externo | Baja | Self-host para offline/privacidad |
 
-## Bugs confirmados
+---
 
-### 3. TypeScript no pasa
+## Registro de fixes — Fase 4 (2026-08-18)
 
-Comando ejecutado:
+Historial de bugs encontrados y resueltos durante la implementación de Firebase Auth + Firestore por familia.
 
-```bash
-npx.cmd tsc --noEmit
+### Fix 1: API key con comillas en Vercel
+
+**Síntoma:** `auth/api-key-not-valid.-please-pass-a-valid-api-key` al hacer `signInWithPopup`.
+
+**Causa:** El `VITE_FIREBASE_API_KEY` en Vercel tenía comillas dobles alrededor del valor (`"AIzaSy..."`). Vite lee `.env` con dotenv (que strips comillas automáticamente), pero Vercel lee de `process.env` directamente, así que las comillas se incluían literalmente en la key.
+
+**Evidencia:** el URL de la request mostraba `key=%22AIzaSy...%22` donde `%22` = `"`.
+
+**Fix:** Borrar y recrear la env var en Vercel sin comillas.
+
+**Lección:** Cuando se copia un valor desde Firebase Console (que lo muestra entre comillas), hay que pegar SOLO el valor, sin las comillas.
+
+### Fix 2: Firestore rules sin publicar
+
+**Síntoma:** `Missing or insufficient permissions` al leer `users/{uid}` después del login.
+
+**Causa:** Las reglas de Firestore se actualizan POR SEPARADO del deploy de Vercel. Había que publicarlas desde Firebase Console → Firestore → Reglas → Publicar.
+
+**Fix:** Pegar las reglas correctas y hacer click en "Publicar". Esperar ~30 segundos de propagación.
+
+**Lección:** Las reglas de Firestore no se despliegan con `git push`. Hay que publicarlas manualmente o con `firebase deploy --only firestore:rules`.
+
+### Fix 3: writeBatch + exists() conflict
+
+**Síntoma:** `Missing or insufficient permissions` al crear la familia (después del fix 2).
+
+**Causa:** `createFamily()` usaba un `writeBatch` para crear familia, miembro y datos juntos. Firestore rules evalúa `exists()` contra el estado **actual** de la BD (no los cambios pendientes del batch). Cuando el batch intenta escribir `data/current`, la regla verifica `exists(families/{id}/members/{uid})` — pero el member doc todavía no existe (es parte del mismo batch).
+
+**Fix:** Separar en dos operaciones:
+1. Batch: crear familia + miembro + usuario doc
+2. `setDoc` separado: crear `data/current` (ahora el member ya existe)
+
+**Lección:** En Firestore, `exists()` en rules solo ve el estado committed de la BD, no los cambios pendientes en un `writeBatch`. Si necesitás que un doc exista para que otro pase la validación, hay que commitearlos por separado.
+
+### Fix 4: signInWithRedirect causaba loop
+
+**Síntoma:** Login con Google en browser: elegir cuenta → volver a pantalla de login (sin error visible).
+
+**Causa:** `signInWithRedirect` navega toda la página. Después de Google auth, la app recarga desde cero pero `onAuthChange` no se activaba correctamente con el resultado del redirect. El usuario terminaba de vuelta en el LoginScreen.
+
+**Fix:** Volver a `signInWithPopup` para browser (que funciona correctamente desde que se corrigieron las comillas de la API key). Mantener `signInWithRedirect` solo para Capacitor (el popup no funciona en WebView).
+
+**Código final en `auth.ts`:**
+```ts
+if (isNative) {
+  await signInWithRedirect(auth, provider);  // Capacitor
+} else {
+  const cred = await signInWithPopup(auth, provider);  // Browser
+}
 ```
 
-Errores:
+### Fix 5: Auto-creación de familia con datos vacíos
 
-- `src/App.tsx`: falta declaración de tipos para `virtual:pwa-register/react`.
-- `src/features/TabFamilyExpenses.tsx`: parámetro `v` implícitamente `any`.
-- `src/hooks/useNotifications.ts`: `FamilyExpense` no tiene propiedad `paid`.
+**Síntoma:** Al hacer login, la app creaba una familia automáticamente con datos semilla (junio 2026 vacío) en vez de mostrar el OnboardingScreen para migrar datos existentes.
 
-Impacto:
+**Causa:** `App.tsx` tenía lógica que verificaba `hasLegacyData()` (localStorage) y auto-creaba una familia con esos datos. En el browser, localStorage tenía datos viejos de sesiones anteriores que no coincidían con los datos reales en Firestore.
 
-- La build Vite pasa, pero el código no cumple el modo estricto declarado en `tsconfig.json`.
-- Se pueden esconder bugs reales porque producción no está ejecutando type-check.
+**Fix:** Eliminar la auto-creación. Siempre mostrar OnboardingScreen cuando no hay `familyId`. El usuario elige "Crear mi familia" y la app migra los datos desde `corpos/shared`.
 
-Recomendación:
+### Fix 6: App crashea si Firestore rules fallan
 
-- Agregar script `"typecheck": "tsc --noEmit"` y hacerlo parte de CI/build.
-- Corregir el hook de notificaciones para no usar `paid` en `FamilyExpense`, o agregar explícitamente ese estado al modelo si el producto realmente lo necesita.
-- Añadir `vite-plugin-pwa/client` o declaración de tipos para el virtual module.
+**Síntoma:** La app se quedaba en pantalla de carga infinita si `getUserFamilyId()` lanzaba un error de permisos.
 
-### 4. Notificaciones de hogar usan una propiedad inexistente
+**Causa:** No había try/catch en la llamada a `getUserFamilyId()`. Un error no capturado rompía el flujo de auth.
 
-- Archivo: `src/hooks/useNotifications.ts`
-- Líneas relevantes: filtros por `e.paid` sobre `familyExpenses`.
-- Modelo real: `FamilyExpense` tiene `marcela`, `jonatan`, `conjunto`, `budget`, `monthlyAmount`, pero no `paid`.
+**Fix:** Envolver `getUserFamilyId()` y `loadLegacyData()` en try/catch. Si fallan, mostrar OnboardingScreen en vez de crashear.
 
-Impacto:
+---
 
-- Como `e.paid` es `undefined`, `!e.paid` evalúa `true`, entonces casi todos los gastos del hogar pueden considerarse pendientes siempre.
-- El resumen semanal puede calcular 0% pagado aunque existan pagos registrados.
+## Configuración Firebase requerida
 
-Recomendación:
+Para que la app funcione, estos pasos son obligatorios:
 
-- Definir “pagado” como `pagado >= montoEsperado`, usando `monthlyAmount ?? budget`.
-- Para `mercado`, sumar totales de compras.
-- O agregar `paid: boolean` al modelo y UI si se quiere manejar estado manual.
+### Firebase Console
+1. **Authentication → Sign-in method**: habilitar Google
+2. **Authentication → Configuración → Dominios autorizados**: agregar `corpos-gastos.vercel.app`
+3. **Firestore Database → Reglas**: publicar las reglas (ver `firestore.rules`)
 
-### 5. Código inválido/sospechoso en hint de gastos del hogar
+### Google Cloud Console
+1. **APIs y servicios → Credenciales**: verificar que la API key tenga Identity Toolkit API habilitada
+2. **APIs y servicios → Pantalla de consentimiento**: debe estar "En producción"
 
-- Archivo: `src/features/TabFamilyExpenses.tsx`
-- Línea relevante: `Number(v => v)`
-
-Impacto:
-
-- No rompe build porque produce `NaN`, pero la expresión no tiene sentido y el `hint` siempre queda inútil.
-- Es una señal de parche generado sin intención clara.
-
-Recomendación:
-
-- Eliminar esa línea si no aporta.
-- O implementar validación real: “pagado excede monto del mes”, “falta cubrir”, “número negativo no permitido”.
-
-## Seguridad
-
-### 6. Dependencias con vulnerabilidades
-
-Comandos ejecutados:
-
-```bash
-npm.cmd audit --omit=dev
-npm.cmd audit
-```
-
-Resultados:
-
-- Producción: 10 vulnerabilidades, 1 alta, asociadas principalmente a `undici` vía Firebase.
-- Total: 12 vulnerabilidades, incluyendo `esbuild` vía Vite en dev.
-- Versiones instaladas detectadas:
-  - `firebase`: `10.14.1`
-  - `vite`: `5.4.21`
-  - `esbuild`: `0.21.5`
-  - `undici`: `6.19.7`
-
-Recomendación:
-
-- Ejecutar `npm audit fix` y validar.
-- Si no alcanza, actualizar Firebase a una versión segura compatible.
-- Planificar upgrade de Vite mayor con prueba manual de PWA.
-
-### 7. Sourcemaps de producción habilitados
-
-- Archivo: `vite.config.js`
-- Línea relevante: `sourcemap: true`
-
-Impacto:
-
-- Publica mapas de fuente que facilitan inspeccionar código, lógica interna, nombres de variables y estructura.
-- No es secreto por sí mismo, pero aumenta superficie de análisis para terceros.
-
-Recomendación:
-
-- En producción pública: `sourcemap: false`.
-- Si necesitas debugging: generar sourcemaps ocultos/subidos a una herramienta privada, no servidos públicamente.
-
-### 8. Persistencia de datos financieros en localStorage
-
-- Archivo: `src/services/firestore.ts`
-- Líneas relevantes: lectura/escritura de `localStorage`.
-
-Impacto:
-
-- Cualquier script que corra en el origen puede leer salarios/gastos.
-- Si algún día se introduce XSS, extensiones maliciosas o scripts de terceros, los datos quedan expuestos.
-
-Recomendación:
-
-- Mantener localStorage solo como cache si aceptan el riesgo.
-- Evitar scripts de terceros innecesarios.
-- Considerar IndexedDB con capa de cifrado local si el modelo de privacidad lo exige.
-
-### 9. Fuentes externas desde Google Fonts
-
-- Archivo: `src/layouts/MainLayout.tsx`
-- Línea relevante: `@import url('https://fonts.googleapis.com/...')`
-
-Impacto:
-
-- Dependencia externa en runtime, tracking superficial de IP/User-Agent hacia Google y posible fallo offline.
-
-Recomendación:
-
-- Auto-hospedar fuentes si privacidad/offline importa.
-- O usar stack de fuentes del sistema.
-
-## Operación y confiabilidad
-
-### 10. Sin control de concurrencia ni resolución de conflictos
-
-- Archivos: `src/services/firestore.ts`, `src/store/useAppStore.ts`
-- Patrón actual: cada cambio hace `setDoc` del objeto completo.
-
-Impacto:
-
-- Si dos dispositivos editan casi al tiempo, gana el último write y puede sobrescribir cambios.
-- El listener remoto reemplaza todo el estado local.
-
-Recomendación:
-
-- Dividir datos por entidad/mes/subcolección.
-- Usar `updateDoc`, transacciones o timestamps por registro.
-- Añadir `updatedAt`, `updatedBy`, `schemaVersion`.
-- Implementar cola offline/merge o al menos aviso de conflicto.
-
-### 11. Firestore guarda todo el estado como un único documento
-
-Impacto:
-
-- Escala mal por tamaño de documento.
-- Dificulta reglas por entidad.
-- Hace más probable perder cambios simultáneos.
-
-Recomendación:
-
-- `months/{monthKey}`, `mercado/items/{itemId}`, `mercado/compras/{compraId}`, `config`.
-- Esto también permite lecturas parciales y reglas más finas.
-
-### 12. Build no ejecuta type-check
-
-- Archivo: `package.json`
-- Script actual: `"build": "vite build"`
-
-Impacto:
-
-- Producción puede compilar aunque TypeScript tenga errores.
-
-Recomendación:
-
-- Cambiar a `"build": "tsc --noEmit && vite build"`.
-- Agregar `"typecheck": "tsc --noEmit"`.
-
-### 13. Advertencia de chunk grande
-
-Build reportó:
-
-- Chunk principal: ~501 kB minificado.
-
-Impacto:
-
-- Carga inicial más pesada, especialmente móvil.
-
-Recomendación:
-
-- Separar Firebase en chunk propio.
-- Revisar imports de `lucide-react`.
-- Configurar `manualChunks` para `vendor`, `firebase`, `ui`.
-
-## Diseño y UX
-
-### 14. Mojibake/codificación rota en textos y emojis
-
-Evidencia:
-
-- Textos como `GestiÃ³n`, `AÃ±adir`, `ðŸ...` aparecen en múltiples archivos.
-
-Impacto:
-
-- UX deteriorada.
-- Riesgo de que strings/emoji se rendericen mal en producción o documentación.
-
-Recomendación:
-
-- Normalizar archivos a UTF-8.
-- Reparar textos fuente.
-- Asegurar editor y Git configurados para UTF-8.
-
-### 15. Formularios aceptan valores no validados
-
-Impacto:
-
-- Fechas, días del mes, montos negativos o decimales raros pueden entrar según el campo.
-- IDs basados en `Date.now()` pueden colisionar en operaciones rápidas o simultáneas.
-
-Recomendación:
-
-- Validar montos `>= 0`.
-- Validar días `1..31`.
-- Usar `crypto.randomUUID()` para IDs.
-- Centralizar parseo monetario.
-
-### 16. Modales sin focus trap
-
-- Archivo: `src/components/ui/Modal.tsx`
-
-Impacto:
-
-- Accesibilidad incompleta en teclado/lectores.
-
-Recomendación:
-
-- Mover foco al modal al abrir.
-- Bloquear tabulación fuera del modal.
-- Restaurar foco al cerrar.
-
-## Pruebas recomendadas
-
-Actualmente no se observan tests configurados.
-
-Recomendación mínima:
-
-- Tests unitarios para `computeSummary`, `calculateMercadoTotals`, `createEmptyMonth`.
-- Tests de regresión para:
-  - mercado pagado por persona/fondo conjunto,
-  - carry-over de gastos al siguiente mes,
-  - `disableNext`,
-  - resumen con `monthlyAmount`,
-  - notificaciones.
-
-## Validaciones ejecutadas
-
-```bash
-npm.cmd run build
-```
-
-Resultado: exitoso, con advertencia de chunk grande y sourcemaps generados.
-
-```bash
-npx.cmd tsc --noEmit
-```
-
-Resultado: falla con 4 errores.
-
-```bash
-npm.cmd audit --omit=dev
-npm.cmd audit
-```
-
-Resultado: vulnerabilidades detectadas en dependencias.
-
-## Plan de remediación sugerido
-
-### Semana 1 — Seguridad base
-
-- Implementar Firebase Auth.
-- Reescribir reglas Firestore.
-- Migrar documento global a ruta por familia.
-- Desactivar sourcemaps públicos.
-
-### Semana 2 — Correctitud
-
-- Hacer que `npm run build` ejecute type-check.
-- Corregir notificaciones de hogar.
-- Eliminar/implementar validación real en `Number(v => v)`.
-- Reparar codificación UTF-8.
-
-### Semana 3 — Operación
-
-- Actualizar dependencias.
-- Dividir Firestore en documentos/subcolecciones.
-- Añadir `schemaVersion`, migraciones y backups/export.
-
-### Semana 4 — Calidad
-
-- Agregar tests unitarios de finanzas.
-- Añadir lint/format.
-- Mejorar accesibilidad de modales.
-- Optimizar chunks.
-
+### Vercel
+1. **Environment Variables**: verificar que `VITE_FIREBASE_API_KEY` NO tenga comillas
+2. Las 6 env vars de Firebase deben estar configuradas: `API_KEY`, `AUTH_DOMAIN`, `PROJECT_ID`, `STORAGE_BUCKET`, `MESSAGING_SENDER_ID`, `APP_ID`
