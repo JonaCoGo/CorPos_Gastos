@@ -1,85 +1,125 @@
-import { create } from 'zustand';
-import { AppData, MonthData, Mercado, AppConfig } from '../types/models';
-import { loadData, saveData, subscribeToFirestore } from '../services/firestore';
-import { createEmptyMonth, getMonthKey } from '../utils/finanzas';
+import { create } from "zustand";
+import { AppData, MonthData, Mercado, AppConfig } from "../types/models";
+import {
+  loadData,
+  saveData,
+  subscribeToFirestore,
+} from "../services/firestore";
+import { createEmptyMonth, getMonthKey } from "../utils/finanzas";
+import { AuthUser } from "../services/auth";
 
 /**
  * Store Global de la Aplicación (Zustand)
- * Centraliza todo el estado (data, tab, synced) y las acciones para modificarlo.
- * Cada acción que modifica `data` automáticamente llama a `saveData` para persistir.
+ * - Maneja estado de auth (user, familyId, authReady)
+ * - Maneja datos de la app (data, tab, synced, firestoreReady)
+ * - Cada acción que modifica `data` persiste en localStorage + Firestore (por familia)
  */
 interface AppState {
-  // ── Estado ──────────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  user: AuthUser | null;
+  familyId: string | null;
+  authReady: boolean;
+
+  // ── Datos ─────────────────────────────────────────────────────────────────
   data: AppData;
   tab: string;
   synced: boolean;
   firestoreReady: boolean;
 
-  // ── Acciones de UI ──────────────────────────────────────────────────────────
+  // ── Auth actions ──────────────────────────────────────────────────────────
+  setAuth: (user: AuthUser | null, familyId: string | null) => void;
+  setFamilyId: (familyId: string) => void;
+
+  // ── UI actions ────────────────────────────────────────────────────────────
   setTab: (tab: string) => void;
 
-  // ── Acciones de Datos (modifican estado + persisten) ────────────────────────
+  // ── Data actions ──────────────────────────────────────────────────────────
   updateMercado: (mercado: Mercado) => void;
   resetMercadoCompras: () => void;
   updateConfig: (config: AppConfig) => void;
   updateMonth: (updatedMonth: MonthData) => void;
   selectMonth: (key: string) => void;
-  addMonth: (year: number, month: number, salaries: { marcela: number; jonatan: number }) => void;
+  addMonth: (
+    year: number,
+    month: number,
+    salaries: { marcela: number; jonatan: number }
+  ) => void;
   deleteMonth: (key: string) => void;
   checkAndAdvanceMonth: () => void;
 
-  // ── Inicialización ──────────────────────────────────────────────────────────
+  // ── Inicialización ────────────────────────────────────────────────────────
   initFirestoreSync: () => () => void;
+  hasLegacyData: () => boolean;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  // Inicializar estado con datos locales (localStorage o semilla)
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  user: null,
+  familyId: null,
+  authReady: false,
+
+  // ── Datos ─────────────────────────────────────────────────────────────────
   data: loadData(),
-  tab: 'dashboard',
+  tab: "dashboard",
   synced: false,
   firestoreReady: false,
 
+  // ── Auth actions ──────────────────────────────────────────────────────────
+
+  setAuth: (user, familyId) => {
+    set({ user, familyId, authReady: true });
+  },
+
+  setFamilyId: (familyId) => {
+    set({ familyId, firestoreReady: false });
+  },
+
+  // ── UI actions ────────────────────────────────────────────────────────────
+
   setTab: (tab) => set({ tab }),
 
-  // ── Acciones de Datos ────────────────────────────────────────────────────────
-  
+  // ── Data actions ──────────────────────────────────────────────────────────
+
   updateMercado: (mercado) => {
-    const newData = { ...get().data, mercado };
+    const { data, familyId } = get();
+    const newData = { ...data, mercado };
     set({ data: newData });
-    saveData(newData);
+    saveData(newData, familyId);
   },
 
   resetMercadoCompras: () => {
-    const { data } = get();
+    const { data, familyId } = get();
     const newData = { ...data, mercado: { ...data.mercado, compras: [] } };
     set({ data: newData });
-    saveData(newData);
+    saveData(newData, familyId);
   },
 
   updateConfig: (config) => {
-    const newData = { ...get().data, config };
+    const { data, familyId } = get();
+    const newData = { ...data, config };
     set({ data: newData });
-    saveData(newData);
+    saveData(newData, familyId);
   },
 
   updateMonth: (updatedMonth) => {
-    const { data } = get();
+    const { data, familyId } = get();
     const newData = {
       ...data,
-      months: { ...data.months, [updatedMonth.key]: updatedMonth }
+      months: { ...data.months, [updatedMonth.key]: updatedMonth },
     };
     set({ data: newData });
-    saveData(newData);
+    saveData(newData, familyId);
   },
 
   selectMonth: (key) => {
+    const { familyId } = get();
     const newData = { ...get().data, currentKey: key };
-    set({ data: newData, tab: 'dashboard' });
-    saveData(newData);
+    set({ data: newData, tab: "dashboard" });
+    saveData(newData, familyId);
   },
 
   addMonth: (year, month, salaries) => {
-    const { data } = get();
+    const { data, familyId } = get();
     const prevM = data.months[data.currentKey] || null;
     const newMonth = createEmptyMonth(year, month, salaries, prevM);
     const newData = {
@@ -88,57 +128,77 @@ export const useAppStore = create<AppState>((set, get) => ({
       mercado: data.mercado,
       config: data.config,
     };
-    set({ data: newData, tab: 'dashboard' });
-    saveData(newData);
+    set({ data: newData, tab: "dashboard" });
+    saveData(newData, familyId);
   },
 
   deleteMonth: (key) => {
-    const { data } = get();
+    const { data, familyId } = get();
     const months = { ...data.months };
     delete months[key];
     const keys = Object.keys(months);
     const newData = {
       months,
-      currentKey: keys[keys.length - 1] || '',
+      currentKey: keys[keys.length - 1] || "",
       mercado: data.mercado,
       config: data.config,
     };
     set({ data: newData });
-    saveData(newData);
+    saveData(newData, familyId);
   },
 
   checkAndAdvanceMonth: () => {
-    const { data, firestoreReady } = get();
-    // No avanzar hasta que Firestore haya confirmado los datos reales
+    const { data, firestoreReady, familyId } = get();
     if (!firestoreReady) return;
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     const todayKey = getMonthKey(currentYear, currentMonth);
 
-    if (!data.months[todayKey] && data.currentKey && data.currentKey < todayKey) {
+    if (
+      !data.months[todayKey] &&
+      data.currentKey &&
+      data.currentKey < todayKey
+    ) {
       const lastMonth = data.months[data.currentKey];
-      const newMonth = createEmptyMonth(currentYear, currentMonth, lastMonth?.salaries || { marcela: 0, jonatan: 0 });
+      const newMonth = createEmptyMonth(
+        currentYear,
+        currentMonth,
+        lastMonth?.salaries || { marcela: 0, jonatan: 0 }
+      );
       const newData = {
         ...data,
         months: { ...data.months, [todayKey]: newMonth },
-        currentKey: todayKey
+        currentKey: todayKey,
       };
       set({ data: newData });
-      saveData(newData);
+      saveData(newData, familyId);
     }
   },
 
-  // ── Inicialización ──────────────────────────────────────────────────────────
-  
+  // ── Inicialización ────────────────────────────────────────────────────────
+
   initFirestoreSync: () => {
+    const { familyId } = get();
     return subscribeToFirestore(
+      familyId!,
       (remoteData) => {
         set({ data: remoteData, firestoreReady: true });
-        // Ahora que tenemos datos reales, verificar si hay que avanzar el mes
         get().checkAndAdvanceMonth();
       },
       (syncStatus) => set({ synced: syncStatus })
     );
-  }
+  },
+
+  hasLegacyData: () => {
+    const { data } = get();
+    return Object.values(data.months).some((month: any) => {
+      const hasFamily = (month.familyExpenses || []).some(
+        (c: any) => (c.marcela || 0) + (c.jonatan || 0) + (c.conjunto || 0) > 0
+      );
+      const hasSalary =
+        (month.salaries?.marcela || 0) + (month.salaries?.jonatan || 0) > 0;
+      return hasFamily || hasSalary;
+    });
+  },
 }));

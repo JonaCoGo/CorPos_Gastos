@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
-import { Plus, Trash2, Bell, BellOff, Download, Upload, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Bell, BellOff, Download, Upload, RefreshCw, LogOut, Share2 } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label } from '../components/ui';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, PaymentMethodType } from '../types/models';
 import { requestNotifPermission, getNotifEnabled, setNotifEnabled } from '../hooks/useNotifications';
 import { saveData } from '../services/firestore';
+import { logout } from '../services/auth';
+import { getInviteCode, regenerateInviteCode } from '../services/familyService';
 import { SW_LAST_CHECK_KEY } from '../constants';
 
 const formatDateTime = (iso: string) =>
@@ -31,6 +33,8 @@ const PRESET_COLORS = ["#FBBF24", "#820AD1", "#0ea5e9", "#059669", "#dc2626", "#
 export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () => void }) {
   const config              = useAppStore((s) => s.data.config);
   const data                = useAppStore((s) => s.data);
+  const familyId            = useAppStore((s) => s.familyId);
+  const user                = useAppStore((s) => s.user);
   const updateConfig        = useAppStore((s) => s.updateConfig);
   const resetMercadoCompras = useAppStore((s) => s.resetMercadoCompras);
   const comprasCount        = useAppStore((s) => s.data.mercado.compras.length);
@@ -179,6 +183,45 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
 
   const ownerLabel = (owner: string) => owner === "marcela" ? names.marcela : owner === "jonatan" ? names.jonatan : "Los dos";
   const typeInfo = (type: string) => TYPE_OPTIONS.find((t) => t.value === type);
+
+  // ── Compartir familia (invite code) ─────────────────────────────────────
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  useEffect(() => {
+    if (familyId) {
+      getInviteCode(familyId).then(setInviteCode).catch(() => {});
+    }
+  }, [familyId]);
+
+  const handleCopyCode = async () => {
+    if (!inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(inviteCode);
+    } catch {
+      // fallback: seleccionar texto
+    }
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  };
+
+  const handleRegenerateCode = async () => {
+    if (!familyId || !user) return;
+    setInviteLoading(true);
+    try {
+      const newCode = await regenerateInviteCode(familyId, user.uid);
+      setInviteCode(newCode);
+    } catch {
+      // silently fail
+    }
+    setInviteLoading(false);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.reload();
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -373,6 +416,38 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         </Btn>
       </Card>
 
+      {/* Compartir familia */}
+      {familyId && inviteCode && (
+        <Card>
+          <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+            <Share2 size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Compartir familia
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
+            Compartí este código con quien quieras agregar a tu familia. Al ingresarlo, podrán ver y editar los mismos datos.
+          </div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <div style={{
+              flex: 1, padding: "12px 16px", borderRadius: 10, background: "var(--surface2)",
+              fontFamily: "monospace", fontSize: 22, fontWeight: 800, letterSpacing: "0.2em",
+              textAlign: "center", color: "var(--accent)",
+            }}>
+              {inviteCode}
+            </div>
+            <button onClick={handleCopyCode} style={{
+              padding: "0 16px", borderRadius: 10, border: "1.5px solid var(--border)",
+              background: inviteCopied ? "var(--success)" : "var(--surface2)",
+              color: inviteCopied ? "#fff" : "var(--text1)", cursor: "pointer",
+              fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
+            }}>
+              {inviteCopied ? "✅" : "Copiar"}
+            </button>
+          </div>
+          <Btn variant="secondary" onClick={handleRegenerateCode} disabled={inviteLoading} style={{ width: "100%" }}>
+            {inviteLoading ? "Generando..." : "🔄 Regenerar código"}
+          </Btn>
+        </Card>
+      )}
+
       {/* Versión de la app */}
       <Card>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
@@ -390,6 +465,22 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         </div>
         <Btn variant="secondary" onClick={checkNow} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           {justChecked ? <>✅ Revisado</> : <><RefreshCw size={16} /> Revisar ahora</>}
+        </Btn>
+      </Card>
+
+      {/* Cerrar sesión */}
+      <Card>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
+          Sesión
+        </div>
+        {user && (
+          <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14, padding: "10px 14px", background: "var(--surface2)", borderRadius: 10 }}>
+            <div style={{ fontWeight: 700, color: "var(--text1)" }}>{user.displayName || user.email}</div>
+            <div style={{ fontSize: 11, marginTop: 2 }}>{user.email}</div>
+          </div>
+        )}
+        <Btn variant="danger" onClick={handleLogout} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <LogOut size={16} /> Cerrar sesión
         </Btn>
       </Card>
 

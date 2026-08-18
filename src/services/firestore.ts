@@ -1,8 +1,10 @@
 import { db } from "../firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
-import { FIRESTORE_DOC, STORAGE_KEY, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
+import { STORAGE_KEY, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
 import { createEmptyMonth } from "../utils/finanzas";
 import { AppData, AppConfig, PaymentMethod } from "../types/models";
+
+// ─── DEFAULTS ────────────────────────────────────────────────────────────────
 
 const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
   { id: "banc_marce", label: "Bancolombia", type: "ahorro",  owner: "marcela",  color: "#FBBF24", active: true },
@@ -18,73 +20,117 @@ const DEFAULT_CONFIG: AppConfig = {
   supermarkets: SUPERMARKETS,
 };
 
-/**
- * Carga los datos desde localStorage.
- * Si no hay datos, inicializa con el mes semilla de Junio 2026.
- */
-export function loadData() {
+// ─── HELPERS DE MIGRACIÓN ────────────────────────────────────────────────────
+// Se ejecutan sobre datos cargados desde Firestore O localStorage.
+// Son idempotentes: correrlas más de una vez no duplica nada.
+
+function migrateData(data: any): { data: AppData; changed: boolean } {
+  let changed = false;
+  const d = { ...data };
+
+  if (!d.mercado || !d.mercado.items || d.mercado.items.length === 0) {
+    d.mercado = { items: SEED_MARKET_ITEMS, compras: d.mercado?.compras || [] };
+    changed = true;
+  }
+  if (!d.config) {
+    d.config = DEFAULT_CONFIG;
+    changed = true;
+  }
+  if (d.config && !d.config.paymentMethods) {
+    d.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
+    changed = true;
+  }
+  if (d.config && !d.config.supermarkets) {
+    d.config.supermarkets = SUPERMARKETS;
+    changed = true;
+  }
+  if (!d.currentKey) {
+    const keys = Object.keys(d.months || {});
+    d.currentKey = keys.length > 0 ? keys[keys.length - 1] : "";
+    changed = true;
+  }
+
+  if (d.months) {
+    Object.values(d.months).forEach((month: any) => {
+      if (!month.familyExpenses) return;
+
+      const hasMercadoId = month.familyExpenses.some((c: any) => c.id === "mercado");
+      if (!hasMercadoId) {
+        month.familyExpenses = month.familyExpenses.map((c: any) =>
+          c.label?.trim().toLowerCase() === "mercado" ? { ...c, id: "mercado" } : c
+        );
+        changed = true;
+      }
+
+      if (month.fondoConjunto && !Array.isArray(month.fondoConjunto.transferencias)) {
+        const transferencias: any[] = [];
+        if (month.fondoConjunto.aporteMarcela > 0)
+          transferencias.push({ id: `mig_m_${month.key}`, persona: "marcela", monto: month.fondoConjunto.aporteMarcela, fecha: `${month.key}-01` });
+        if (month.fondoConjunto.aporteJonatan > 0)
+          transferencias.push({ id: `mig_j_${month.key}`, persona: "jonatan", monto: month.fondoConjunto.aporteJonatan, fecha: `${month.key}-01` });
+        month.fondoConjunto = { transferencias };
+        changed = true;
+      }
+
+      const hasOldPaymentId = month.familyExpenses.some((c: any) => c.paymentMethodId && !c.paymentMethodByPerson);
+      if (hasOldPaymentId) {
+        month.familyExpenses = month.familyExpenses.map((c: any) => {
+          if (!c.paymentMethodId || c.paymentMethodByPerson) return c;
+          const paymentMethodByPerson: Record<string, string> = {};
+          if ((c.marcela  || 0) > 0) paymentMethodByPerson.marcela  = c.paymentMethodId;
+          if ((c.jonatan  || 0) > 0) paymentMethodByPerson.jonatan  = c.paymentMethodId;
+          if ((c.conjunto || 0) > 0) paymentMethodByPerson.conjunto = c.paymentMethodId;
+          const { paymentMethodId, ...rest } = c;
+          return { ...rest, paymentMethodByPerson };
+        });
+        changed = true;
+      }
+    });
+  }
+
+  return { data: d as AppData, changed };
+}
+
+// ─── DATOS VACÍOS (para familias nuevas sin migración) ───────────────────────
+
+export function createInitialData(): AppData {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const key = `${year}-${String(month).padStart(2, "0")}`;
+  const emptyMonth = createEmptyMonth(year, month);
+  return {
+    months: { [key]: emptyMonth },
+    currentKey: key,
+    mercado: { items: SEED_MARKET_ITEMS, compras: [] },
+    config: {
+      marcelaName: "",
+      jonatanName: "",
+      paymentMethods: [],
+      supermarkets: [],
+    },
+  };
+}
+
+// ─── CARGA DESDE LOCALSTORAGE ────────────────────────────────────────────────
+
+export function loadData(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Migración: si mercado está vacío, inyectar semillas
-      if (!parsed.mercado || !parsed.mercado.items || parsed.mercado.items.length === 0) {
-        parsed.mercado = { items: SEED_MARKET_ITEMS, compras: parsed.mercado?.compras || [] };
-      }
-      // Migración: si config no existe, agregar defaults
-      if (!parsed.config) {
-        parsed.config = DEFAULT_CONFIG;
-      }
-      // Migración: si config existe pero no tiene paymentMethods
-      if (parsed.config && !parsed.config.paymentMethods) {
-        parsed.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
-      }
-      // Migración: si config existe pero no tiene supermarkets
-      if (parsed.config && !parsed.config.supermarkets) {
-        parsed.config.supermarkets = SUPERMARKETS;
-      }
-      // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'
-      // Migración: convertir fondoConjunto { aporteMarcela, aporteJonatan } al nuevo formato con transferencias
-      if (parsed.months) {
-        Object.values(parsed.months).forEach((month: any) => {
-          if (!month.familyExpenses) return;
-          const hasMercadoId = month.familyExpenses.some((c: any) => c.id === 'mercado');
-          if (!hasMercadoId) {
-            month.familyExpenses = month.familyExpenses.map((c: any) =>
-              c.label?.trim().toLowerCase() === 'mercado' ? { ...c, id: 'mercado' } : c
-            );
-          }
-          if (month.fondoConjunto && !Array.isArray(month.fondoConjunto.transferencias)) {
-            const transferencias = [];
-            if (month.fondoConjunto.aporteMarcela > 0)
-              transferencias.push({ id: `mig_m_${month.key}`, persona: 'marcela', monto: month.fondoConjunto.aporteMarcela, fecha: `${month.key}-01` });
-            if (month.fondoConjunto.aporteJonatan > 0)
-              transferencias.push({ id: `mig_j_${month.key}`, persona: 'jonatan', monto: month.fondoConjunto.aporteJonatan, fecha: `${month.key}-01` });
-            month.fondoConjunto = { transferencias };
-          }
-          // Migración: paymentMethodId único → paymentMethodByPerson (uno por cada monto ya dividido)
-          month.familyExpenses = month.familyExpenses.map((c: any) => {
-            if (!c.paymentMethodId || c.paymentMethodByPerson) return c;
-            const paymentMethodByPerson: Record<string, string> = {};
-            if ((c.marcela  || 0) > 0) paymentMethodByPerson.marcela  = c.paymentMethodId;
-            if ((c.jonatan  || 0) > 0) paymentMethodByPerson.jonatan  = c.paymentMethodId;
-            if ((c.conjunto || 0) > 0) paymentMethodByPerson.conjunto = c.paymentMethodId;
-            const { paymentMethodId, ...rest } = c;
-            return { ...rest, paymentMethodByPerson };
-          });
-        });
-      }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-      return parsed;
+      const { data, changed } = migrateData(parsed);
+      if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return data;
     }
   } catch (e) {
     console.error("Error cargando datos de localStorage:", e);
   }
-  
+
   // Semilla inicial (Junio 2026)
   const jun = createEmptyMonth(2026, 6, { marcela: 1803858, jonatan: 2021241 });
   jun.familyExpenses = jun.familyExpenses.map((c) => {
-    const map = {
+    const map: Record<string, any> = {
       arriendo: { marcela: 0, jonatan: 800000 },
       mercado: { marcela: 600000, jonatan: 0 },
       servicios: { marcela: 300000, jonatan: 0 },
@@ -96,147 +142,101 @@ export function loadData() {
       credi_ahorros: { marcela: 0, jonatan: 50000 },
       otros: { marcela: 0, jonatan: 0 },
     };
-    return { ...c, ...(map[c.id as keyof typeof map] || {}) };
+    return { ...c, ...(map[c.id] || {}) };
   });
-  
+
   const months = { "2026-06": jun };
-  const d = { months, currentKey: "2026-06", mercado: { items: SEED_MARKET_ITEMS, compras: [] }, config: DEFAULT_CONFIG };
+  const d: AppData = {
+    months,
+    currentKey: "2026-06",
+    mercado: { items: SEED_MARKET_ITEMS, compras: [] },
+    config: DEFAULT_CONFIG,
+  };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
   return d;
 }
 
-/**
- * Guarda los datos en localStorage y en Firestore (si está disponible).
- */
-export function saveData(d: AppData) {
-  // Siempre guardar en localStorage como respaldo
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+// ─── CARGA DESDE LEGACY (corpos/shared) — para migración de Jonatan ──────────
 
-  // Guardar en Firestore — JSON.parse/stringify elimina valores undefined que Firestore rechaza
-  if (db) {
-    const [col, docId] = FIRESTORE_DOC.split("/");
-    const sanitized = JSON.parse(JSON.stringify(d));
-    setDoc(doc(db, col, docId), sanitized).catch((e) => console.error("Firestore save error:", e));
+export async function loadLegacyData(): Promise<AppData | null> {
+  if (!db) return null;
+  try {
+    const snap = await getDoc(doc(db, "corpos", "shared"));
+    if (!snap.exists()) return null;
+    const raw = snap.data() as any;
+    if (!raw.months || Object.keys(raw.months).length === 0) return null;
+    const { data } = migrateData(raw);
+    return data;
+  } catch {
+    return null;
   }
 }
 
-/**
- * Se suscribe a los cambios en tiempo real de Firestore.
- * Si Firestore está vacío, empuja los datos locales inicialmente.
- * 
- * @param onData Callback que se ejecuta cuando llegan datos nuevos de Firestore.
- * @param onSyncChange Callback para notificar el estado de la sincronización.
- * @returns Función para cancelar la suscripción (unsubscribe).
- */
-// Detecta si los datos de Firestore están vacíos (sin gastos reales configurados)
+// ─── SAVE (localStorage + Firestore por familia) ─────────────────────────────
+
+export function saveData(d: AppData, familyId?: string | null) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+
+  if (db && familyId) {
+    const sanitized = JSON.parse(JSON.stringify(d));
+    setDoc(doc(db, "families", familyId, "data", "current"), sanitized)
+      .catch((e) => console.error("Firestore save error:", e));
+  }
+}
+
+// ─── SUBSCRIBE TO FIRESTORE (por familia) ────────────────────────────────────
+
 function firestoreIsEmpty(data: AppData): boolean {
   if (!data?.months) return true;
   return Object.values(data.months).every((month: any) => {
-    const hasFamily  = (month.familyExpenses  || []).some((c: any) => (c.marcela || 0) + (c.jonatan || 0) + (c.conjunto || 0) > 0);
-    const hasPersonal = [...(month.personalExpenses?.marcela || []), ...(month.personalExpenses?.jonatan || [])].some((e: any) => e.amount > 0);
-    const hasExtras  = (month.extras || []).length > 0;
-    const hasSalary  = (month.salaries?.marcela || 0) + (month.salaries?.jonatan || 0) > 0;
+    const hasFamily = (month.familyExpenses || []).some(
+      (c: any) => (c.marcela || 0) + (c.jonatan || 0) + (c.conjunto || 0) > 0
+    );
+    const hasPersonal = [
+      ...(month.personalExpenses?.marcela || []),
+      ...(month.personalExpenses?.jonatan || []),
+    ].some((e: any) => e.amount > 0);
+    const hasExtras = (month.extras || []).length > 0;
+    const hasSalary =
+      (month.salaries?.marcela || 0) + (month.salaries?.jonatan || 0) > 0;
     return !hasFamily && !hasPersonal && !hasExtras && !hasSalary;
   });
 }
 
 export function subscribeToFirestore(
+  familyId: string,
   onData: (data: AppData) => void,
   onSyncChange: (synced: boolean) => void
-) {
-  if (!db) {
+): () => void {
+  if (!db || !familyId) {
     onSyncChange(false);
     return () => {};
   }
 
-  const [col, docId] = FIRESTORE_DOC.split("/");
-  const ref = doc(db, col, docId);
-
-  // Primera carga: si Firestore no existe o tiene datos vacíos, empujar datos locales
-  getDoc(ref).then((snap) => {
-    if (!snap.exists() || firestoreIsEmpty(snap.data() as AppData)) {
-      const local = loadData();
-      if (!firestoreIsEmpty(local)) {
-        setDoc(ref, local).catch(console.error);
-      }
-    }
-  });
+  const ref = doc(db, "families", familyId, "data", "current");
 
   // Suscripción a cambios en tiempo real
   const unsub = onSnapshot(
     ref,
     (snap) => {
       if (snap.exists()) {
-        const remote = snap.data() as AppData;
+        let remote = snap.data() as any;
+        let { data, changed } = migrateData(remote);
 
-        // Si Firestore tiene datos vacíos pero localStorage tiene datos reales, rescatar local
-        if (firestoreIsEmpty(remote)) {
+        if (firestoreIsEmpty(data)) {
           const local = loadData();
           if (!firestoreIsEmpty(local)) {
-            setDoc(ref, local).catch(console.error);
+            setDoc(ref, JSON.parse(JSON.stringify(local))).catch(console.error);
             onData(local);
             onSyncChange(true);
             return;
           }
         }
-        let changed = false;
-        if (!remote.mercado || !remote.mercado.items || remote.mercado.items.length === 0) {
-          remote.mercado = { items: SEED_MARKET_ITEMS, compras: remote.mercado?.compras || [] };
-          changed = true;
-        }
-        if (!remote.config) {
-          remote.config = DEFAULT_CONFIG;
-          changed = true;
-        }
-        if (remote.config && !remote.config.paymentMethods) {
-          remote.config.paymentMethods = DEFAULT_PAYMENT_METHODS;
-          changed = true;
-        }
-        if (remote.config && !remote.config.supermarkets) {
-          remote.config.supermarkets = SUPERMARKETS;
-          changed = true;
-        }
-        // Migración: normalizar categoría "Mercado" custom a id canónico 'mercado'
-        // Migración: convertir fondoConjunto { aporteMarcela, aporteJonatan } al nuevo formato con transferencias
-        if (remote.months) {
-          Object.values(remote.months).forEach((month: any) => {
-            if (!month.familyExpenses) return;
-            const hasMercadoId = month.familyExpenses.some((c: any) => c.id === 'mercado');
-            if (!hasMercadoId) {
-              month.familyExpenses = month.familyExpenses.map((c: any) =>
-                c.label?.trim().toLowerCase() === 'mercado' ? { ...c, id: 'mercado' } : c
-              );
-              changed = true;
-            }
-            if (month.fondoConjunto && !Array.isArray(month.fondoConjunto.transferencias)) {
-              const transferencias: any[] = [];
-              if (month.fondoConjunto.aporteMarcela > 0)
-                transferencias.push({ id: `mig_m_${month.key}`, persona: 'marcela', monto: month.fondoConjunto.aporteMarcela, fecha: `${month.key}-01` });
-              if (month.fondoConjunto.aporteJonatan > 0)
-                transferencias.push({ id: `mig_j_${month.key}`, persona: 'jonatan', monto: month.fondoConjunto.aporteJonatan, fecha: `${month.key}-01` });
-              month.fondoConjunto = { transferencias };
-              changed = true;
-            }
-            // Migración: paymentMethodId único → paymentMethodByPerson (uno por cada monto ya dividido)
-            const hasOldPaymentId = month.familyExpenses.some((c: any) => c.paymentMethodId && !c.paymentMethodByPerson);
-            if (hasOldPaymentId) {
-              month.familyExpenses = month.familyExpenses.map((c: any) => {
-                if (!c.paymentMethodId || c.paymentMethodByPerson) return c;
-                const paymentMethodByPerson: Record<string, string> = {};
-                if ((c.marcela  || 0) > 0) paymentMethodByPerson.marcela  = c.paymentMethodId;
-                if ((c.jonatan  || 0) > 0) paymentMethodByPerson.jonatan  = c.paymentMethodId;
-                if ((c.conjunto || 0) > 0) paymentMethodByPerson.conjunto = c.paymentMethodId;
-                const { paymentMethodId, ...rest } = c;
-                return { ...rest, paymentMethodByPerson };
-              });
-              changed = true;
-            }
-          });
-        }
-        if (changed) setDoc(ref, remote).catch(console.error);
 
-        onData(remote);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+        if (changed) setDoc(ref, JSON.parse(JSON.stringify(data))).catch(console.error);
+
+        onData(data);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         onSyncChange(true);
       }
     },

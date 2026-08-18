@@ -1,6 +1,6 @@
 # Plan de mejoras — CorPos APP Gastos
 
-> Última actualización: 2026-06-19
+> Última actualización: 2026-08-18
 > Objetivo: app web estable en producción → migración opcional a React Native cuando tenga sentido.
 
 ---
@@ -12,7 +12,7 @@
 | Fase 1 — Diseño + UX | ✅ Completa |
 | Fase 2 — Medios de pago | ✅ Completa |
 | Fase 3 — Notificaciones + PWA | ✅ Completa |
-| Fase 4 — Auth + datos privados | ⬜ Pendiente |
+| Fase 4 — Auth + datos privados | ✅ Completa |
 | Fase 5 — React Native | ⬜ Pendiente (evaluar si aplica) |
 
 ---
@@ -48,18 +48,25 @@
 
 ---
 
-## Fase 4 — Autenticación y datos privados 🔐
+## ✅ Fase 4 — Autenticación y datos privados 🔐 (2026-08-18)
 
-> Prioridad: alta. Actualmente cualquier persona con la URL puede ver los datos.
+| # | Feature | Estado |
+|---|---------|--------|
+| 4.1 | Firebase Auth con Google login | ✅ `services/auth.ts` — login/logout/escucha auth |
+| 4.2 | Firestore rules por UID + familia | ✅ `firestore.rules` — reglas completas |
+| 4.3 | Pantalla de login + onboarding | ✅ `LoginScreen.tsx` + `OnboardingScreen.tsx` |
+| 4.4 | Soporte multi-familia | ✅ `familyService.ts` — crear/unirse con código |
 
-| # | Feature | Notas |
-|---|---------|-------|
-| 4.1 | Firebase Auth con Google login | Un toque, sin contraseña |
-| 4.2 | Firestore rules por UID | Cada familia ve solo sus datos |
-| 4.3 | Pantalla de login / onboarding | Primera vez que entra un usuario nuevo |
-| 4.4 | Soporte multi-familia | Preparación para abrir la app a otros |
+**Modelo Firestore:**
+```
+users/{uid} → { familyId, displayName, email }
+families/{familyId} → { name, inviteCode }
+  members/{uid} → { role, displayName, joinedAt }
+  data/current → AppData completa
+```
 
-**Meta:** la app puede usarla cualquier pareja o familia con sus propios datos, de forma segura.
+**Migración:** auto-migración desde `corpos/shared` + localStorage en primer login.
+**Pendiente:** eliminar `corpos/shared` después de confirmar migración en producción.
 
 ---
 

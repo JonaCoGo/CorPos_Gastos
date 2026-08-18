@@ -1,58 +1,49 @@
 import { useEffect, useMemo, useState, useCallback, Suspense, lazy } from "react";
 import { Capacitor } from "@capacitor/core";
-import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useRegisterSW } from "virtual:pwa-register/react";
 import { db } from "./firebase";
 import { MONTH_NAMES, SW_LAST_CHECK_KEY } from "./constants";
-import { computeSummary } from './utils/finanzas';
-import { useAppStore } from './store/useAppStore';
-import MainLayout from './layouts/MainLayout';
-import { Toast, AppSkeleton } from './components/ui';
-import { TabMore } from './features/TabMore';
-import { useNotifications } from './hooks/useNotifications';
-import { useOtaUpdate } from './hooks/useOtaUpdate';
+import { computeSummary } from "./utils/finanzas";
+import { useAppStore } from "./store/useAppStore";
+import { onAuthChange } from "./services/auth";
+import { getUserFamilyId, createFamily } from "./services/familyService";
+import { loadLegacyData } from "./services/firestore";
+import MainLayout from "./layouts/MainLayout";
+import { Toast, AppSkeleton } from "./components/ui";
+import { LoginScreen } from "./features/LoginScreen";
+import { OnboardingScreen } from "./features/OnboardingScreen";
+import { TabMore } from "./features/TabMore";
+import { useNotifications } from "./hooks/useNotifications";
+import { useOtaUpdate } from "./hooks/useOtaUpdate";
 
-// autoUpdate: SW se actualiza en silencio, sin banner ni botón.
-// Ojo: el navegador solo revisa si hay SW nuevo cuando algo se lo pide — una PWA
-// instalada en el celular casi nunca hace esa revisión sola (se "reanuda", no navega).
-// Por eso forzamos el chequeo cada hora y cada vez que se reabre la app.
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
-// El registro del service worker vive en un componente aparte que solo se monta
-// en la web: dentro de la app nativa (Android) el WebView de Capacitor también
-// soporta service workers, y uno registrado ahí interceptaría los assets viejos
-// por encima de las actualizaciones en caliente de CapacitorUpdater.
 function PwaUpdater() {
   useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
-
       const checkForUpdate = () => {
         localStorage.setItem(SW_LAST_CHECK_KEY, new Date().toISOString());
         registration.update().catch(() => {});
       };
-
-      // Revisión inmediata al registrar el SW, y luego periódica
       checkForUpdate();
       setInterval(checkForUpdate, SW_UPDATE_CHECK_INTERVAL_MS);
-
-      // Revisión inmediata al volver a primer plano (reabrir desde el celular) —
-      // el momento en el que más probablemente se perdió una actualización.
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') checkForUpdate();
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") checkForUpdate();
       });
     },
   });
   return null;
 }
 
-const TabDashboard        = lazy(() => import('./features/TabDashboard').then(m => ({ default: m.TabDashboard })));
-const TabFamilyExpenses   = lazy(() => import('./features/TabFamilyExpenses').then(m => ({ default: m.TabFamilyExpenses })));
-const TabPersonalExpenses = lazy(() => import('./features/TabPersonalExpenses').then(m => ({ default: m.TabPersonalExpenses })));
-const TabSalaries         = lazy(() => import('./features/TabSalaries').then(m => ({ default: m.TabSalaries })));
-const TabHistory          = lazy(() => import('./features/TabHistory').then(m => ({ default: m.TabHistory })));
-const TabExtras           = lazy(() => import('./features/TabExtras').then(m => ({ default: m.TabExtras })));
-const TabMercado          = lazy(() => import('./features/TabMercado').then(m => ({ default: m.TabMercado })));
-const TabSettings         = lazy(() => import('./features/TabSettings').then(m => ({ default: m.TabSettings })));
+const TabDashboard        = lazy(() => import("./features/TabDashboard").then((m) => ({ default: m.TabDashboard })));
+const TabFamilyExpenses   = lazy(() => import("./features/TabFamilyExpenses").then((m) => ({ default: m.TabFamilyExpenses })));
+const TabPersonalExpenses = lazy(() => import("./features/TabPersonalExpenses").then((m) => ({ default: m.TabPersonalExpenses })));
+const TabSalaries         = lazy(() => import("./features/TabSalaries").then((m) => ({ default: m.TabSalaries })));
+const TabHistory          = lazy(() => import("./features/TabHistory").then((m) => ({ default: m.TabHistory })));
+const TabExtras           = lazy(() => import("./features/TabExtras").then((m) => ({ default: m.TabExtras })));
+const TabMercado          = lazy(() => import("./features/TabMercado").then((m) => ({ default: m.TabMercado })));
+const TabSettings         = lazy(() => import("./features/TabSettings").then((m) => ({ default: m.TabSettings })));
 
 export default function App() {
   useOtaUpdate();
@@ -60,7 +51,8 @@ export default function App() {
   const data   = useAppStore((s) => s.data);
   const tab    = useAppStore((s) => s.tab);
   const synced = useAppStore((s) => s.synced);
-
+  const user   = useAppStore((s) => s.user);
+  const familyId = useAppStore((s) => s.familyId);
   const setTab               = useAppStore((s) => s.setTab);
   const updateMercado        = useAppStore((s) => s.updateMercado);
   const updateMonth          = useAppStore((s) => s.updateMonth);
@@ -69,56 +61,187 @@ export default function App() {
   const deleteMonth          = useAppStore((s) => s.deleteMonth);
   const checkAndAdvanceMonth = useAppStore((s) => s.checkAndAdvanceMonth);
   const initFirestoreSync    = useAppStore((s) => s.initFirestoreSync);
+  const setAuth              = useAppStore((s) => s.setAuth);
+  const setFamilyId          = useAppStore((s) => s.setFamilyId);
 
   const [toast, setToast] = useState<string | null>(null);
   const showToast = useCallback((msg: string) => setToast(msg), []);
 
-  useEffect(() => { checkAndAdvanceMonth(); }, [data.currentKey, checkAndAdvanceMonth]);
-  useEffect(() => { const unsub = initFirestoreSync(); return () => unsub(); }, [initFirestoreSync]);
+  // ── Auth listener ───────────────────────────────────────────────────────
+  const [authLoading, setAuthLoading] = useState(true);
+  const [legacyData, setLegacyData] = useState<any>(null);
 
+  useEffect(() => {
+    const unsub = onAuthChange(async (firebaseUser) => {
+      if (firebaseUser) {
+        const fId = await getUserFamilyId(firebaseUser.uid);
+
+        // Auto-crear familia si hay datos en localStorage o corpos/shared
+        if (!fId) {
+          // Verificar si hay datos locales significativos en el store actual
+          const hasLocalData = useAppStore.getState().hasLegacyData();
+
+          if (hasLocalData) {
+            const localData = useAppStore.getState().data;
+            const newFamilyId = await createFamily(
+              firebaseUser.uid,
+              "Mi familia",
+              firebaseUser.displayName || "Sin nombre",
+              firebaseUser.email || "",
+              localData
+            );
+            setAuth(firebaseUser, newFamilyId);
+          } else {
+            // Intentar cargar de corpos/shared (legacy)
+            const legacy = await loadLegacyData();
+            if (legacy) {
+              setLegacyData(legacy);
+            }
+            setAuth(firebaseUser, null);
+          }
+        } else {
+          setAuth(firebaseUser, fId);
+        }
+      } else {
+        setAuth(null, null);
+      }
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, [setAuth]);
+
+  // ── Firestore sync (solo cuando hay familyId) ───────────────────────────
+  useEffect(() => {
+    if (!familyId) return;
+    const unsub = initFirestoreSync();
+    return () => unsub();
+  }, [familyId, initFirestoreSync]);
+
+  // ── Auto-advance month ──────────────────────────────────────────────────
+  useEffect(() => {
+    checkAndAdvanceMonth();
+  }, [data.currentKey, checkAndAdvanceMonth]);
+
+  // ── Onboarding: crear familia ───────────────────────────────────────────
+  const handleOnboardingDone = useCallback((newFamilyId: string) => {
+    setFamilyId(newFamilyId);
+    setLegacyData(null);
+  }, [setFamilyId]);
+
+  // ── Notifications ───────────────────────────────────────────────────────
   const currentMonth = data.months[data.currentKey];
 
-  const summary = useMemo(() =>
-    currentMonth ? computeSummary({ ...currentMonth, mercado: data.mercado }) : null,
+  const summary = useMemo(
+    () => (currentMonth ? computeSummary({ ...currentMonth, mercado: data.mercado }) : null),
     [currentMonth, data.mercado]
   );
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>(
-    'Notification' in window ? Notification.permission : 'denied'
+    "Notification" in window ? Notification.permission : "denied"
   );
   useNotifications(currentMonth ?? null, data.mercado ?? null, notifPermission);
 
   const syncStatus = !db ? "offline" : synced ? "synced" : "connecting";
-  const monthLabel = currentMonth ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}` : "";
-
+  const monthLabel = currentMonth
+    ? `${MONTH_NAMES[currentMonth.month]} ${currentMonth.year}`
+    : "";
   const isNative = Capacitor.isNativePlatform();
 
-  if (!currentMonth) return (
-    <>
-      {!isNative && <PwaUpdater />}
-      <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel="">
-        <AppSkeleton />
-      </MainLayout>
-    </>
-  );
+  // ── Auth loading ────────────────────────────────────────────────────────
+  if (authLoading) {
+    return (
+      <>
+        {!isNative && <PwaUpdater />}
+        <MainLayout tab="dashboard" setTab={setTab} syncStatus="connecting" monthLabel="">
+          <AppSkeleton />
+        </MainLayout>
+      </>
+    );
+  }
 
-  const withToast = (fn: (d: typeof currentMonth) => void, msg: string) =>
-    (d: typeof currentMonth) => { fn(d); showToast(msg); };
+  // ── Login screen ────────────────────────────────────────────────────────
+  if (!user) {
+    return (
+      <>
+        {!isNative && <PwaUpdater />}
+        <LoginScreen />
+      </>
+    );
+  }
+
+  // ── Onboarding screen ───────────────────────────────────────────────────
+  if (!familyId) {
+    return (
+      <>
+        {!isNative && <PwaUpdater />}
+        <OnboardingScreen
+          user={user}
+          existingData={legacyData}
+          onDone={handleOnboardingDone}
+        />
+      </>
+    );
+  }
+
+  // ── App normal ──────────────────────────────────────────────────────────
+  if (!currentMonth) {
+    return (
+      <>
+        {!isNative && <PwaUpdater />}
+        <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel="">
+          <AppSkeleton />
+        </MainLayout>
+      </>
+    );
+  }
+
+  const withToast =
+    (fn: (d: typeof currentMonth) => void, msg: string) =>
+    (d: typeof currentMonth) => {
+      fn(d);
+      showToast(msg);
+    };
 
   const renderTab = () => {
     switch (tab) {
       case "dashboard":
         return <TabDashboard monthData={currentMonth} summary={summary!} mercado={data.mercado} />;
       case "family":
-        return <TabFamilyExpenses monthData={currentMonth} mercado={data.mercado || { items: [], compras: [] }} onUpdate={withToast(updateMonth, "Gasto del hogar guardado")} />;
+        return (
+          <TabFamilyExpenses
+            monthData={currentMonth}
+            mercado={data.mercado || { items: [], compras: [] }}
+            onUpdate={withToast(updateMonth, "Gasto del hogar guardado")}
+          />
+        );
       case "extras":
-        return <TabExtras monthData={currentMonth} onUpdate={withToast(updateMonth, "Gasto extra guardado")} />;
+        return (
+          <TabExtras
+            monthData={currentMonth}
+            onUpdate={withToast(updateMonth, "Gasto extra guardado")}
+          />
+        );
       case "mercado":
-        return <TabMercado mercado={data.mercado || { items: [], compras: [] }} onUpdate={updateMercado} />;
+        return (
+          <TabMercado
+            mercado={data.mercado || { items: [], compras: [] }}
+            onUpdate={updateMercado}
+          />
+        );
       case "personal":
-        return <TabPersonalExpenses monthData={currentMonth} onUpdate={withToast(updateMonth, "Gasto personal guardado")} />;
+        return (
+          <TabPersonalExpenses
+            monthData={currentMonth}
+            onUpdate={withToast(updateMonth, "Gasto personal guardado")}
+          />
+        );
       case "salaries":
-        return <TabSalaries monthData={currentMonth} onUpdate={withToast(updateMonth, "Salarios guardados")} />;
+        return (
+          <TabSalaries
+            monthData={currentMonth}
+            onUpdate={withToast(updateMonth, "Salarios guardados")}
+          />
+        );
       case "history":
         return (
           <TabHistory
@@ -131,7 +254,7 @@ export default function App() {
           />
         );
       case "settings":
-        return <TabSettings onPermissionGranted={() => setNotifPermission('granted')} />;
+        return <TabSettings onPermissionGranted={() => setNotifPermission("granted")} />;
       case "more":
         return <TabMore onGoTo={setTab} />;
       default:
@@ -143,9 +266,7 @@ export default function App() {
     <>
       {!isNative && <PwaUpdater />}
       <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
-        <Suspense fallback={<AppSkeleton />}>
-          {renderTab()}
-        </Suspense>
+        <Suspense fallback={<AppSkeleton />}>{renderTab()}</Suspense>
         {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       </MainLayout>
     </>

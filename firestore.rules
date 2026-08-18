@@ -1,8 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /corpos/{document} {
-      allow read, write: if true;
+
+    // ─── USERS ────────────────────────────────────────────────────────────────
+    // Cada usuario lee y escribe únicamente su propio documento.
+    match /users/{uid} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid;
+    }
+
+    // ─── FAMILIES ─────────────────────────────────────────────────────────────
+    match /families/{familyId} {
+      // Leer familia: solo miembros autenticados de esa familia.
+      allow read: if request.auth != null
+                  && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+
+      // Crear familia: cualquier usuario autenticado puede crear una (se auto-asigna admin).
+      allow create: if request.auth != null;
+
+      // Actualizar familia (inviteCode, nombre): solo miembros.
+      allow update: if request.auth != null
+                    && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+
+      // ─── MEMBERS ──────────────────────────────────────────────────────────
+      match /members/{memberUid} {
+        // Leer: cualquier miembro de la familia puede ver la lista de miembros.
+        allow read: if request.auth != null
+                    && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+
+        // Crear (unirse): cualquier usuario autenticado puede unirse si tiene un código válido.
+        // La validación del código se hace en la app (Cloud Functions sería ideal pero no aplica aquí).
+        allow create: if request.auth != null
+                      && request.auth.uid == memberUid;
+
+        // Eliminar miembro: solo el admin puede expulsar (no puede expulsarse a sí mismo desde aquí).
+        allow delete: if request.auth != null
+                      && get(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)).data.role == 'admin'
+                      && request.auth.uid != memberUid;
+      }
+
+      // ─── DATA ─────────────────────────────────────────────────────────────
+      match /data/{docId} {
+        allow read, write: if request.auth != null
+                           && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+      }
+    }
+
+    // ─── LEGACY: corpos/shared (backup temporal, solo lectura para migración) ─
+    // Se puede eliminar después de confirmar que la migración funcionó.
+    match /corpos/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
   }
 }

@@ -11,7 +11,8 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 | Frontend | React 18 + TypeScript (strict) |
 | Build | Vite |
 | Estado global | Zustand |
-| Backend/DB | Firebase Firestore (tiempo real) |
+| Auth | Firebase Auth (Google login) |
+| Backend/DB | Firebase Firestore (tiempo real, por familia) |
 | Persistencia local | localStorage (respaldo offline) |
 | PWA (web) | vite-plugin-pwa (generateSW, workbox) |
 | App Android nativa | Capacitor (`android/`) — mismo código React envuelto en WebView |
@@ -26,8 +27,12 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 - **`utils/finanzas.ts`**: Lógica de negocio pura sin dependencias React ni Firebase. Reutilizable en React Native.
 - **`components/ui/`**: Primitivas UI: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Toast`, `PaymentChips`. Exportadas desde `index.ts`.
 - **`features/`**: Vistas por pestaña — `TabDashboard`, `TabFamilyExpenses`, `TabPersonalExpenses`, `TabSalaries`, `TabHistory`, `TabExtras`, `TabMercado`, `TabMore`, `TabSettings`.
-- **`services/firestore.ts`**: `loadData` (carga con migraciones), `saveData` (localStorage + Firestore), `subscribeToFirestore` (suscripción en tiempo real).
-- **`store/useAppStore.ts`**: Store Zustand con estado global y acciones.
+- **`services/auth.ts`**: Login/logout con Google (`loginWithGoogle`, `logout`, `onAuthChange`).
+- **`services/familyService.ts`**: Crear familia (`createFamily`), unirse con código (`joinFamily`), regenerar código (`regenerateInviteCode`).
+- **`services/firestore.ts`**: `loadData` (carga con migraciones), `saveData` (localStorage + Firestore por familia), `subscribeToFirestore` (suscripción en tiempo real), `loadLegacyData` (migración desde `corpos/shared`).
+- **`features/LoginScreen.tsx`**: Pantalla de login con botón Google.
+- **`features/OnboardingScreen.tsx`**: Onboarding: crear familia (con nombre configurable) o unirse con código de invitación.
+- **`store/useAppStore.ts`**: Store Zustand con estado global (user, familyId, data) y acciones.
 - **`hooks/useNotifications.ts`**: Lógica de notificaciones push (Web Notifications API).
 - **`App.tsx`**: Enrutador de pestañas + banner de actualización PWA (`useRegisterSW`).
 - **`layouts/MainLayout.tsx`**: Layout con header y bottom nav de 5 tabs + "⋯ Más".
@@ -77,13 +82,15 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 4. No exponer credenciales ni rutas internas al cliente.
 5. Commits con formato `tipo(app-gastos): descripción`.
 
-## Estado actual (2026-06-30)
+## Estado actual (2026-08-18)
 
 - **Producción estable** en https://corpos-gastos.vercel.app/
-- **0 errores TypeScript**. Build limpio en ~3s.
+- **0 errores TypeScript**. Build limpio en ~4s.
+- **Firebase Auth (Google login)** + Firestore por familia — datos aislados por hogar.
 - PWA instalada en Android (Chrome) e iPhone (Safari).
-- Firestore sincronizando en tiempo real. Offline funcional vía localStorage.
+- Firestore sincronizando en tiempo real por familia. Offline funcional vía localStorage.
 - Actualizaciones automáticas: banner "🔄 Nueva versión disponible" aparece sin reinstalar la app.
+- Múltiples familias: cada familia tiene sus propios datos, invite code para unirse.
 
 ## Funcionalidades completas
 
@@ -121,8 +128,12 @@ App web de gestión financiera personal y familiar para Marcela y Jonatan. Cubre
 ### Configuración
 - Nombres de cada persona
 - Medios de pago (CRUD con color, tipo y titular)
+- Supermercados (CRUD + quick-add desde Mercado)
 - Activar notificaciones
 - Reset de compras del mercado
+- **Compartir familia**: código de invitación de 6 caracteres (regenerable)
+- **Cerrar sesión**: botón de logout en Ajustes
+- **Versión de la app**: fecha de build + última revisión de actualización
 
 ## Plan de mejoras
 
@@ -131,6 +142,54 @@ Ver [`PLAN_MEJORAS.md`](./PLAN_MEJORAS.md).
 ---
 
 ## Historial de cambios
+
+### [2026-08-18] — Firebase Auth + Firestore por familia (Fase 4)
+
+**Problema:** Firestore estaba completamente abierto (`allow read, write: if true`). Cualquier persona con la URL podía leer, modificar o borrar todos los datos financieros (salarios, gastos, nombres reales). La Fase 4 del PLAN_MEJORAS estaba pendiente desde el inicio.
+
+**Decisión arquitectónica (confirmada con Jonatan):**
+- Login con Google (un toque, sin contraseña).
+- Modelo multi-familia: cada familia tiene sus datos aislados en Firestore.
+- Código de invitación de 6 caracteres para agregar miembros.
+- Migración automática de datos existentes (`corpos/shared`) al primer login.
+- Nombre de familia configurable desde el onboarding.
+
+**Archivos creados:**
+- `src/services/auth.ts` — Login/logout con Google (`loginWithGoogle`, `logout`, `onAuthChange`).
+- `src/services/familyService.ts` — Crear familia (`createFamily`), unirse con código (`joinFamily`), regenerar código (`regenerateInviteCode`).
+- `src/features/LoginScreen.tsx` — Pantalla de login con botón Google.
+- `src/features/OnboardingScreen.tsx` — Onboarding: crear familia (con nombre) o unirse con código.
+
+**Archivos modificados:**
+- `src/firebase.ts` — Exporta `app` (antes solo exportaba `db`).
+- `src/services/firestore.ts` — Reescrito: rutas por `families/{familyId}/data/current`, `loadLegacyData()` para migración, `createInitialData()` para familias nuevas.
+- `src/store/useAppStore.ts` — Agrega `user`, `familyId`, `authReady` al estado; `saveData` pasa `familyId`; `initFirestoreSync` requiere `familyId`.
+- `src/App.tsx` — Wrapper auth: LoginScreen → OnboardingScreen → app normal. Auto-crea familia si hay datos en localStorage.
+- `src/features/TabSettings.tsx` — Cards "Compartir familia" (invite code + copiar + regenerar) y "Cerrar sesión" (logout + info de usuario).
+- `firestore.rules` — Reglas completas por UID/familia: usuarios solo ven su doc, familias solo ven sus datos, miembros ven members, `corpos/shared` de solo lectura temporal.
+
+**Modelo Firestore nuevo:**
+```
+users/{uid} → { familyId, displayName, email }
+families/{familyId} → { name, createdAt, createdBy, inviteCode }
+  members/{uid} → { role: 'admin'|'member', displayName, joinedAt }
+  data/current → AppData completa (mismo modelo, cero cambios en types)
+```
+
+**Migración de datos existentes:**
+- Primer login de Jonatan: detecta `corpos/shared` o datos en localStorage → crea familia con esos datos.
+- `corpos/shared` queda como backup de solo lectura temporal (reglas: `allow read: if request.auth != null; allow write: if false;`).
+- Marcela: se le comparte el código de invitación → se une a la misma familia.
+- Hermano: crea su propia familia independiente con sus propios datos.
+
+**Flujo de usuario:**
+1. Sin sesión → LoginScreen (botón Google)
+2. Con sesión, sin familia → OnboardingScreen (crear familia con nombre, o unirse con código)
+3. Con sesión + familia → App normal ( Firestore por familia)
+
+**Lo que NO cambió:** types, utils/finanzas.ts, todos los features (tabs), UI completa.
+
+**Verificado:** `npx tsc --noEmit` limpio, `npm run build` exitoso (~4s), bundle principal ~654KB (Firebase Auth agregado).
 
 ### [2026-08-03] — Conversión de unidades lb/kg en cantidad de Mercado
 
@@ -218,9 +277,9 @@ QA manual en navegador: card renderiza correctamente, muestra fecha de build y "
 - QA manual en navegador (datos reales de producción): agregado "Justo y Bueno" desde Mercado, confirmado que aparece también en Ajustes, eliminado tras validar.
 - `0 errores TypeScript`, build de producción verificado.
 
-### [2026-08-03] — Instancia separada para otra familia (sin multi-usuario)
+### [2026-08-03] — Instancia separada para otra familia (OBSOLETO — ver Fase 4 del 2026-08-18)
 
-Jonatan quiere compartir la app con su hermano y su esposa sin mezclar datos. Se descartó multi-usuario con Auth (sobre-ingeniería para 2 hogares conocidos, no un producto para terceros desconocidos) a favor de **desplegar una segunda instancia independiente** del mismo código: proyecto de Firebase propio + proyecto de Vercel propio, cada uno con su `.env` distinto (`firebase.ts` ya lee todo de `import.meta.env.VITE_FIREBASE_*`, cero cambios de código necesarios). Ver guía de despliegue en `docs/`.
+**Esta funcionalidad fue reemplazada por el sistema de familias con Firebase Auth (Fase 4).** Ya no es necesario desplegar instancias separadas — cada familia tiene sus datos aislados en Firestore bajo `families/{familyId}/data/current`. La guía en `docs/DESPLIEGUE_INSTANCIA_SEPARADA.md` queda como referencia histórica.
 
 ### [2026-08-03] — Medios de pago independientes por persona (Gastos del hogar + Mercado)
 
