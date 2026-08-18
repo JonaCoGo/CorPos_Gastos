@@ -12,6 +12,17 @@ Reemplaza el intento de PWA instalable. Mismo código React/Vite, envuelto con [
 
 **Importante:** el service worker/PWA (`vite-plugin-pwa`) sigue existiendo para quien use la app desde el navegador normal (`corpos-gastos.vercel.app`), pero se desactiva por código dentro de la app Android (`App.tsx`, componente `PwaUpdater` solo se monta si `!Capacitor.isNativePlatform()`) — un service worker registrado ahí interceptaría los archivos viejos por encima de las actualizaciones en caliente.
 
+## Auth en Capacitor
+
+La app usa Firebase Auth con Google login. En el navegador se usa `signInWithPopup` (abre una ventana emergente), pero en Capacitor/WebView el popup no funciona — se usa `signInWithRedirect` en su lugar. Esto significa:
+
+1. Al tocar "Entrar con Google", la app navega a la pantalla de Google (no abre popup).
+2. El usuario elige su cuenta de Google.
+3. Google redirige de vuelta a la app.
+4. La app procesa el resultado del redirect y continúa.
+
+**Dominios autorizados:** el dominio de la app (`corpos-gastos.vercel.app`) DEBE estar en la lista de dominios autorizados de Firebase Console → Authentication → Configuración → Dominios autorizados.
+
 ## Requisitos para compilar (una sola vez)
 
 1. Instalar **Android Studio** (incluye el JDK y el Android SDK — no hace falta instalarlos aparte): [developer.android.com/studio](https://developer.android.com/studio)
