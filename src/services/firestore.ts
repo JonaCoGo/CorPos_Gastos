@@ -164,16 +164,18 @@ export function loadData(familyId?: string): AppData {
 
 // ─── SAVE (localStorage + Firestore por familia) ─────────────────────────────
 
-export function saveData(d: AppData, familyId?: string | null) {
+export function saveData(d: AppData, familyId?: string | null): Promise<void> {
   if (familyId) {
     localStorage.setItem(familyStorageKey(familyId), JSON.stringify(d));
   }
 
   if (db && familyId) {
     const sanitized = JSON.parse(JSON.stringify(d));
-    setDoc(doc(db, "families", familyId, "data", "current"), sanitized)
+    return setDoc(doc(db, "families", familyId, "data", "current"), sanitized)
       .catch((e) => console.error("Firestore save error:", e));
   }
+
+  return Promise.resolve();
 }
 
 // ─── SUBSCRIBE TO FIRESTORE (por familia) ────────────────────────────────────

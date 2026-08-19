@@ -37,7 +37,7 @@ interface AppState {
   // ── Data actions ──────────────────────────────────────────────────────────
   updateMercado: (mercado: Mercado) => void;
   resetMercadoCompras: () => void;
-  resetAllData: () => void;
+  resetAllData: () => Promise<void>;
   updateConfig: (config: AppConfig) => void;
   updateMonth: (updatedMonth: MonthData) => void;
   selectMonth: (key: string) => void;
@@ -102,11 +102,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveData(newData, familyId);
   },
 
-  resetAllData: () => {
+  resetAllData: async () => {
     const { familyId } = get();
     const newData = createInitialData();
     set({ data: newData });
-    saveData(newData, familyId);
+    await saveData(newData, familyId);
   },
 
   updateConfig: (config) => {

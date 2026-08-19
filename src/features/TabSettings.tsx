@@ -127,8 +127,12 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
 
   const handleReset = () => { resetMercadoCompras(); setConfirmReset(false); };
 
-  const handleResetAll = () => {
-    resetAllData();
+  const handleResetAll = async () => {
+    await resetAllData();
+    // Limpiar localStorage de esta familia para que al recargar no se carguen datos viejos
+    if (familyId) {
+      localStorage.removeItem(`corpos_budget_v6_${familyId}`);
+    }
     setConfirmResetAll(false);
     setResetAllInput("");
     window.location.reload();
