@@ -1,6 +1,6 @@
 import { db } from "../firebase";
 import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
-import { STORAGE_KEY, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
+import { STORAGE_KEY, familyStorageKey, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
 import { createEmptyMonth } from "../utils/finanzas";
 import { AppData, AppConfig, PaymentMethod } from "../types/models";
 
@@ -114,13 +114,19 @@ export function createInitialData(): AppData {
 
 // ─── CARGA DESDE LOCALSTORAGE ────────────────────────────────────────────────
 
-export function loadData(): AppData {
+/**
+ * Carga datos desde localStorage.
+ * - Con familyId: carga datos scoped a esa familia (aislamiento multi-familia)
+ * - Sin familyId (init): intenta migrar desde la clave legacy unscoped
+ */
+export function loadData(familyId?: string): AppData {
+  const key = familyId ? familyStorageKey(familyId) : STORAGE_KEY;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
       const { data, changed } = migrateData(parsed);
-      if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      if (changed) localStorage.setItem(key, JSON.stringify(data));
       return data;
     }
   } catch (e) {
@@ -152,7 +158,7 @@ export function loadData(): AppData {
     mercado: { items: SEED_MARKET_ITEMS, compras: [] },
     config: DEFAULT_CONFIG,
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  localStorage.setItem(key, JSON.stringify(d));
   return d;
 }
 
@@ -175,7 +181,9 @@ export async function loadLegacyData(): Promise<AppData | null> {
 // ─── SAVE (localStorage + Firestore por familia) ─────────────────────────────
 
 export function saveData(d: AppData, familyId?: string | null) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  if (familyId) {
+    localStorage.setItem(familyStorageKey(familyId), JSON.stringify(d));
+  }
 
   if (db && familyId) {
     const sanitized = JSON.parse(JSON.stringify(d));
@@ -214,6 +222,7 @@ export function subscribeToFirestore(
   }
 
   const ref = doc(db, "families", familyId, "data", "current");
+  const scopedKey = familyStorageKey(familyId);
 
   // Suscripción a cambios en tiempo real
   const unsub = onSnapshot(
@@ -224,7 +233,8 @@ export function subscribeToFirestore(
         let { data, changed } = migrateData(remote);
 
         if (firestoreIsEmpty(data)) {
-          const local = loadData();
+          // Firestore vacío: intentar cargar desde localStorage SCOPED a esta familia
+          const local = loadData(familyId);
           if (!firestoreIsEmpty(local)) {
             setDoc(ref, JSON.parse(JSON.stringify(local))).catch(console.error);
             onData(local);
@@ -236,7 +246,7 @@ export function subscribeToFirestore(
         if (changed) setDoc(ref, JSON.parse(JSON.stringify(data))).catch(console.error);
 
         onData(data);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.setItem(scopedKey, JSON.stringify(data));
         onSyncChange(true);
       }
     },

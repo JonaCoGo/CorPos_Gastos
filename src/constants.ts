@@ -3,6 +3,14 @@ export const STORAGE_KEY = "corpos_budget_v6";
 export const FIRESTORE_DOC = "corpos/shared";
 export const SW_LAST_CHECK_KEY = "corpos_sw_last_check";
 
+/**
+ * Genera la clave de localStorage scoped por familia.
+ * Cada familia tiene su propio espacio de almacenamiento local.
+ */
+export function familyStorageKey(familyId: string): string {
+  return `${STORAGE_KEY}_${familyId}`;
+}
+
 // ─── DEFAULT DATA ─────────────────────────────────────────────────────────────
 export const defaultPersonalExpenses = {
   jonatan: [],

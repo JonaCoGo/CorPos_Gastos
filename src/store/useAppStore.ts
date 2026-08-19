@@ -67,7 +67,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Auth actions ──────────────────────────────────────────────────────────
 
   setAuth: (user, familyId) => {
-    set({ user, familyId, authReady: true });
+    // Si hay familyId, cargar datos scoped a esa familia desde localStorage
+    // Esto evita que datos de otra familia (en la misma clave legacy) se mezclen
+    if (familyId) {
+      const scopedData = loadData(familyId);
+      set({ user, familyId, authReady: true, data: scopedData });
+    } else {
+      set({ user, familyId, authReady: true });
+    }
   },
 
   setFamilyId: (familyId) => {

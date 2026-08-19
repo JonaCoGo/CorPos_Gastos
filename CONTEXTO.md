@@ -142,6 +142,7 @@ families/{familyId}
 ## Changelog reciente
 
 - **2026-08-18**: Corregido bug de unión a familia — reglas Firestore permitían leer `families` solo a miembros, bloqueando el lookup por `inviteCode` para nuevos usuarios. Ahora cualquier autenticado puede leer la colección `families`.
+- **2026-08-19**: Corregido bug crítico de aislamiento — localStorage usaba una sola clave (`corpos_budget_v6`) para todas las familias, permitiendo que datos de una familia se sincronizaran al Firestore de otra. Ahora cada familia tiene su propio espacio de localStorage (`corpos_budget_v6_{familyId}`).
 
 ## Reglas de trabajo
 
