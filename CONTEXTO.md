@@ -86,8 +86,8 @@ families/{familyId}
 ## Reglas Firestore
 
 - `users/{uid}`: cada usuario lee/escribe solo su documento
-- `families/{familyId}`: solo miembros autenticados pueden leer
-- `families/{familyId}/members/{uid}`: admin puede eliminar miembros
+- `families/{familyId}`: cualquier usuario autenticado puede leer (necesario para buscar por inviteCode); solo miembros pueden actualizar
+- `families/{familyId}/members/{uid}`: cualquier autenticado puede crear su propio doc de miembro; admin puede eliminar miembros
 - `families/{familyId}/data/current`: solo miembros pueden leer/escribir
 - `corpos/{docId}`: solo lectura (backup temporal de datos legacy)
 
@@ -138,6 +138,10 @@ families/{familyId}
 - **Migraciones inline**: cuando cambia un modelo (ej. `paymentMethodId` → `paymentMethodByPerson`), se detecta al cargar y se transforma automáticamente
 - **Doble persistencia**: localStorage (offline + inmediato) + Firestore (sync en tiempo real por familia)
 - **OTA updates**: el build genera un bundle zip que se sirve desde Vercel; Capacitor lo descarga y aplica sin reinstalar
+
+## Changelog reciente
+
+- **2026-08-18**: Corregido bug de unión a familia — reglas Firestore permitían leer `families` solo a miembros, bloqueando el lookup por `inviteCode` para nuevos usuarios. Ahora cualquier autenticado puede leer la colección `families`.
 
 ## Reglas de trabajo
 

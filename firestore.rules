@@ -11,9 +11,9 @@ service cloud.firestore {
 
     // ─── FAMILIES ─────────────────────────────────────────────────────────────
     match /families/{familyId} {
-      // Leer familia: solo miembros autenticados de esa familia.
-      allow read: if request.auth != null
-                  && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+      // Leer familia: cualquier usuario autenticado puede leer (necesario para buscar por inviteCode al unirse).
+      // Solo expone nombre, createdAt, createdBy e inviteCode — nada sensible.
+      allow read: if request.auth != null;
 
       // Crear familia: cualquier usuario autenticado puede crear una (se auto-asigna admin).
       allow create: if request.auth != null;
