@@ -1,8 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
-import { AppData } from "../types/models";
-import { SEED_MARKET_ITEMS } from "../constants";
-import { createEmptyMonth } from "../utils/finanzas";
+import { createInitialData } from "./firestore";
 
 // ─── IDs y códigos ───────────────────────────────────────────────────────────
 
@@ -20,35 +18,13 @@ function generateInviteCode(): string {
   return code;
 }
 
-// ─── Datos iniciales vacíos (sin semilla de Junio 2026) ──────────────────────
-
-function createInitialData(): AppData {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const key = `${year}-${String(month).padStart(2, "0")}`;
-  const emptyMonth = createEmptyMonth(year, month);
-  return {
-    months: { [key]: emptyMonth },
-    currentKey: key,
-    mercado: { items: SEED_MARKET_ITEMS, compras: [] },
-    config: {
-      marcelaName: "",
-      jonatanName: "",
-      paymentMethods: [],
-      supermarkets: [],
-    },
-  };
-}
-
-// ─── Crear familia (con migración de datos existentes) ────────────────────────
+// ─── Crear familia ─────────────────────────────────────────────────────────
 
 export async function createFamily(
   uid: string,
   familyName: string,
   displayName: string,
-  email: string,
-  existingData?: AppData | null
+  email: string
 ): Promise<string> {
   const familyId = generateFamilyId();
   const inviteCode = generateInviteCode();
@@ -75,9 +51,8 @@ export async function createFamily(
   });
   await batch1.commit();
 
-  // Paso 2: Guardar datos (ahora el member doc ya existe, las rules lo permiten)
-  const data = existingData ?? createInitialData();
-  await setDoc(doc(db, "families", familyId, "data", "current"), data);
+  // Paso 2: Guardar datos vacíos (ahora el member doc ya existe, las rules lo permiten)
+  await setDoc(doc(db, "families", familyId, "data", "current"), createInitialData());
 
   return familyId;
 }

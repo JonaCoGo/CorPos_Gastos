@@ -1,5 +1,5 @@
 import { db } from "../firebase";
-import { doc, onSnapshot, setDoc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { STORAGE_KEY, familyStorageKey, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
 import { createEmptyMonth } from "../utils/finanzas";
 import { AppData, AppConfig, PaymentMethod } from "../types/models";
@@ -160,22 +160,6 @@ export function loadData(familyId?: string): AppData {
   };
   localStorage.setItem(key, JSON.stringify(d));
   return d;
-}
-
-// ─── CARGA DESDE LEGACY (corpos/shared) — para migración de Jonatan ──────────
-
-export async function loadLegacyData(): Promise<AppData | null> {
-  if (!db) return null;
-  try {
-    const snap = await getDoc(doc(db, "corpos", "shared"));
-    if (!snap.exists()) return null;
-    const raw = snap.data() as any;
-    if (!raw.months || Object.keys(raw.months).length === 0) return null;
-    const { data } = migrateData(raw);
-    return data;
-  } catch {
-    return null;
-  }
 }
 
 // ─── SAVE (localStorage + Firestore por familia) ─────────────────────────────

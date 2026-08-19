@@ -1,22 +1,18 @@
 import { useState } from "react";
 import { createFamily, joinFamily } from "../services/familyService";
 import { AuthUser } from "../services/auth";
-import { AppData } from "../types/models";
 
 interface OnboardingScreenProps {
   user: AuthUser;
-  existingData: AppData | null;
   onDone: (familyId: string) => void;
 }
 
-export function OnboardingScreen({ user, existingData, onDone }: OnboardingScreenProps) {
+export function OnboardingScreen({ user, onDone }: OnboardingScreenProps) {
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
   const [familyName, setFamilyName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const hasExistingData = existingData && Object.keys(existingData.months || {}).length > 0;
 
   const handleCreate = async () => {
     if (!familyName.trim()) return;
@@ -27,8 +23,7 @@ export function OnboardingScreen({ user, existingData, onDone }: OnboardingScree
         user.uid,
         familyName.trim(),
         user.displayName || "Sin nombre",
-        user.email || "",
-        hasExistingData ? existingData : undefined
+        user.email || ""
       );
       onDone(familyId);
     } catch {
@@ -80,10 +75,7 @@ export function OnboardingScreen({ user, existingData, onDone }: OnboardingScree
                 ¡Bienvenido{user.displayName ? `, ${user.displayName.split(" ")[0]}` : ""}!
               </div>
               <div style={{ fontSize: 13, color: "var(--text2)", fontFamily: "'DM Sans', sans-serif", lineHeight: 1.5 }}>
-                {hasExistingData
-                  ? "Detectamos datos existentes. ¿Querés crear una familia con esos datos o unirte a otra?"
-                  : "Para empezar, creá tu familia o unite a una existente."
-                }
+                Para empezar, creá tu familia o unite a una existente.
               </div>
             </div>
 
@@ -137,16 +129,6 @@ export function OnboardingScreen({ user, existingData, onDone }: OnboardingScree
                 }}
               />
             </div>
-
-            {hasExistingData && (
-              <div style={{
-                padding: "10px 14px", borderRadius: 10, background: "rgba(79,70,229,0.07)",
-                border: "1px solid rgba(79,70,229,0.2)", marginBottom: 14,
-                fontSize: 12, color: "var(--accent)", fontWeight: 600, lineHeight: 1.5,
-              }}>
-                ✅ Se transferirán los datos que ya tenés registrados a esta familia.
-              </div>
-            )}
 
             {error && (
               <div style={{

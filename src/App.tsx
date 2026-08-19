@@ -2,13 +2,11 @@ import { useEffect, useMemo, useState, useCallback, useRef, Suspense, lazy } fro
 import { Capacitor } from "@capacitor/core";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { db } from "./firebase";
-import { AppData } from "./types/models";
 import { MONTH_NAMES, SW_LAST_CHECK_KEY } from "./constants";
 import { computeSummary } from "./utils/finanzas";
 import { useAppStore } from "./store/useAppStore";
 import { onAuthChange, handleRedirectResult } from "./services/auth";
 import { getUserFamilyId } from "./services/familyService";
-import { loadLegacyData } from "./services/firestore";
 import MainLayout from "./layouts/MainLayout";
 import { Toast, AppSkeleton } from "./components/ui";
 import { LoginScreen } from "./features/LoginScreen";
@@ -70,7 +68,6 @@ export default function App() {
 
   // ── Auth listener ───────────────────────────────────────────────────────
   const [authLoading, setAuthLoading] = useState(true);
-  const [legacyData, setLegacyData] = useState<any>(null);
   const authUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -86,22 +83,7 @@ export default function App() {
           } catch (err) {
             console.error("[App] Error reading user family:", (err as any).message);
           }
-
-          if (!fId) {
-            // Sin familia: intentar cargar datos legacy de corpos/shared
-            let legacy: AppData | null = null;
-            try {
-              legacy = await loadLegacyData();
-            } catch (err) {
-              console.error("[App] Error loading legacy data:", (err as any).message);
-            }
-            if (legacy) {
-              setLegacyData(legacy);
-            }
-            setAuth(firebaseUser, null);
-          } else {
-            setAuth(firebaseUser, fId);
-          }
+          setAuth(firebaseUser, fId);
         } else {
           setAuth(null, null);
         }
@@ -130,7 +112,6 @@ export default function App() {
   // ── Onboarding: crear familia ───────────────────────────────────────────
   const handleOnboardingDone = useCallback((newFamilyId: string) => {
     setFamilyId(newFamilyId);
-    setLegacyData(null);
   }, [setFamilyId]);
 
   // ── Notifications ───────────────────────────────────────────────────────
@@ -181,7 +162,6 @@ export default function App() {
         {!isNative && <PwaUpdater />}
         <OnboardingScreen
           user={user}
-          existingData={legacyData}
           onDone={handleOnboardingDone}
         />
       </>

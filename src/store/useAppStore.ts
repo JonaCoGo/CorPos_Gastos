@@ -4,6 +4,7 @@ import {
   loadData,
   saveData,
   subscribeToFirestore,
+  createInitialData,
 } from "../services/firestore";
 import { createEmptyMonth, getMonthKey } from "../utils/finanzas";
 import { AuthUser } from "../services/auth";
@@ -36,6 +37,7 @@ interface AppState {
   // ── Data actions ──────────────────────────────────────────────────────────
   updateMercado: (mercado: Mercado) => void;
   resetMercadoCompras: () => void;
+  resetAllData: () => void;
   updateConfig: (config: AppConfig) => void;
   updateMonth: (updatedMonth: MonthData) => void;
   selectMonth: (key: string) => void;
@@ -49,7 +51,6 @@ interface AppState {
 
   // ── Inicialización ────────────────────────────────────────────────────────
   initFirestoreSync: () => () => void;
-  hasLegacyData: () => boolean;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -97,6 +98,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   resetMercadoCompras: () => {
     const { data, familyId } = get();
     const newData = { ...data, mercado: { ...data.mercado, compras: [] } };
+    set({ data: newData });
+    saveData(newData, familyId);
+  },
+
+  resetAllData: () => {
+    const { familyId } = get();
+    const newData = createInitialData();
     set({ data: newData });
     saveData(newData, familyId);
   },
@@ -195,17 +203,5 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
       (syncStatus) => set({ synced: syncStatus })
     );
-  },
-
-  hasLegacyData: () => {
-    const { data } = get();
-    return Object.values(data.months).some((month: any) => {
-      const hasFamily = (month.familyExpenses || []).some(
-        (c: any) => (c.marcela || 0) + (c.jonatan || 0) + (c.conjunto || 0) > 0
-      );
-      const hasSalary =
-        (month.salaries?.marcela || 0) + (month.salaries?.jonatan || 0) > 0;
-      return hasFamily || hasSalary;
-    });
   },
 }));

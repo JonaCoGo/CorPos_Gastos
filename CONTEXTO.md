@@ -1,6 +1,6 @@
 # CONTEXTO: APP CorPos Gastos
 
-> Última actualización: 2026-08-18
+> Última actualización: 2026-08-19
 
 ## Propósito
 
@@ -33,7 +33,7 @@ App web de gestión financiera familiar para parejas. Cubre salarios, gastos del
 | `features/` | Vistas por pestaña (lazy-loaded) |
 | `services/auth.ts` | Login/logout con Google (popup en browser, redirect en Capacitor) |
 | `services/familyService.ts` | Crear familia, unirse con código, regenerar código |
-| `services/firestore.ts` | Carga/migración de datos, save (localStorage + Firestore), suscripción en tiempo real, `loadLegacyData` |
+| `services/firestore.ts` | Carga/migración de datos, save (localStorage + Firestore), suscripción en tiempo real, `createInitialData` |
 | `store/useAppStore.ts` | Store Zustand con estado global (user, familyId, data) |
 | `hooks/useNotifications.ts` | Notificaciones push (Web Notifications API) |
 | `hooks/useOtaUpdate.ts` | Actualización en caliente para Capacitor |
@@ -77,8 +77,7 @@ families/{familyId}
 ```
 1. Sin sesión → LoginScreen (botón "Entrar con Google")
 2. Con sesión, sin familia → OnboardingScreen
-   ├── "Crear mi familia" (con nombre configurable)
-   │   → Migra datos desde corpos/shared si existen
+   ├── "Crear mi familia" (con nombre configurable) → siempre arranca con datos vacíos
    └── "Unirme a una familia" (código de 6 caracteres)
 3. Con sesión + familia → App normal (Firestore por familia)
 ```
@@ -89,7 +88,7 @@ families/{familyId}
 - `families/{familyId}`: cualquier usuario autenticado puede leer (necesario para buscar por inviteCode); solo miembros pueden actualizar
 - `families/{familyId}/members/{uid}`: cualquier autenticado puede crear su propio doc de miembro; admin puede eliminar miembros
 - `families/{familyId}/data/current`: solo miembros pueden leer/escribir
-- `corpos/{docId}`: solo lectura (backup temporal de datos legacy)
+- `corpos/{docId}`: bloqueado por completo (`allow read, write: if false`) — backup legacy de la migración a familias, ya completada. Ver Changelog 2026-08-19.
 
 ## Funcionalidades
 
@@ -128,6 +127,7 @@ families/{familyId}
 - Activar notificaciones
 - Reset de compras del mercado
 - **Compartir familia**: código de invitación de 6 caracteres (regenerable)
+- **Zona de peligro — Reiniciar todos mis datos**: borrado completo de la familia actual (nombres, salarios, medios de pago, supermercados, gastos, historial de meses, compras); conserva solo el catálogo de productos del mercado. Requiere escribir "REINICIAR" para confirmar. Irreversible.
 - **Cerrar sesión**: logout
 - **Versión de la app**: fecha de build + última revisión de actualización
 
@@ -143,6 +143,7 @@ families/{familyId}
 
 - **2026-08-18**: Corregido bug de unión a familia — reglas Firestore permitían leer `families` solo a miembros, bloqueando el lookup por `inviteCode` para nuevos usuarios. Ahora cualquier autenticado puede leer la colección `families`.
 - **2026-08-19**: Corregido bug crítico de aislamiento — localStorage usaba una sola clave (`corpos_budget_v6`) para todas las familias, permitiendo que datos de una familia se sincronizaran al Firestore de otra. Ahora cada familia tiene su propio espacio de localStorage (`corpos_budget_v6_{familyId}`).
+- **2026-08-19**: Corregido bug crítico de fuga de datos — cualquier usuario nuevo sin familia disparaba `loadLegacyData()` en el onboarding, que leía el documento único `corpos/shared` (backup de la migración inicial de Jonatan, legible por cualquier autenticado según las reglas de Firestore). Al crear familia, esos datos se ofrecían como "datos existentes" y se copiaban tal cual a la familia nueva — pasó con el hermano de Jonatan, que terminó con los salarios y gastos reales de Jonatan en su propia familia. Fix: se eliminó por completo el flujo de migración legacy (ya había cumplido su propósito) — `createFamily` ahora siempre arranca con datos vacíos, y las reglas de Firestore bloquean `corpos/{docId}` sin excepción. Se agregó además "Reiniciar todos mis datos" en Ajustes para que cualquier familia pueda autolimpiarse sin intervención manual en Firestore.
 
 ## Reglas de trabajo
 

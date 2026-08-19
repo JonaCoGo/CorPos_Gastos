@@ -37,6 +37,7 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   const user                = useAppStore((s) => s.user);
   const updateConfig        = useAppStore((s) => s.updateConfig);
   const resetMercadoCompras = useAppStore((s) => s.resetMercadoCompras);
+  const resetAllData        = useAppStore((s) => s.resetAllData);
   const comprasCount        = useAppStore((s) => s.data.mercado.compras.length);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,6 +82,8 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   const [jonatanName, setJonatanName] = useState(names.jonatan);
   const [saved,        setSaved]       = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmResetAll, setConfirmResetAll] = useState(false);
+  const [resetAllInput, setResetAllInput] = useState("");
 
   // Notificaciones
   const notifSupported = 'Notification' in window;
@@ -123,6 +126,13 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   };
 
   const handleReset = () => { resetMercadoCompras(); setConfirmReset(false); };
+
+  const handleResetAll = () => {
+    resetAllData();
+    setConfirmResetAll(false);
+    setResetAllInput("");
+    window.location.reload();
+  };
 
   // Versión de la app / última revisión de actualización
   const [now, setNow] = useState(() => Date.now());
@@ -468,6 +478,19 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         </Btn>
       </Card>
 
+      {/* Zona de peligro */}
+      <Card style={{ border: "1.5px solid rgba(220,38,38,0.3)" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--danger)", marginBottom: 14 }}>
+          Zona de peligro
+        </div>
+        <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
+          Borra <strong>todo</strong>: nombres, salarios, medios de pago, supermercados, gastos del hogar, personales, extras, compras del mercado y el historial completo de meses. Solo queda el catálogo de productos del mercado. Tendrán que volver a configurar todo desde cero. <strong>No se puede deshacer.</strong>
+        </div>
+        <Btn variant="danger" onClick={() => setConfirmResetAll(true)} style={{ width: "100%" }}>
+          Reiniciar todos mis datos
+        </Btn>
+      </Card>
+
       {/* Cerrar sesión */}
       <Card>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
@@ -552,6 +575,27 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setConfirmReset(false)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="danger" onClick={handleReset} style={{ flex: 1 }}>Sí, reiniciar</Btn>
+        </div>
+      </Modal>
+
+      {/* Modal: confirmar reset total */}
+      <Modal open={confirmResetAll} onClose={() => { setConfirmResetAll(false); setResetAllInput(""); }} title="¿Reiniciar todos los datos?">
+        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 8 }}>
+          Se borrará <strong>todo</strong>: nombres, salarios, medios de pago, supermercados, gastos del hogar, personales, extras, compras y el historial completo de meses.
+        </p>
+        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
+          Solo queda el catálogo de productos del mercado. Esta acción no se puede deshacer.
+        </p>
+        <Field
+          label='Escribí "REINICIAR" para confirmar'
+          value={resetAllInput}
+          onChange={setResetAllInput}
+          type="text"
+          placeholder="REINICIAR"
+        />
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <Btn variant="secondary" onClick={() => { setConfirmResetAll(false); setResetAllInput(""); }} style={{ flex: 1 }}>Cancelar</Btn>
+          <Btn variant="danger" onClick={handleResetAll} disabled={resetAllInput.trim().toUpperCase() !== "REINICIAR"} style={{ flex: 1 }}>Sí, borrar todo</Btn>
         </div>
       </Modal>
     </div>
