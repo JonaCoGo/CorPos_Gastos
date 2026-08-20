@@ -133,7 +133,15 @@ export function loadData(familyId?: string): AppData {
     console.error("Error cargando datos de localStorage:", e);
   }
 
-  // Semilla inicial (Junio 2026)
+  // Si hay familyId pero no hay datos en localStorage, retorna datos vacíos.
+  // La suscripción a Firestore se encargará de cargar los datos remotos.
+  // NUNCA usar la semilla de datos reales aquí — causaría fuga de datos
+  // entre familias (ver changelog 2026-08-20).
+  if (familyId) {
+    return createInitialData();
+  }
+
+  // Semilla inicial (Junio 2026) — solo para el primer usuario sin familyId (legacy)
   const jun = createEmptyMonth(2026, 6, { marcela: 1803858, jonatan: 2021241 });
   jun.familyExpenses = jun.familyExpenses.map((c) => {
     const map: Record<string, any> = {

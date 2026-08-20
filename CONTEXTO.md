@@ -1,6 +1,6 @@
 # CONTEXTO: APP CorPos Gastos
 
-> Última actualización: 2026-08-19
+> Última actualización: 2026-08-20
 
 ## Propósito
 
@@ -138,6 +138,8 @@ families/{familyId}
 - **Migraciones inline**: cuando cambia un modelo (ej. `paymentMethodId` → `paymentMethodByPerson`), se detecta al cargar y se transforma automáticamente
 - **Doble persistencia**: localStorage (offline + inmediato) + Firestore (sync en tiempo real por familia)
 - **OTA updates**: el build genera un bundle zip que se sirve desde Vercel; Capacitor lo descarga y aplica sin reinstalar
+
+- **2026-08-20**: Corregido bug crítico de fuga de datos entre familias — `loadData(familyId)` caía en un fallback que retornaba la semilla de datos reales de Jonatan (salarios, nombres, gastos) cuando no encontraba datos en localStorage para una familia nueva. Esto provocaba que `subscribeToFirestore`, al detectar Firestore "vacío" (datos iniciales con todo en cero), subiera los datos reales de Jonatan al Firestore de la nueva familia. Fix: cuando `familyId` está presente y no hay datos en localStorage, `loadData` ahora retorna `createInitialData()` (datos vacíos) en vez de la semilla. También se eliminó el `localStorage.removeItem` del flujo de reset (era contraproducente) y se agregó redirección automática a Ajustes después del onboarding.
 
 ## Changelog reciente
 

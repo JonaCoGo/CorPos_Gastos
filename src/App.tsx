@@ -109,10 +109,11 @@ export default function App() {
     checkAndAdvanceMonth();
   }, [data.currentKey, checkAndAdvanceMonth]);
 
-  // ── Onboarding: crear familia ───────────────────────────────────────────
+  // ── Onboarding: crear/unir familia ──────────────────────────────────────
   const handleOnboardingDone = useCallback((newFamilyId: string) => {
     setFamilyId(newFamilyId);
-  }, [setFamilyId]);
+    setTab("settings"); // nueva familia arranca en configuración
+  }, [setFamilyId, setTab]);
 
   // ── Notifications ───────────────────────────────────────────────────────
   const currentMonth = data.months[data.currentKey];
