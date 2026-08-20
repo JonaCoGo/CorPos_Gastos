@@ -12,7 +12,7 @@ interface TabSalariesProps {
 
 export function TabSalaries({ monthData, onUpdate }: TabSalariesProps) {
   const config = useAppStore((s) => s.data.config);
-  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const names = { marcela: config?.marcelaName || "Persona 1", jonatan: config?.jonatanName || "Persona 2" };
 
   const personalTotalMarcela = (monthData.personalExpenses?.marcela || []).reduce((s, e) => s + (e.amount || 0), 0);
   const personalTotalJonatan = (monthData.personalExpenses?.jonatan || []).reduce((s, e) => s + (e.amount || 0), 0);

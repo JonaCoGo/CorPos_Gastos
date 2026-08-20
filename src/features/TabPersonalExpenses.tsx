@@ -16,7 +16,7 @@ interface EditTarget { person: Persona; expense: PersonalExpense; }
 
 export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpensesProps) {
   const config = useAppStore((s) => s.data.config);
-  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const names = { marcela: config?.marcelaName || "Persona 1", jonatan: config?.jonatanName || "Persona 2" };
   const paymentMethods = config?.paymentMethods ?? [];
 
   const [fondoModal, setFondoModal] = useState(false);

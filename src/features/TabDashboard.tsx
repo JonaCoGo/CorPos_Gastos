@@ -13,8 +13,8 @@ interface TabDashboardProps {
 export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps) {
   const config = useAppStore((s) => s.data.config);
   const names = {
-    marcela: config?.marcelaName ?? "Marcela",
-    jonatan: config?.jonatanName ?? "Jonatan",
+    marcela: config?.marcelaName || "Persona 1",
+    jonatan: config?.jonatanName || "Persona 2",
   };
 
   const { ratio, totalNeto, netoMarcela, netoJonatan,

@@ -1,4 +1,4 @@
-import { Banknote, CalendarDays, Settings, ChevronRight, LucideIcon } from 'lucide-react';
+import { CalendarDays, Settings, ChevronRight, LucideIcon } from 'lucide-react';
 import { Card } from '../components/ui';
 
 interface TabMoreProps {
@@ -14,9 +14,8 @@ interface Option {
 }
 
 const OPTIONS: Option[] = [
-  { id: "salaries", Icon: Banknote,    color: "var(--success)", label: "Salarios",     desc: "Gestiona los salarios del mes y distribución de aportes" },
   { id: "history",  Icon: CalendarDays, color: "var(--accent)",  label: "Historial",    desc: "Navega entre meses anteriores y crea meses nuevos" },
-  { id: "settings", Icon: Settings,    color: "var(--text2)",   label: "Configuración", desc: "Nombres, reinicio del mercado y ajustes generales" },
+  { id: "settings", Icon: Settings,    color: "var(--text2)",   label: "Configuración", desc: "Nombres, salarios, medios de pago y ajustes generales" },
 ];
 
 export function TabMore({ onGoTo }: TabMoreProps) {

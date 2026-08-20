@@ -55,7 +55,7 @@ function CopField({ label, value, onChange, disabled, hint }: {
 
 export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExpensesProps) {
   const config = useAppStore((s) => s.data.config);
-  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const names = { marcela: config?.marcelaName || "Persona 1", jonatan: config?.jonatanName || "Persona 2" };
   const paymentMethods = config?.paymentMethods ?? [];
 
   const [editCat, setEditCat] = useState<FamilyExpense | null>(null);

@@ -14,8 +14,8 @@ const DEFAULT_PAYMENT_METHODS: PaymentMethod[] = [
 ];
 
 const DEFAULT_CONFIG: AppConfig = {
-  marcelaName: "Marcela",
-  jonatanName: "Jonatan",
+  marcelaName: "",
+  jonatanName: "",
   paymentMethods: DEFAULT_PAYMENT_METHODS,
   supermarkets: SUPERMARKETS,
 };

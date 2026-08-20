@@ -17,7 +17,7 @@ const TABS = [
   { id: "extras",    label: "Extras",   Icon: Wallet },
 ];
 
-const SECONDARY = ["salaries", "history", "more"];
+const SECONDARY = ["history", "more"];
 
 export default function MainLayout({ children, tab, setTab, syncStatus, monthLabel }: MainLayoutProps) {
   const syncColor = syncStatus === "synced" ? "var(--success)" : syncStatus === "connecting" ? "#f59e0b" : "var(--text2)";

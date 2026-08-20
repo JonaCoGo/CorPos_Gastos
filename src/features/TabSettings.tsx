@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Plus, Trash2, Bell, BellOff, Download, Upload, RefreshCw, LogOut, Share2 } from 'lucide-react';
-import { Card, Btn, Field, Modal, Label } from '../components/ui';
+import { Card, Btn, Field, Modal, Label, Avatar, ProgressBar } from '../components/ui';
+import { MONTH_NAMES } from '../constants';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, PaymentMethodType } from '../types/models';
 import { requestNotifPermission, getNotifEnabled, setNotifEnabled } from '../hooks/useNotifications';
@@ -8,6 +9,7 @@ import { saveData } from '../services/firestore';
 import { logout } from '../services/auth';
 import { getInviteCode, regenerateInviteCode } from '../services/familyService';
 import { SW_LAST_CHECK_KEY } from '../constants';
+import { COP } from '../utils/finanzas';
 
 const formatDateTime = (iso: string) =>
   new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -74,7 +76,7 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
     URL.revokeObjectURL(url);
   };
 
-  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const names = { marcela: config?.marcelaName || "Persona 1", jonatan: config?.jonatanName || "Persona 2" };
   const methods = config?.paymentMethods ?? [];
   const supermarkets = config?.supermarkets ?? [];
 
@@ -84,6 +86,31 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmResetAll, setConfirmResetAll] = useState(false);
   const [resetAllInput, setResetAllInput] = useState("");
+
+  // Salarios
+  const updateMonth = useAppStore((s) => s.updateMonth);
+  const currentMonth = useAppStore((s) => s.data.months[s.data.currentKey]);
+  const monthData = currentMonth ?? null;
+
+  const personalTotalMarcela = (monthData?.personalExpenses?.marcela || []).reduce((s, e) => s + (e.amount || 0), 0);
+  const personalTotalJonatan = (monthData?.personalExpenses?.jonatan || []).reduce((s, e) => s + (e.amount || 0), 0);
+
+  const [salaryForm, setSalaryForm] = useState({
+    marcela: monthData?.salaries?.marcela || "",
+    jonatan: monthData?.salaries?.jonatan || "",
+  });
+  const [savedSalaries, setSavedSalaries] = useState(false);
+
+  const netoMarce = Math.max(0, (Number(salaryForm.marcela) || 0) - personalTotalMarcela);
+  const netoJona  = Math.max(0, (Number(salaryForm.jonatan)  || 0) - personalTotalJonatan);
+  const totalNeto = netoMarce + netoJona;
+
+  const handleSaveSalaries = () => {
+    if (!monthData) return;
+    updateMonth({ ...monthData, salaries: { marcela: Number(salaryForm.marcela) || 0, jonatan: Number(salaryForm.jonatan) || 0 } });
+    setSavedSalaries(true);
+    setTimeout(() => setSavedSalaries(false), 2000);
+  };
 
   // Notificaciones
   const notifSupported = 'Notification' in window;
@@ -116,8 +143,8 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   });
 
   const handleSaveNames = () => {
-    const trimM = marcelaName.trim() || "Marcela";
-    const trimJ = jonatanName.trim() || "Jonatan";
+    const trimM = marcelaName.trim();
+    const trimJ = jonatanName.trim();
     updateConfig({ ...config, marcelaName: trimM, jonatanName: trimJ });
     setMarcelaName(trimM);
     setJonatanName(trimJ);
@@ -236,7 +263,7 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Nombres */}
+      {/* Nombres + Salarios */}
       <Card>
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
           Nombres a mostrar
@@ -249,6 +276,69 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         <Btn variant="primary" onClick={handleSaveNames} disabled={saved} style={{ width: "100%" }}>
           {saved ? "✅ Guardado" : "Guardar nombres"}
         </Btn>
+      </Card>
+
+      {/* Salarios */}
+      <Card>
+        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 4 }}>
+          Salarios — {monthData ? `${MONTH_NAMES[monthData.month]} ${monthData.year}` : ""}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 16, padding: "8px 10px", background: "var(--surface2)", borderRadius: 8, lineHeight: 1.6 }}>
+          Ingresa el <strong>salario bruto</strong> de cada uno. La app descuenta los gastos personales automáticamente para calcular el neto y los aportes al hogar.
+        </div>
+        {monthData && [
+          { n: "marcela", neto: netoMarce, personal: personalTotalMarcela },
+          { n: "jonatan", neto: netoJona, personal: personalTotalJonatan },
+        ].map(({ n, neto, personal }) => (
+          <div key={n} style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Avatar name={n} size={22} />
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{names[n as keyof typeof names]}</span>
+            </div>
+            <Field
+              label="Salario bruto"
+              value={salaryForm[n as keyof typeof salaryForm]}
+              onChange={(v) => setSalaryForm({ ...salaryForm, [n]: v })}
+              placeholder="Ej: 2000000"
+              currency
+            />
+            {(Number(salaryForm[n as keyof typeof salaryForm]) > 0) && (
+              <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "10px 14px", fontSize: 12, display: "flex", flexDirection: "column", gap: 5, marginTop: -6, marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", color: "var(--text2)" }}>
+                  <span>− Gastos personales</span>
+                  <span style={{ color: "var(--danger)", fontWeight: 600 }}>−{COP(personal)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border)", paddingTop: 6 }}>
+                  <span style={{ fontWeight: 700 }}>Neto disponible</span>
+                  <span style={{ fontWeight: 800, color: n === "marcela" ? "var(--marce)" : "var(--jona)" }}>{COP(neto)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+        <Btn variant="primary" onClick={handleSaveSalaries} disabled={savedSalaries} style={{ width: "100%", marginTop: 4 }}>
+          {savedSalaries ? "✅ Guardado" : "Guardar salarios"}
+        </Btn>
+        {totalNeto > 0 && monthData && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>Distribución de aportes (sobre neto)</div>
+            {[{ n: "marcela", v: netoMarce }, { n: "jonatan", v: netoJona }].map(({ n, v }) => {
+              const pct = totalNeto > 0 ? (v / totalNeto * 100).toFixed(1) : 0;
+              return (
+                <div key={n} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <Avatar name={n} size={20} />
+                      <span style={{ fontWeight: 600 }}>{names[n as keyof typeof names]}</span>
+                    </span>
+                    <span style={{ color: "var(--text2)" }}>{pct}% · {COP(v)}</span>
+                  </div>
+                  <ProgressBar value={v} max={totalNeto} color={n === "marcela" ? "var(--marce)" : "var(--jona)"} height={8} />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Medios de pago */}

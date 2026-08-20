@@ -17,7 +17,7 @@ interface TabHistoryProps {
 
 export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNewMonth, onDeleteMonth }: TabHistoryProps) {
   const config = useAppStore((s) => s.data.config);
-  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const names = { marcela: config?.marcelaName || "Persona 1", jonatan: config?.jonatanName || "Persona 2" };
 
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ year: 2026, month: 7, marcela: "", jonatan: "" });

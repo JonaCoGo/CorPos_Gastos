@@ -99,6 +99,13 @@ families/{familyId}
 - Saldo libre estimado por persona
 - Resumen por medio de pago
 
+### Configuración (arranca en esta pantalla para familias nuevas)
+- Nombres de cada persona
+- **Salarios** del mes con cálculo de neto y distribución de aportes
+- Medios de pago (CRUD con color, tipo y titular)
+- Supermercados (CRUD + quick-add desde Mercado)
+- Notificaciones, reset, compartir familia, cerrar sesión
+
 ### Gastos del hogar
 - Lista de categorías con presupuesto, pagado, barra de progreso
 - Modal de edición: presupuesto base + monto real este mes (override)
@@ -120,25 +127,17 @@ families/{familyId}
 - Editar viaje completo o item individual
 - **Productos**: catálogo editable con precios auto-actualizados
 
-### Configuración
-- Nombres de cada persona
-- Medios de pago (CRUD con color, tipo y titular)
-- Supermercados (CRUD + quick-add desde Mercado)
-- Activar notificaciones
-- Reset de compras del mercado
-- **Compartir familia**: código de invitación de 6 caracteres (regenerable)
-- **Zona de peligro — Reiniciar todos mis datos**: borrado completo de la familia actual (nombres, salarios, medios de pago, supermercados, gastos, historial de meses, compras); conserva solo el catálogo de productos del mercado. Requiere escribir "REINICIAR" para confirmar. Irreversible.
-- **Cerrar sesión**: logout
-- **Versión de la app**: fecha de build + última revisión de actualización
+
 
 ## Arquitectura técnica
 
-- **9 módulos lazy-loaded**: Dashboard, Gastos del hogar, Personales, Extras, Mercado, Salarios, Historial, Ajustes, Más
+- **8 módulos lazy-loaded**: Dashboard, Gastos del hogar, Personales, Extras, Mercado, Historial, Ajustes, Más
 - **12 primitivas UI** reutilizables con barrel export
 - **Migraciones inline**: cuando cambia un modelo (ej. `paymentMethodId` → `paymentMethodByPerson`), se detecta al cargar y se transforma automáticamente
 - **Doble persistencia**: localStorage (offline + inmediato) + Firestore (sync en tiempo real por familia)
 - **OTA updates**: el build genera un bundle zip que se sirve desde Vercel; Capacitor lo descarga y aplica sin reinstalar
 
+- **2026-08-20**: Consolidado tab de Salarios en Configuración — ahora la pantalla inicial para familias nuevas es Ajustes con nombres + salarios + medios de pago. Eliminados fallbacks hardcodeados de "Marcela"/"Jonatan" en toda la UI (ahora muestran "Persona 1"/"Persona 2").
 - **2026-08-20**: Corregido bug crítico de fuga de datos entre familias — `loadData(familyId)` caía en un fallback que retornaba la semilla de datos reales de Jonatan (salarios, nombres, gastos) cuando no encontraba datos en localStorage para una familia nueva. Esto provocaba que `subscribeToFirestore`, al detectar Firestore "vacío" (datos iniciales con todo en cero), subiera los datos reales de Jonatan al Firestore de la nueva familia. Fix: cuando `familyId` está presente y no hay datos en localStorage, `loadData` ahora retorna `createInitialData()` (datos vacíos) en vez de la semilla. También se eliminó el `localStorage.removeItem` del flujo de reset (era contraproducente) y se agregó redirección automática a Ajustes después del onboarding.
 
 ## Changelog reciente

@@ -38,7 +38,6 @@ function PwaUpdater() {
 const TabDashboard        = lazy(() => import("./features/TabDashboard").then((m) => ({ default: m.TabDashboard })));
 const TabFamilyExpenses   = lazy(() => import("./features/TabFamilyExpenses").then((m) => ({ default: m.TabFamilyExpenses })));
 const TabPersonalExpenses = lazy(() => import("./features/TabPersonalExpenses").then((m) => ({ default: m.TabPersonalExpenses })));
-const TabSalaries         = lazy(() => import("./features/TabSalaries").then((m) => ({ default: m.TabSalaries })));
 const TabHistory          = lazy(() => import("./features/TabHistory").then((m) => ({ default: m.TabHistory })));
 const TabExtras           = lazy(() => import("./features/TabExtras").then((m) => ({ default: m.TabExtras })));
 const TabMercado          = lazy(() => import("./features/TabMercado").then((m) => ({ default: m.TabMercado })));
@@ -219,13 +218,6 @@ export default function App() {
           <TabPersonalExpenses
             monthData={currentMonth}
             onUpdate={withToast(updateMonth, "Gasto personal guardado")}
-          />
-        );
-      case "salaries":
-        return (
-          <TabSalaries
-            monthData={currentMonth}
-            onUpdate={withToast(updateMonth, "Salarios guardados")}
           />
         );
       case "history":

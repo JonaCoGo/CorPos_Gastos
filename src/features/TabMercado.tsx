@@ -23,7 +23,7 @@ interface CartEntry {
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const config = useAppStore((s) => s.data.config);
   const updateConfig = useAppStore((s) => s.updateConfig);
-  const names = { marcela: config?.marcelaName ?? "Marcela", jonatan: config?.jonatanName ?? "Jonatan" };
+  const names = { marcela: config?.marcelaName || "Persona 1", jonatan: config?.jonatanName || "Persona 2" };
   const paymentMethods = config?.paymentMethods ?? [];
   const supermarkets = config?.supermarkets ?? DEFAULT_SUPERMARKETS;
 
