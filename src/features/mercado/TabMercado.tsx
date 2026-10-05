@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Mercado } from '../../types/models';
+import { useAppStore } from '../../store/useAppStore';
 import { useMercadoConfig } from './useMercadoConfig';
 import { useCarrito } from './useCarrito';
 import { VistaLista } from './VistaLista';
@@ -25,7 +26,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const { supermarkets } = useMercadoConfig();
   const lista = mercado?.lista || [];
   const [view, setView] = useState<Vista>("lista");
-  const carrito = useCarrito(mercado, onUpdate, supermarkets[0]);
+  const monthKey = useAppStore((s) => s.data.currentKey);
+  const carrito = useCarrito(mercado, onUpdate, supermarkets[0], monthKey);
 
   const cargarLista = () => { if (carrito.cargarLista()) setView("hacer"); };
   const registrar   = () => { if (carrito.registrarViaje()) setView("historial"); };
@@ -53,8 +55,8 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       </div>
 
       {view === "lista"     && <VistaLista mercado={mercado} onUpdate={onUpdate} onIrAlMercado={cargarLista} />}
-      {view === "hacer"     && <VistaHacer mercado={mercado} carrito={carrito} onCargarLista={cargarLista} onRegistrar={registrar} onIrAItems={() => setView("productos")} />}
-      {view === "historial" && <VistaHistorial mercado={mercado} onUpdate={onUpdate} />}
+      {view === "hacer"     && <VistaHacer mercado={mercado} carrito={carrito} onCargarLista={cargarLista} onRegistrar={registrar} onIrAItems={() => setView("productos")} monthKey={monthKey} />}
+      {view === "historial" && <VistaHistorial mercado={mercado} onUpdate={onUpdate} monthKey={monthKey} />}
       {view === "productos" && <VistaItems mercado={mercado} onUpdate={onUpdate} />}
     </div>
   );

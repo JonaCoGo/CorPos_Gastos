@@ -38,9 +38,7 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   const familyId            = useAppStore((s) => s.familyId);
   const user                = useAppStore((s) => s.user);
   const updateConfig        = useAppStore((s) => s.updateConfig);
-  const resetMercadoCompras = useAppStore((s) => s.resetMercadoCompras);
   const resetAllData        = useAppStore((s) => s.resetAllData);
-  const comprasCount        = useAppStore((s) => s.data.mercado.compras.length);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -83,7 +81,6 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   const [marcelaName, setMarcelaName] = useState(names.marcela);
   const [jonatanName, setJonatanName] = useState(names.jonatan);
   const [saved,        setSaved]       = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [confirmResetAll, setConfirmResetAll] = useState(false);
   const [resetAllInput, setResetAllInput] = useState("");
 
@@ -151,8 +148,6 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
-
-  const handleReset = () => { resetMercadoCompras(); setConfirmReset(false); };
 
   const handleResetAll = async () => {
     await resetAllData();
@@ -494,28 +489,6 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         )}
       </Card>
 
-      {/* Reset mercado */}
-      <Card>
-        <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)", marginBottom: 14 }}>
-          Reinicio del mercado
-        </div>
-        <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 6 }}>
-          Borra todas las compras registradas y deja la lista de productos lista para empezar el mes. Los productos, categorías y precios base <strong>no se eliminan</strong>.
-        </div>
-        {comprasCount > 0 ? (
-          <div style={{ fontSize: 12, color: "var(--text2)", marginBottom: 14, padding: "8px 12px", background: "var(--surface2)", borderRadius: 8 }}>
-            {comprasCount} compra{comprasCount !== 1 ? "s" : ""} registrada{comprasCount !== 1 ? "s" : ""} actualmente
-          </div>
-        ) : (
-          <div style={{ fontSize: 12, color: "var(--success)", marginBottom: 14, padding: "8px 12px", background: "var(--surface2)", borderRadius: 8 }}>
-            ✅ Sin compras — el mercado ya está en cero
-          </div>
-        )}
-        <Btn variant="danger" onClick={() => setConfirmReset(true)} disabled={comprasCount === 0} style={{ width: "100%" }}>
-          Reiniciar compras del mercado
-        </Btn>
-      </Card>
-
       {/* Compartir familia */}
       {familyId && inviteCode && (
         <Card>
@@ -651,20 +624,6 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
           <Btn variant="secondary" onClick={() => setShowAddMethod(false)} style={{ flex: 1 }}>Cancelar</Btn>
           <Btn variant="primary" onClick={addMethod} disabled={!methodForm.label.trim()} style={{ flex: 1 }}>Guardar</Btn>
-        </div>
-      </Modal>
-
-      {/* Modal: confirmar reset mercado */}
-      <Modal open={confirmReset} onClose={() => setConfirmReset(false)} title="¿Reiniciar mercado?">
-        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 8 }}>
-          Se eliminarán <strong>{comprasCount} compra{comprasCount !== 1 ? "s" : ""}</strong> del historial.
-        </p>
-        <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
-          Los productos, categorías y precios base quedan intactos.
-        </p>
-        <div style={{ display: "flex", gap: 10 }}>
-          <Btn variant="secondary" onClick={() => setConfirmReset(false)} style={{ flex: 1 }}>Cancelar</Btn>
-          <Btn variant="danger" onClick={handleReset} style={{ flex: 1 }}>Sí, reiniciar</Btn>
         </div>
       </Modal>
 

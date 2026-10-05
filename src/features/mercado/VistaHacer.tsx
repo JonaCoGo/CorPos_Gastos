@@ -2,11 +2,11 @@ import { useState, useMemo } from "react";
 import { ShoppingCart, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { Card, Btn, PaymentChips } from '../../components/ui';
 import { UNITS } from '../../constants';
-import { COP, sanitizeDecimalInput, parseFlexibleNumber, convertQty } from '../../utils/finanzas';
+import { COP, sanitizeDecimalInput, parseFlexibleNumber, convertQty, itemsActivos, getMonthKey } from '../../utils/finanzas';
 import { Mercado } from '../../types/models';
 import { useMercadoConfig } from './useMercadoConfig';
 import { Carrito } from './useCarrito';
-import { CategoryChips, SearchInput, SupermarketChips, sectionTitleStyle } from './componentes';
+import { CategoryChips, SearchInput, SupermarketChips, etiquetaMes, sectionTitleStyle } from './componentes';
 
 interface VistaHacerProps {
   mercado: Mercado;
@@ -14,11 +14,12 @@ interface VistaHacerProps {
   onCargarLista: () => void;
   onRegistrar: () => void;
   onIrAItems: () => void;
+  monthKey: string;
 }
 
-export function VistaHacer({ mercado, carrito, onCargarLista, onRegistrar, onIrAItems }: VistaHacerProps) {
+export function VistaHacer({ mercado, carrito, onCargarLista, onRegistrar, onIrAItems, monthKey }: VistaHacerProps) {
   const { names, paymentMethods, supermarkets, addSupermarket, methodsFor } = useMercadoConfig();
-  const items = mercado?.items || [];
+  const items = itemsActivos(mercado?.items);
   const lista = mercado?.lista || [];
   const {
     supermarket, setSupermarket, tripPaidBy, setTripPayer,
@@ -36,9 +37,19 @@ export function VistaHacer({ mercado, carrito, onCargarLista, onRegistrar, onIrA
   }), [items, filterCat, search]);
 
   const inLista = (itemId: string) => lista.some((l) => l.itemId === itemId);
+  const hoy = new Date();
+  const esMesCalendario = monthKey === getMonthKey(hoy.getFullYear(), hoy.getMonth() + 1);
 
   return (
     <>
+      {!esMesCalendario && (
+        <Card style={{ background: "rgba(234,88,12,0.08)", border: "1.5px solid var(--jona)", padding: "12px 16px" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--jona)" }}>
+            ⚠️ Las compras se registrarán en {etiquetaMes(monthKey)} (mes activo). Para otro mes, cámbialo en Historial.
+          </div>
+        </Card>
+      )}
+
       {listaLoaded && lista.length === 0 && (
         <Card style={{ background: "rgba(79,70,229,0.07)", border: "1.5px solid var(--accent)", padding: "12px 16px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
@@ -201,7 +212,7 @@ export function VistaHacer({ mercado, carrito, onCargarLista, onRegistrar, onIrA
           <div style={{ background: "var(--accent)", borderRadius: 16, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 4px 20px rgba(79,70,229,0.35)" }}>
             <div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginBottom: 2 }}>
-                {cartCount} producto{cartCount !== 1 ? "s" : ""} · {supermarket}
+                {cartCount} producto{cartCount !== 1 ? "s" : ""} · {supermarket} · {etiquetaMes(monthKey)}
               </div>
               <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", fontFamily: "var(--font-display)", lineHeight: 1 }}>{COP(cartTotal)}</div>
             </div>

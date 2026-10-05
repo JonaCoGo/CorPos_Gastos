@@ -1,42 +1,54 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label, PaymentChips } from '../../components/ui';
 import { UNITS } from '../../constants';
-import { COP, parseFlexibleNumber, convertQty } from '../../utils/finanzas';
+import { COP, parseFlexibleNumber, convertQty, comprasDelMes } from '../../utils/finanzas';
 import { Mercado, Compra } from '../../types/models';
 import { Pagador, useMercadoConfig } from './useMercadoConfig';
-import { sectionTitleStyle } from './componentes';
+import { useAppStore } from '../../store/useAppStore';
+import { etiquetaMes, sectionTitleStyle } from './componentes';
 
 interface VistaHistorialProps {
   mercado: Mercado;
   onUpdate: (data: Mercado) => void;
+  monthKey: string;
 }
 
-export function VistaHistorial({ mercado, onUpdate }: VistaHistorialProps) {
+export function VistaHistorial({ mercado, onUpdate, monthKey }: VistaHistorialProps) {
   const { names, paymentMethods, supermarkets, methodsFor } = useMercadoConfig();
   const items   = mercado?.items   || [];
   const compras = mercado?.compras || [];
+  const months = useAppStore((s) => s.data.months);
+
+  const [mesVisto, setMesVisto] = useState(monthKey);
+  useEffect(() => { setMesVisto(monthKey); }, [monthKey]);
+  const comprasMes = useMemo(() => comprasDelMes(compras, mesVisto), [compras, mesVisto]);
+  // Meses con compras o creados en la app, del más reciente al más viejo
+  const mesesDisponibles = useMemo(
+    () => Array.from(new Set([...Object.keys(months), ...compras.map((c) => c.monthKey), monthKey, mesVisto])).filter(Boolean).sort().reverse(),
+    [months, compras, monthKey, mesVisto]
+  );
 
   const [confirmDelCompra,  setConfirmDelCompra]  = useState<Compra | null>(null);
   const [confirmDelTrip,    setConfirmDelTrip]    = useState<string | null>(null);
   const [expandedTrip,      setExpandedTrip]      = useState<string | null>(null);
   const [editingTrip,       setEditingTrip]       = useState<string | null>(null);
-  const [editTripForm,      setEditTripForm]      = useState<{ paidBy: Pagador; paymentMethodId: string; supermarket: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: supermarkets[0] });
+  const [editTripForm,      setEditTripForm]      = useState<{ paidBy: Pagador; paymentMethodId: string; supermarket: string; monthKey: string }>({ paidBy: 'conjunto', paymentMethodId: "", supermarket: supermarkets[0], monthKey });
   const [editingCompra,     setEditingCompra]     = useState<Compra | null>(null);
   const [editCompraForm,    setEditCompraForm]    = useState<{ qty: string; pricePer: string; unit: string; supermarket: string; paidBy: Pagador; paymentMethodId: string }>({ qty: "1", pricePer: "0", unit: "und", supermarket: supermarkets[0], paidBy: 'conjunto', paymentMethodId: "" });
 
-  const totalCompras = useMemo(() => compras.reduce((s, c) => s + c.total, 0), [compras]);
+  const totalCompras = useMemo(() => comprasMes.reduce((s, c) => s + c.total, 0), [comprasMes]);
 
   const trips = useMemo(() => {
     const map = new Map<string, { key: string; date: string; supermarket: string; items: Compra[]; total: number }>();
-    compras.forEach((c) => {
+    comprasMes.forEach((c) => {
       const key = `${c.date}__${c.supermarket}`;
       if (!map.has(key)) map.set(key, { key, date: c.date, supermarket: c.supermarket, items: [], total: 0 });
       const t = map.get(key)!;
       t.items.push(c); t.total += c.total;
     });
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
-  }, [compras]);
+  }, [comprasMes]);
 
   const openEditCompra = (c: Compra) => {
     setEditingCompra(c);
@@ -72,14 +84,20 @@ export function VistaHistorial({ mercado, onUpdate }: VistaHistorialProps) {
 
   return (
     <>
-      <div style={sectionTitleStyle}>
-        {trips.length} viaje{trips.length !== 1 ? "s" : ""} · {COP(totalCompras)}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={sectionTitleStyle}>
+          {trips.length} viaje{trips.length !== 1 ? "s" : ""} · {COP(totalCompras)}
+        </div>
+        <select value={mesVisto} onChange={(e) => { setMesVisto(e.target.value); setExpandedTrip(null); }} aria-label="Mes del historial"
+          style={{ padding: "7px 10px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text1)", fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)" }}>
+          {mesesDisponibles.map((k) => <option key={k} value={k}>{etiquetaMes(k)}{k === monthKey ? " (activo)" : ""}</option>)}
+        </select>
       </div>
       {trips.length === 0 ? (
         <Card style={{ textAlign: "center", padding: "36px 20px" }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>🧾</div>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Sin compras aún</div>
-          <div style={{ fontSize: 13, color: "var(--text2)" }}>Registra un viaje al mercado.</div>
+          <div style={{ fontSize: 13, color: "var(--text2)" }}>No hay viajes registrados en {etiquetaMes(mesVisto)}.</div>
         </Card>
       ) : (
         trips.map((trip) => {
@@ -107,7 +125,7 @@ export function VistaHistorial({ mercado, onUpdate }: VistaHistorialProps) {
                 <button onClick={() => {
                   const first = trip.items[0];
                   setEditingTrip(trip.key);
-                  setEditTripForm({ paidBy: first?.paidBy ?? 'conjunto', paymentMethodId: first?.paymentMethodId ?? "", supermarket: trip.supermarket });
+                  setEditTripForm({ paidBy: first?.paidBy ?? 'conjunto', paymentMethodId: first?.paymentMethodId ?? "", supermarket: trip.supermarket, monthKey: mesVisto });
                 }} aria-label="Editar viaje"
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", padding: "14px 6px 14px 0", display: "flex", alignItems: "center" }}>
                   <Pencil size={15} />
@@ -167,6 +185,13 @@ export function VistaHistorial({ mercado, onUpdate }: VistaHistorialProps) {
       {/* Modal: editar viaje completo (pagador + supermercado) */}
       <Modal open={!!editingTrip} onClose={() => setEditingTrip(null)} title={tripAEditar ? `Editar · ${tripAEditar.supermarket} ${tripAEditar.date}` : ""}>
         <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Mes al que pertenece</div>
+          <select value={editTripForm.monthKey} onChange={(e) => setEditTripForm((f) => ({ ...f, monthKey: e.target.value }))}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
+            {mesesDisponibles.map((k) => <option key={k} value={k}>{etiquetaMes(k)}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text2)", marginBottom: 8 }}>Supermercado</div>
           <select value={editTripForm.supermarket} onChange={(e) => setEditTripForm((f) => ({ ...f, supermarket: e.target.value }))}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)", fontSize: 14, fontFamily: "var(--font-body)" }}>
@@ -203,7 +228,7 @@ export function VistaHistorial({ mercado, onUpdate }: VistaHistorialProps) {
             const tripIds = new Set(tripAEditar.items.map((c) => c.id));
             const updated = compras.map((c) => {
               if (!tripIds.has(c.id)) return c;
-              return { ...c, paidBy, marcelaAmount: paidBy === 'marcela' ? c.total : 0, jonatanAmount: paidBy === 'jonatan' ? c.total : 0, conjuntoAmount: paidBy === 'conjunto' ? c.total : 0, paymentMethodId: pmId, supermarket: newSupermarket };
+              return { ...c, paidBy, marcelaAmount: paidBy === 'marcela' ? c.total : 0, jonatanAmount: paidBy === 'jonatan' ? c.total : 0, conjuntoAmount: paidBy === 'conjunto' ? c.total : 0, paymentMethodId: pmId, supermarket: newSupermarket, monthKey: editTripForm.monthKey };
             });
             onUpdate({ ...mercado, compras: updated });
             setEditingTrip(null);

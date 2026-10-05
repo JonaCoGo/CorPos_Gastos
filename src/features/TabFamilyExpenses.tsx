@@ -70,7 +70,7 @@ export function TabFamilyExpenses({ monthData, mercado, onUpdate }: TabFamilyExp
   const [showEditIconPicker, setShowEditIconPicker] = useState(false);
   const [confirmDel, setConfirmDel] = useState<FamilyExpense | null>(null);
 
-  const mercadoTotals = useMemo(() => calculateMercadoTotals(mercado), [mercado]);
+  const mercadoTotals = useMemo(() => calculateMercadoTotals(mercado, monthData.key), [mercado, monthData.key]);
 
   const openEdit = (cat: FamilyExpense) => {
     setEditCat(cat);

@@ -1,6 +1,6 @@
 # CONTEXTO: APP CorPos Gastos
 
-> Última actualización: 2026-08-20
+> Última actualización: 2026-10-05
 
 ## Propósito
 
@@ -28,9 +28,10 @@ App web de gestión financiera familiar para parejas. Cubre salarios, gastos del
 |---|---|
 | `constants.ts` | Constantes globales, supermercados, unidades, 70 semillas de productos (`SEED_MARKET_ITEMS`) |
 | `types/models.ts` | Interfaces TypeScript (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Mercado`, `Compra`, `AppConfig`, `AppData`, etc.) |
-| `utils/finanzas.ts` | Lógica de negocio pura (sin dependencias React/Firebase). Reutilizable en React Native |
+| `utils/finanzas.ts` | Lógica de negocio pura (sin dependencias React/Firebase). Reutilizable en React Native. Pruebas en `finanzas.test.ts` (Vitest, `npm test`) |
 | `components/ui/` | Primitivas UI: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Toast`, `PaymentChips` |
 | `features/` | Vistas por pestaña (lazy-loaded) |
+| `features/mercado/` | Módulo Mercado: `TabMercado` (contenedor) + `VistaLista`, `VistaHacer`, `VistaHistorial`, `VistaItems`, hooks `useCarrito` y `useMercadoConfig` |
 | `services/auth.ts` | Login/logout con Google (popup en browser, redirect en Capacitor) |
 | `services/familyService.ts` | Crear familia, unirse con código, regenerar código |
 | `services/firestore.ts` | Carga/migración de datos, save (localStorage + Firestore), suscripción en tiempo real, `createInitialData` |
@@ -54,6 +55,9 @@ families/{familyId}
 
   data/current
     → AppData completa (mismo modelo que localStorage)
+
+  data/backup_pre_mercado_por_mes
+    → copia intacta de data/current tomada antes de migrar las compras a monthKey
 ```
 
 ## Modelo `AppData`
@@ -62,7 +66,9 @@ families/{familyId}
 {
   months: Record<string, MonthData>;    // ej: { "2026-06": MonthData, "2026-07": MonthData }
   currentKey: string;                    // mes activo
-  mercado: { items: ItemMercado[]; compras: Compra[] };
+  mercado: { items: ItemMercado[]; compras: Compra[]; lista?: ListaItem[] };
+  // Cada Compra lleva monthKey (mes al que pertenece) y category (snapshot).
+  // Los totales de mercado de un mes solo cuentan las compras con su monthKey.
   config: {
     marcelaName: string;
     jonatanName: string;
@@ -121,11 +127,12 @@ families/{familyId}
 - Gastos imprevistos por persona con categoría y medio de pago
 
 ### Mercado
+- **Compras por mes**: cada compra pertenece al mes activo al registrarla; cada mes muestra y suma solo su mercado
 - **Hacer mercado**: supermercado, quién paga, medio de pago, selección de productos
 - Panel por producto: cantidad, precio, unidad (con conversión kg/lb)
-- **Historial**: agrupado por viaje, expandible, con total y desglose
-- Editar viaje completo o item individual
-- **Productos**: catálogo editable con precios auto-actualizados
+- **Historial**: por mes (selector), agrupado por viaje, expandible, con total y desglose
+- Editar viaje completo (incluido moverlo a otro mes) o item individual
+- **Productos**: catálogo editable con precios auto-actualizados; eliminar archiva el producto sin borrar su historial
 
 
 
@@ -153,4 +160,4 @@ families/{familyId}
 2. Actualizar este `CONTEXTO.md` al terminar cada sesión
 3. No exponer credenciales ni rutas internas
 4. Commits con formato `tipo(app-gastos): descripción`
-5. Verificar `tsc --noEmit` y `npm run build` antes de cada commit
+5. Verificar `tsc --noEmit`, `npm test` y `npm run build` antes de cada commit

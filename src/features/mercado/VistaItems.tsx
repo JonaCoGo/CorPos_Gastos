@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Pencil, Trash2 } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label } from '../../components/ui';
 import { UNITS, ALL_CATS } from '../../constants';
-import { COP } from '../../utils/finanzas';
+import { COP, itemsActivos } from '../../utils/finanzas';
 import { Mercado, ItemMercado } from '../../types/models';
 import { useMercadoConfig } from './useMercadoConfig';
 import { CategoryChips, SearchInput } from './componentes';
@@ -14,8 +14,8 @@ interface VistaItemsProps {
 
 export function VistaItems({ mercado, onUpdate }: VistaItemsProps) {
   const { supermarkets } = useMercadoConfig();
-  const items   = mercado?.items   || [];
-  const compras = mercado?.compras || [];
+  const todos = mercado?.items || [];
+  const items = useMemo(() => itemsActivos(todos), [todos]);
 
   const [filterCat,  setFilterCat]  = useState("Todas");
   const [search,     setSearch]     = useState("");
@@ -32,18 +32,24 @@ export function VistaItems({ mercado, onUpdate }: VistaItemsProps) {
   const saveItem = () => {
     if (!addForm.name || !addForm.pricePer) return;
     const newItem: ItemMercado = { id: `item_${Date.now()}`, name: addForm.name, pricePer: Number(addForm.pricePer), unit: addForm.unit, supermarket: addForm.supermarket, category: addForm.category };
-    onUpdate({ ...mercado, items: [...items, newItem] });
+    onUpdate({ ...mercado, items: [...todos, newItem] });
     setShowAdd(false);
     setAddForm({ name: "", pricePer: "", unit: "und", supermarket: "D1", category: "Despensa" });
   };
 
+  // Archivar en vez de borrar: el producto sale del catálogo pero sus compras
+  // siguen contando en el historial y en los totales de meses pasados.
   const deleteItem = (id: string) => {
-    onUpdate({ ...mercado, items: items.filter((i) => i.id !== id), compras: compras.filter((c) => c.itemId !== id) });
+    onUpdate({
+      ...mercado,
+      items: todos.map((i) => i.id === id ? { ...i, active: false } : i),
+      lista: (mercado.lista || []).filter((l) => l.itemId !== id),
+    });
     setConfirmDel(null);
   };
 
   const updateItem = (id: string, changes: Partial<ItemMercado>) => {
-    onUpdate({ ...mercado, items: items.map((i) => i.id === id ? { ...i, ...changes } : i) });
+    onUpdate({ ...mercado, items: todos.map((i) => i.id === id ? { ...i, ...changes } : i) });
   };
 
   return (
@@ -103,7 +109,7 @@ export function VistaItems({ mercado, onUpdate }: VistaItemsProps) {
       {/* Modal: eliminar producto */}
       <Modal open={!!confirmDel} onClose={() => setConfirmDel(null)} title="¿Eliminar producto?">
         <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
-          Vas a eliminar <strong>{confirmDel?.name}</strong>. También se eliminarán sus compras del historial.
+          Vas a quitar <strong>{confirmDel?.name}</strong> del catálogo. Las compras que ya tiene registradas se conservan en el historial.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setConfirmDel(null)} style={{ flex: 1 }}>Cancelar</Btn>

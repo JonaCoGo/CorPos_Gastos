@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Trash2, Check, ClipboardList } from 'lucide-react';
 import { Card } from '../../components/ui';
-import { COP } from '../../utils/finanzas';
+import { COP, itemsActivos } from '../../utils/finanzas';
 import { Mercado, ItemMercado, ListaItem } from '../../types/models';
 import { useMercadoConfig } from './useMercadoConfig';
 import { CategoryChips, QtyTextInput, SearchInput, SupermarketChips, sectionTitleStyle } from './componentes';
@@ -14,7 +14,7 @@ interface VistaListaProps {
 
 export function VistaLista({ mercado, onUpdate, onIrAlMercado }: VistaListaProps) {
   const { supermarkets, addSupermarket } = useMercadoConfig();
-  const items = mercado?.items || [];
+  const items = itemsActivos(mercado?.items);
   const lista = mercado?.lista || [];
 
   const [filterCat, setFilterCat] = useState("Todas");

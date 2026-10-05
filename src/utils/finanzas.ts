@@ -8,6 +8,8 @@
 import {
   MonthData,
   Mercado,
+  Compra,
+  ItemMercado,
   ResumenFinanciero,
   MercadoTotals,
   FamilyExpense,
@@ -63,6 +65,45 @@ export function getMonthKey(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+// Fecha "yyyy-mm-dd" en hora local. No usar toISOString(): devuelve UTC, y en
+// Colombia (UTC-5) una compra registrada después de las 7 p.m. quedaba con la
+// fecha del día siguiente — el último día del mes caía en el mes siguiente.
+export function fechaLocalISO(d: Date = new Date()): string {
+  return `${getMonthKey(d.getFullYear(), d.getMonth() + 1)}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ─── COMPRAS POR MES ──────────────────────────────────────────────────────────
+export function comprasDelMes(compras: Compra[] | null | undefined, monthKey: string): Compra[] {
+  return (compras || []).filter((c) => c.monthKey === monthKey);
+}
+
+export function itemsActivos(items: ItemMercado[] | null | undefined): ItemMercado[] {
+  return (items || []).filter((i) => i.active !== false);
+}
+
+// Migración: compras registradas antes de que existiera `monthKey` se asignan al
+// mes de su fecha, y toman la categoría actual del producto. Si la fecha no es
+// válida se usa `fallbackMonthKey` (nunca "", que haría repetir la migración en
+// cada snapshot). Idempotente.
+export function asignarMesACompras(
+  compras: Compra[],
+  items: ItemMercado[],
+  fallbackMonthKey: string
+): { compras: Compra[]; changed: boolean } {
+  let changed = false;
+  const categoriaPorItem = new Map(items.map((i) => [i.id, i.category]));
+  const migradas = compras.map((c) => {
+    if (c.monthKey && c.category !== undefined) return c;
+    changed = true;
+    return {
+      ...c,
+      monthKey: c.monthKey || (/^\d{4}-\d{2}/.test(c.date || '') ? c.date.slice(0, 7) : fallbackMonthKey),
+      category: c.category ?? categoriaPorItem.get(c.itemId) ?? 'Otros',
+    };
+  });
+  return { compras: migradas, changed };
+}
+
 // ─── CREAR MES VACÍO ──────────────────────────────────────────────────────────
 export function createEmptyMonth(
   year: number,
@@ -112,12 +153,12 @@ export function createEmptyMonth(
 }
 
 // ─── CALCULAR TOTALES DE MERCADO ──────────────────────────────────────────────
-export function calculateMercadoTotals(mercado: Mercado | null | undefined): MercadoTotals {
-  if (!mercado || !mercado.compras) return { marcela: 0, jonatan: 0, conjunto: 0 };
+export function calculateMercadoTotals(mercado: Mercado | null | undefined, monthKey: string): MercadoTotals {
+  const compras = comprasDelMes(mercado?.compras, monthKey);
 
-  const marcela  = mercado.compras.reduce((s, c) => s + (c.marcelaAmount  || 0), 0);
-  const jonatan  = mercado.compras.reduce((s, c) => s + (c.jonatanAmount  || 0), 0);
-  const conjunto = mercado.compras.reduce((s, c) => s + (c.conjuntoAmount || 0), 0);
+  const marcela  = compras.reduce((s, c) => s + (c.marcelaAmount  || 0), 0);
+  const jonatan  = compras.reduce((s, c) => s + (c.jonatanAmount  || 0), 0);
+  const conjunto = compras.reduce((s, c) => s + (c.conjuntoAmount || 0), 0);
 
   return { marcela, jonatan, conjunto };
 }
@@ -150,7 +191,7 @@ export function computeSummary(monthData: MonthData & { mercado?: Mercado }): Re
   // Gastos del hogar — usa monthlyAmount como override del budget cuando está definido
   const totalFamilyBudget = familyExpenses.reduce((s, c) => s + (c.monthlyAmount ?? c.budget ?? 0), 0);
 
-  const mercadoTotals = calculateMercadoTotals(mercado);
+  const mercadoTotals = calculateMercadoTotals(mercado, monthData.key);
 
   const totalFamilyPaidMarcela = familyExpenses.reduce((sum, cat) => {
     if (cat.id === 'mercado') return sum + mercadoTotals.marcela;

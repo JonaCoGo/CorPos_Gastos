@@ -1,7 +1,7 @@
 import { db } from "../firebase";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, runTransaction, DocumentReference } from "firebase/firestore";
 import { STORAGE_KEY, familyStorageKey, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
-import { createEmptyMonth } from "../utils/finanzas";
+import { createEmptyMonth, asignarMesACompras, getMonthKey } from "../utils/finanzas";
 import { AppData, AppConfig, PaymentMethod } from "../types/models";
 
 // ─── DEFAULTS ────────────────────────────────────────────────────────────────
@@ -50,6 +50,18 @@ function migrateData(data: any): { data: AppData; changed: boolean } {
     changed = true;
   }
 
+  if (d.mercado?.compras?.length) {
+    const { compras, changed: comprasChanged } = asignarMesACompras(
+      d.mercado.compras,
+      d.mercado.items || [],
+      d.currentKey || getMonthKey(new Date().getFullYear(), new Date().getMonth() + 1)
+    );
+    if (comprasChanged) {
+      d.mercado = { ...d.mercado, compras };
+      changed = true;
+    }
+  }
+
   if (d.months) {
     Object.values(d.months).forEach((month: any) => {
       if (!month.familyExpenses) return;
@@ -89,6 +101,32 @@ function migrateData(data: any): { data: AppData; changed: boolean } {
   }
 
   return { data: d as AppData, changed };
+}
+
+// Compras sin `monthKey` = datos anteriores a la separación del mercado por mes.
+// Antes de migrarlas se guarda una copia intacta del documento en
+// families/{id}/data/backup_pre_mercado_por_mes (se puede restaurar a mano).
+function needsMercadoBackup(raw: any): boolean {
+  return (raw?.mercado?.compras || []).some((c: any) => !c.monthKey);
+}
+
+// La migración se escribe en una transacción que relee el documento del servidor:
+// así no pisa cambios hechos entre el snapshot y la escritura (ej. un viaje
+// registrado mientras tanto). El respaldo se crea solo si no existe, para que
+// siempre sea el documento original y no uno ya parcialmente migrado.
+async function persistMigration(ref: DocumentReference, backupRef: DocumentReference): Promise<void> {
+  await runTransaction(db!, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const raw = snap.data();
+    const backupSnap = needsMercadoBackup(raw) ? await tx.get(backupRef) : null;
+    const { data, changed } = migrateData(JSON.parse(JSON.stringify(raw)));
+    if (!changed) return;
+    if (backupSnap && !backupSnap.exists()) {
+      tx.set(backupRef, { ...raw, backupAt: new Date().toISOString() });
+    }
+    tx.set(ref, JSON.parse(JSON.stringify(data)));
+  });
 }
 
 // ─── DATOS VACÍOS (para familias nuevas sin migración) ───────────────────────
@@ -217,6 +255,7 @@ export function subscribeToFirestore(
 
   const ref = doc(db, "families", familyId, "data", "current");
   const scopedKey = familyStorageKey(familyId);
+  const backupRef = doc(db, "families", familyId, "data", "backup_pre_mercado_por_mes");
 
   // Suscripción a cambios en tiempo real
   const unsub = onSnapshot(
@@ -224,7 +263,7 @@ export function subscribeToFirestore(
     (snap) => {
       if (snap.exists()) {
         let remote = snap.data() as any;
-        let { data, changed } = migrateData(remote);
+        let { data, changed } = migrateData(JSON.parse(JSON.stringify(remote)));
 
         if (firestoreIsEmpty(data)) {
           // Firestore vacío: intentar cargar desde localStorage SCOPED a esta familia
@@ -237,7 +276,10 @@ export function subscribeToFirestore(
           }
         }
 
-        if (changed) setDoc(ref, JSON.parse(JSON.stringify(data))).catch(console.error);
+        if (changed) {
+          // Sin red la transacción falla y se reintenta en el próximo snapshot.
+          persistMigration(ref, backupRef).catch(console.error);
+        }
 
         onData(data);
         localStorage.setItem(scopedKey, JSON.stringify(data));

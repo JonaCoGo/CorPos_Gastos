@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { parseFlexibleNumber, convertQty } from '../../utils/finanzas';
+import { parseFlexibleNumber, convertQty, fechaLocalISO, itemsActivos } from '../../utils/finanzas';
 import { Mercado, ItemMercado, Compra } from '../../types/models';
 import { Pagador } from './useMercadoConfig';
 
@@ -14,7 +14,9 @@ export interface CartEntry {
 
 // El carrito vive en el contenedor de Mercado (no en la vista "Hacer") para que
 // no se pierda al cambiar entre Lista / Hacer / Historial a mitad del mercado.
-export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, defaultSupermarket: string) {
+// Las compras se registran en `monthKey` (el mes activo en la app), no en el mes
+// de la fecha: así el mercado hecho el 30 puede cargarse al mes siguiente.
+export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, defaultSupermarket: string, monthKey: string) {
   const items = mercado?.items || [];
   const compras = mercado?.compras || [];
   const lista = mercado?.lista || [];
@@ -62,9 +64,11 @@ export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, 
   const cartCount = Object.keys(cart).length;
 
   const cargarLista = () => {
-    if (lista.length === 0) return false;
+    const activos = new Set(itemsActivos(items).map((i) => i.id));
+    const pendientes = lista.filter((li) => activos.has(li.itemId));
+    if (pendientes.length === 0) return false;
     const newCart: Record<string, CartEntry> = {};
-    lista.forEach((li) => {
+    pendientes.forEach((li) => {
       newCart[li.itemId] = { itemId: li.itemId, qty: String(li.qty), pricePer: String(li.pricePer), unit: li.unit, paidBy: tripPaidBy, paymentMethodId: "" };
     });
     setCart(newCart);
@@ -74,7 +78,7 @@ export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, 
 
   const registrarViaje = () => {
     if (cartCount === 0) return false;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = fechaLocalISO();
     const nuevasCompras: Compra[] = Object.values(cart).map((e) => {
       const item = items.find((i) => i.id === e.itemId)!;
       const rawQty = parseFlexibleNumber(e.qty) || 1;
@@ -98,6 +102,8 @@ export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, 
         conjuntoAmount: paidBy === 'conjunto' ? total : 0,
         paidBy,
         paymentMethodId: e.paymentMethodId || undefined,
+        monthKey,
+        category: item.category,
       };
     });
     const updatedItems = items.map((item) => {

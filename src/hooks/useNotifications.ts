@@ -70,7 +70,7 @@ export function useNotifications(monthData: MonthData | null, mercado: Mercado |
       notify('💸 Gastos pendientes', `Tenés ${overdue.length} gastos personales sin pagar este mes`, 'personal-overdue');
     }
 
-    const mercadoTotals = calculateMercadoTotals(mercado);
+    const mercadoTotals = calculateMercadoTotals(mercado, monthData.key);
     const getFamilyPaidAmount = (expense: FamilyExpense) => {
       if (expense.id === 'mercado') {
         return mercadoTotals.marcela + mercadoTotals.jonatan + mercadoTotals.conjunto;

@@ -1,6 +1,13 @@
 # Plan de mejoras — Mercado
 
-> Creado: 2026-10-05 · Estado: **propuesto, pendiente de aprobación**
+> Creado: 2026-10-05 · Estado: **M1 implementada (2026-10-05)** · M2–M4 pendientes
+
+| Fase | Estado |
+|---|---|
+| M1 — Compras por mes | ✅ Implementada |
+| M2 — Varias listas | ⬜ Pendiente (falta D4) |
+| M3 — Informe | ⬜ Pendiente |
+| M4 — Sugerido | ⬜ Pendiente |
 
 Origen: reporte de Jonatan sobre el uso real del módulo Mercado (compras que se arrastran entre meses, borrado que afecta todos los meses, una sola lista para varios lugares, sin informe por categoría, sin sugerencias).
 
@@ -108,6 +115,17 @@ Mercado { ...; listas: ListaMercado[] }
 - En la vista Lista: botón "✨ Sugerir lista" → muestra la propuesta agrupada por supermercado, con total estimado; se aceptan/quitan productos antes de crear una o varias listas (una por supermercado, encaja con M2).
 - Requiere ≥ 2 meses con compras con `monthKey` (M1) para dar algo útil.
 
+**Implementado en M1 (2026-10-05):**
+- `Compra.monthKey` + `Compra.category` (snapshot). `ItemMercado.active` para archivar.
+- `calculateMercadoTotals(mercado, monthKey)`; `computeSummary` usa `monthData.key`. Filtran por mes: dashboard (incluye resumen por medio de pago), gastos del hogar, historial de meses y notificaciones.
+- Migración `asignarMesACompras` en `migrateData` (fecha inválida → mes activo). Se persiste con una **transacción** que relee el documento del servidor (no pisa cambios hechos entre el snapshot y la escritura) y crea `data/backup_pre_mercado_por_mes` con el documento original **solo si no existe**.
+- Revisión QA (2026-10-05): corregidos carrera en la escritura de la migración, respaldo sobrescribible, posible bucle con fechas inválidas, selector de mes desincronizado y productos archivados colados al cargar la lista.
+- Historial de Mercado con selector de mes; editar viaje permite moverlo a otro mes.
+- Vista Hacer avisa cuando el mes activo no es el mes del calendario y muestra el mes en la barra de registro.
+- Eliminado "Reiniciar compras del mercado" (store + Ajustes).
+- Fixes B2 (`fechaLocalISO`) y B3 (`checkAndAdvanceMonth` arrastra el mes previo). B4 queda para M2.
+- Vitest + `src/utils/finanzas.test.ts` (13 pruebas).
+
 ### Orden y dependencias
 
 ```
@@ -125,7 +143,16 @@ M1 va primero y solo: arregla el dato. M3 y M2 son independientes entre sí. M4 
 
 ---
 
-## 3. Decisiones pendientes (Jonatan)
+## 3. Decisiones (Jonatan)
+
+Respondidas el 2026-10-05:
+- **D1:** mes activo. ✅
+- **D2:** Frutas y Verduras se mantienen como categorías separadas (ya lo están en el catálogo). ✅
+- **D3:** eliminar "Reiniciar compras". ✅
+- **D5:** partir `TabMercado.tsx` en `features/mercado/`. ✅ (se hizo antes de M1)
+- **D4:** pendiente — se pregunta al arrancar M2.
+
+Tabla original:
 
 | # | Pregunta | Recomendación |
 |---|---|---|

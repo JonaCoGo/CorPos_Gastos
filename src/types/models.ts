@@ -78,6 +78,7 @@ export interface ItemMercado {
   unit: string;
   supermarket: string;
   category: string;
+  active?: boolean;         // false = archivado: sale del catálogo pero su historial de compras se conserva
 }
 
 export interface Compra {
@@ -96,6 +97,8 @@ export interface Compra {
   conjuntoAmount?: number;  // pagado desde fondo conjunto
   paidBy?: 'marcela' | 'jonatan' | 'conjunto';
   paymentMethodId?: string;
+  monthKey: string;         // mes al que pertenece la compra (mes activo al registrarla), ej. "2026-10"
+  category?: string;        // categoría del producto al momento de la compra
 }
 
 export interface ListaItem {

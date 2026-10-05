@@ -1,6 +1,6 @@
 import { Avatar, ProgressBar, Card } from '../components/ui';
 import { MONTH_NAMES } from '../constants';
-import { COP } from '../utils/finanzas';
+import { COP, comprasDelMes } from '../utils/finanzas';
 import { MonthData, ResumenFinanciero, Mercado } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
@@ -45,7 +45,7 @@ export function TabDashboard({ monthData, summary, mercado }: TabDashboardProps)
     (monthData.personalExpenses?.marcela || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
     (monthData.personalExpenses?.jonatan || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
     (monthData.extras || []).forEach((e) => { if (e.paymentMethodId) pmTotals[e.paymentMethodId] = (pmTotals[e.paymentMethodId] || 0) + e.amount; });
-    (mercado?.compras || []).forEach((c) => { if (c.paymentMethodId) pmTotals[c.paymentMethodId] = (pmTotals[c.paymentMethodId] || 0) + c.total; });
+    comprasDelMes(mercado?.compras, monthData.key).forEach((c) => { if (c.paymentMethodId) pmTotals[c.paymentMethodId] = (pmTotals[c.paymentMethodId] || 0) + c.total; });
   }
   const pmEntries = paymentMethods.filter((m) => pmTotals[m.id] > 0).sort((a, b) => (pmTotals[b.id] || 0) - (pmTotals[a.id] || 0));
   const pmGrandTotal = pmEntries.reduce((s, m) => s + (pmTotals[m.id] || 0), 0);

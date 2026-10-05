@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { ALL_CATS } from '../../constants';
+import { ALL_CATS, MONTH_NAMES } from '../../constants';
 import { sanitizeDecimalInput, parseFlexibleNumber } from '../../utils/finanzas';
+
+export function etiquetaMes(monthKey: string): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  return MONTH_NAMES[m] ? `${MONTH_NAMES[m]} ${y}` : monthKey;
+}
 
 export const sectionTitleStyle: React.CSSProperties = {
   fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text2)",
