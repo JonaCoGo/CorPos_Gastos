@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
-import { Trash2, Check, ClipboardList, Copy, Plus } from 'lucide-react';
+import { Trash2, Check, ClipboardList, Copy, Plus, Sparkles } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label } from '../../components/ui';
 import { COP, itemsActivos } from '../../utils/finanzas';
 import { listasDelMes, crearLista, nuevoItemDeLista, mesAnteriorConListas, copiarListasMesAnterior, listasPorCopiar } from '../../utils/listas';
+import { sugerirMercado, aplicarSugerencias, Sugerencia } from '../../utils/sugerencias';
 import { Mercado, ItemMercado, ListaItem, ListaMercado } from '../../types/models';
+import { ModalSugerencias } from './ModalSugerencias';
 import { useMercadoConfig } from './useMercadoConfig';
 import { CategoryChips, QtyTextInput, SearchInput, SupermarketChips, etiquetaMes, sectionTitleStyle } from './componentes';
 
@@ -30,6 +32,18 @@ export function VistaLista({ mercado, onUpdate, monthKey, onIrAlMercado }: Vista
   const [showNueva, setShowNueva] = useState(false);
   const [nuevaForm, setNuevaForm] = useState({ name: "", supermarket: supermarkets[0] ?? "" });
   const [confirmDelLista, setConfirmDelLista] = useState(false);
+  const [showSugerencias, setShowSugerencias] = useState(false);
+  const sugerencia = useMemo(
+    () => sugerirMercado(mercado?.compras || [], monthKey, mercado?.items || [], listas),
+    [mercado?.compras, mercado?.items, listas, monthKey]
+  );
+
+  const aceptarSugerencias = (aceptadas: Sugerencia[]) => {
+    const { listas: nuevas, listaIds } = aplicarSugerencias(listas, monthKey, aceptadas);
+    onUpdate({ ...mercado, listas: nuevas });
+    if (listaIds[0]) setListaSelId(listaIds[0]);
+    setShowSugerencias(false);
+  };
 
   const actualizarLista = (id: string, cambios: Partial<ListaMercado>) =>
     onUpdate({ ...mercado, listas: listas.map((l) => l.id === id ? { ...l, ...cambios } : l) });
@@ -110,6 +124,11 @@ export function VistaLista({ mercado, onUpdate, monthKey, onIrAlMercado }: Vista
             fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)",
           }}><Plus size={14} /> Nueva lista</button>
         </div>
+        {sugerencia.mesesAnalizados.length > 0 && (
+          <Btn variant="primary" onClick={() => setShowSugerencias(true)} style={{ width: "100%", marginTop: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <Sparkles size={15} /> Sugerir mercado{sugerencia.grupos.length > 0 ? ` (${sugerencia.grupos.reduce((s, g) => s + g.items.length, 0)})` : ""}
+          </Btn>
+        )}
         {mesAnterior && hayPorCopiar && (
           <Btn variant="secondary" onClick={copiarMesAnterior} style={{ width: "100%", marginTop: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             <Copy size={15} /> Copiar listas de {etiquetaMes(mesAnterior)}
@@ -235,6 +254,8 @@ export function VistaLista({ mercado, onUpdate, monthKey, onIrAlMercado }: Vista
           )}
         </>
       )}
+
+      <ModalSugerencias open={showSugerencias} onClose={() => setShowSugerencias(false)} resultado={sugerencia} onAceptar={aceptarSugerencias} />
 
       {/* Modal: nueva lista */}
       <Modal open={showNueva} onClose={() => setShowNueva(false)} title="Nueva lista">

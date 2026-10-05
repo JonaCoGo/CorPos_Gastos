@@ -1,13 +1,13 @@
 # Plan de mejoras — Mercado
 
-> Creado: 2026-10-05 · Estado: **M1, M2 y M3 implementadas (2026-10-05)** · M4 pendiente
+> Creado: 2026-10-05 · Estado: **M1–M4 implementadas (2026-10-05)** · plan completo
 
 | Fase | Estado |
 |---|---|
 | M1 — Compras por mes | ✅ Implementada |
 | M2 — Varias listas | ✅ Implementada |
 | M3 — Informe | ✅ Implementada |
-| M4 — Sugerido | ⬜ Pendiente |
+| M4 — Sugerido | ✅ Implementada |
 
 Origen: reporte de Jonatan sobre el uso real del módulo Mercado (compras que se arrastran entre meses, borrado que afecta todos los meses, una sola lista para varios lugares, sin informe por categoría, sin sugerencias).
 
@@ -142,6 +142,13 @@ Mercado { ...; listas: ListaMercado[] }
 - Top 5 productos por gasto y top 5 cambios de precio (último precio del mes vs. la compra anterior, solo en la misma unidad; ▲/▼ + texto, no solo color).
 - Lógica pura en `src/utils/informe.ts` + `informe.test.ts` (9 pruebas). Las categorías salen del snapshot `Compra.category` (M1), así recategorizar un producto no reescribe meses pasados.
 - Revisado visualmente con datos de ejemplo a 375 px, en modo claro y oscuro.
+
+**Implementado en M4 (2026-10-05):**
+- Botón **✨ Sugerir mercado (N)** en Lista (visible cuando hay al menos un mes anterior con compras).
+- `sugerirMercado` (`src/utils/sugerencias.ts`): producto sugerido si se compró en ≥ 2 de los últimos 3 meses con compras (≥ 1 si solo hay un mes); cantidad = mediana mensual, redondeada hacia arriba en und/paq y a un decimal en peso; último precio pagado; lugar = donde más veces se compró (empate → el más reciente). Excluye archivados y lo que ya está en alguna lista del mes (pendiente o comprado).
+- Modal con la propuesta agrupada por lugar, todo marcado; se desmarca lo que no se necesita. `aplicarSugerencias` agrega a la lista del mismo lugar en el mes o crea una lista con el nombre del lugar.
+- 12 pruebas en `sugerencias.test.ts`. Probado de punta a punta en vista previa (sugerir → desmarcar → crear listas).
+- Nota: el historial de compras se perdió con el "Reiniciar" previo a M1, así que las sugerencias aparecen a partir de que haya un mes completo registrado (noviembre en adelante).
 
 ### Orden y dependencias
 

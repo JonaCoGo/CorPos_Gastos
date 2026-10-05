@@ -29,6 +29,7 @@ App web de gestión financiera familiar para parejas. Cubre salarios, gastos del
 | `constants.ts` | Constantes globales, supermercados, unidades, 70 semillas de productos (`SEED_MARKET_ITEMS`) |
 | `types/models.ts` | Interfaces TypeScript (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Mercado`, `Compra`, `AppConfig`, `AppData`, etc.) |
 | `utils/informe.ts` | Lógica pura del informe de mercado (por categoría, por lugar, comparación con meses anteriores, cambios de precio). Pruebas en `informe.test.ts` |
+| `utils/sugerencias.ts` | Lógica pura del mercado sugerido y de pasarlo a las listas. Pruebas en `sugerencias.test.ts` |
 | `utils/listas.ts` | Lógica pura de listas de mercado (por mes, copiar, quitar comprados, migración). Pruebas en `listas.test.ts` |
 | `utils/finanzas.ts` | Lógica de negocio pura (sin dependencias React/Firebase). Reutilizable en React Native. Pruebas en `finanzas.test.ts` (Vitest, `npm test`) |
 | `components/ui/` | Primitivas UI: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Toast`, `PaymentChips` |
@@ -138,6 +139,7 @@ families/{familyId}
 ### Mercado
 - **Compras por mes**: cada compra pertenece al mes activo al registrarla; cada mes muestra y suma solo su mercado
 - **Listas por mes**: varias listas (una por lugar de compra), copiar las del mes anterior; al registrar solo salen de la lista los productos comprados
+- **Mercado sugerido**: propone productos habituales (≥ 2 de los últimos 3 meses) con cantidad típica, último precio y lugar habitual; se aceptan y quedan en las listas del mes
 - **Hacer mercado**: escoger lista, supermercado, quién paga, medio de pago, selección de productos
 - Panel por producto: cantidad, precio, unidad (con conversión kg/lb)
 - **Historial**: por mes (selector), agrupado por viaje, expandible, con total y desglose
