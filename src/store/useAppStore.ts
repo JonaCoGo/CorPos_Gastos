@@ -6,7 +6,7 @@ import {
   subscribeToFirestore,
   createInitialData,
 } from "../services/firestore";
-import { createEmptyMonth, getMonthKey } from "../utils/finanzas";
+import { createEmptyMonth, getMonthKey, mesAnteriorA } from "../utils/finanzas";
 import { AuthUser } from "../services/auth";
 
 /**
@@ -127,7 +127,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addMonth: (year, month, salaries) => {
     const { data, familyId } = get();
-    const prevM = data.months[data.currentKey] || null;
+    // Arrastra del mes inmediatamente anterior al nuevo, no del que se esté viendo.
+    const prevM = mesAnteriorA(data.months, getMonthKey(year, month));
     const newMonth = createEmptyMonth(year, month, salaries, prevM);
     const newData = {
       months: { ...data.months, [newMonth.key]: newMonth },
@@ -143,11 +144,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { data, familyId } = get();
     const months = { ...data.months };
     delete months[key];
-    const keys = Object.keys(months);
+    const keys = Object.keys(months).sort();
+    // Las compras y listas del mes se van con él: si no, quedarían ocultas y
+    // reaparecerían al volver a crear ese mes. Los otros meses no se tocan.
     const newData = {
       months,
-      currentKey: keys[keys.length - 1] || "",
-      mercado: data.mercado,
+      currentKey: data.currentKey === key ? keys[keys.length - 1] || "" : data.currentKey,
+      mercado: {
+        ...data.mercado,
+        compras: (data.mercado.compras || []).filter((c) => c.monthKey !== key),
+        listas: (data.mercado.listas || []).filter((l) => l.monthKey !== key),
+      },
       config: data.config,
     };
     set({ data: newData });
@@ -167,7 +174,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       data.currentKey &&
       data.currentKey < todayKey
     ) {
-      const lastMonth = data.months[data.currentKey];
+      const lastMonth = mesAnteriorA(data.months, todayKey);
       const newMonth = createEmptyMonth(
         currentYear,
         currentMonth,

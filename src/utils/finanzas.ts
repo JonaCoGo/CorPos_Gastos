@@ -72,6 +72,12 @@ export function fechaLocalISO(d: Date = new Date()): string {
   return `${getMonthKey(d.getFullYear(), d.getMonth() + 1)}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Mes más reciente anterior a `monthKey` (base para arrastrar gastos a un mes nuevo).
+export function mesAnteriorA(months: Record<string, MonthData>, monthKey: string): MonthData | null {
+  const anteriores = Object.keys(months).filter((k) => k < monthKey).sort();
+  return anteriores.length ? months[anteriores[anteriores.length - 1]] : null;
+}
+
 // ─── COMPRAS POR MES ──────────────────────────────────────────────────────────
 export function comprasDelMes(compras: Compra[] | null | undefined, monthKey: string): Compra[] {
   return (compras || []).filter((c) => c.monthKey === monthKey);

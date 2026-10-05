@@ -101,6 +101,12 @@ families/{familyId}
 
 ## Funcionalidades
 
+### Meses (aislamiento)
+- Cada mes es independiente: crear, editar o borrar en un mes no cambia ningún otro (cubierto por `store/useAppStore.test.ts`)
+- Un mes nuevo hereda gastos del hogar y personales del mes inmediatamente anterior, con pagos en cero; extras y mercado arrancan vacíos
+- Eliminar un mes borra también sus compras y listas del mercado
+- Globales a propósito: nombres, medios de pago, supermercados y catálogo de productos
+
 ### Dashboard
 - Resumen salarios → neto disponible por persona
 - Gastos del hogar: pagado vs presupuesto, ideal por persona, faltante

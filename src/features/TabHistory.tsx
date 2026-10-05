@@ -107,7 +107,7 @@ export function TabHistory({ allMonths, currentKey, mercado, onSelectMonth, onNe
       {/* Modal: confirmar eliminar mes */}
       <Modal open={!!confirmDelMonth} onClose={() => setConfirmDelMonth(null)} title="¿Eliminar mes?">
         <p style={{ color: "var(--text2)", fontSize: 14, marginBottom: 20 }}>
-          Vas a eliminar <strong>{confirmDelMonth ? `${MONTH_NAMES[confirmDelMonth.month]} ${confirmDelMonth.year}` : ""}</strong>. Esta acción no se puede deshacer.
+          Vas a eliminar <strong>{confirmDelMonth ? `${MONTH_NAMES[confirmDelMonth.month]} ${confirmDelMonth.year}` : ""}</strong>. También se borran las compras y listas del mercado de ese mes. Los demás meses no se tocan. Esta acción no se puede deshacer.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => setConfirmDelMonth(null)} style={{ flex: 1 }}>Cancelar</Btn>
