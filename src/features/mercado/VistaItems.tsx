@@ -43,7 +43,7 @@ export function VistaItems({ mercado, onUpdate }: VistaItemsProps) {
     onUpdate({
       ...mercado,
       items: todos.map((i) => i.id === id ? { ...i, active: false } : i),
-      lista: (mercado.lista || []).filter((l) => l.itemId !== id),
+      listas: (mercado.listas || []).map((l) => ({ ...l, items: l.items.filter((it) => it.itemId !== id) })),
     });
     setConfirmDel(null);
   };

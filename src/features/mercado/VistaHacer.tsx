@@ -4,6 +4,7 @@ import { Card, Btn, PaymentChips } from '../../components/ui';
 import { UNITS } from '../../constants';
 import { COP, sanitizeDecimalInput, parseFlexibleNumber, convertQty, itemsActivos, getMonthKey } from '../../utils/finanzas';
 import { Mercado } from '../../types/models';
+import { listasDelMes } from '../../utils/listas';
 import { useMercadoConfig } from './useMercadoConfig';
 import { Carrito } from './useCarrito';
 import { CategoryChips, SearchInput, SupermarketChips, etiquetaMes, sectionTitleStyle } from './componentes';
@@ -11,7 +12,7 @@ import { CategoryChips, SearchInput, SupermarketChips, etiquetaMes, sectionTitle
 interface VistaHacerProps {
   mercado: Mercado;
   carrito: Carrito;
-  onCargarLista: () => void;
+  onCargarLista: (listaId: string) => void;
   onRegistrar: () => void;
   onIrAItems: () => void;
   monthKey: string;
@@ -20,11 +21,11 @@ interface VistaHacerProps {
 export function VistaHacer({ mercado, carrito, onCargarLista, onRegistrar, onIrAItems, monthKey }: VistaHacerProps) {
   const { names, paymentMethods, supermarkets, addSupermarket, methodsFor } = useMercadoConfig();
   const items = itemsActivos(mercado?.items);
-  const lista = mercado?.lista || [];
+  const listasConPendientes = listasDelMes(mercado?.listas, monthKey).filter((l) => l.items.length > 0);
   const {
     supermarket, setSupermarket, tripPaidBy, setTripPayer,
     cart, inCart, toggleCart, updateCartEntry, cartTotal, cartCount,
-    expandedItem, setExpandedItem, listaLoaded,
+    expandedItem, setExpandedItem, listaCargada,
   } = carrito;
 
   const [filterCat, setFilterCat] = useState("Todas");
@@ -36,7 +37,7 @@ export function VistaHacer({ mercado, carrito, onCargarLista, onRegistrar, onIrA
     return matchCat && matchText;
   }), [items, filterCat, search]);
 
-  const inLista = (itemId: string) => lista.some((l) => l.itemId === itemId);
+  const inLista = (itemId: string) => !!listaCargada?.items.some((l) => l.itemId === itemId);
   const hoy = new Date();
   const esMesCalendario = monthKey === getMonthKey(hoy.getFullYear(), hoy.getMonth() + 1);
 
@@ -50,20 +51,24 @@ export function VistaHacer({ mercado, carrito, onCargarLista, onRegistrar, onIrA
         </Card>
       )}
 
-      {listaLoaded && lista.length === 0 && (
+      {listaCargada && cartCount > 0 ? (
         <Card style={{ background: "rgba(79,70,229,0.07)", border: "1.5px solid var(--accent)", padding: "12px 16px" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)" }}>
-            ✅ Lista cargada en el carrito — ajusta precios y cantidades en el mercado
+            ✅ Lista «{listaCargada.name}» en el carrito — ajusta precios y cantidades. Lo que no compres queda pendiente en la lista.
           </div>
         </Card>
-      )}
-
-      {lista.length > 0 && cartCount === 0 && (
+      ) : listasConPendientes.length > 0 && cartCount === 0 && (
         <Card style={{ background: "rgba(79,70,229,0.07)", border: "1.5px solid var(--accent)", padding: "12px 16px" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", marginBottom: 8 }}>
-            📋 Tienes una lista de {lista.length} producto{lista.length !== 1 ? "s" : ""}
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", marginBottom: 10 }}>
+            📋 ¿Qué lista vas a usar?
           </div>
-          <Btn variant="primary" onClick={onCargarLista} style={{ width: "100%" }}>Cargar lista en el carrito</Btn>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {listasConPendientes.map((l) => (
+              <Btn key={l.id} variant="primary" onClick={() => onCargarLista(l.id)} style={{ width: "100%" }}>
+                {l.name}{l.supermarket ? ` · ${l.supermarket}` : ""} ({l.items.length})
+              </Btn>
+            ))}
+          </div>
         </Card>
       )}
 

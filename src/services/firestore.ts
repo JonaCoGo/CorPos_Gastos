@@ -2,6 +2,7 @@ import { db } from "../firebase";
 import { doc, onSnapshot, setDoc, runTransaction, DocumentReference } from "firebase/firestore";
 import { STORAGE_KEY, familyStorageKey, SEED_MARKET_ITEMS, SUPERMARKETS } from "../constants";
 import { createEmptyMonth, asignarMesACompras, getMonthKey } from "../utils/finanzas";
+import { migrarListaUnica } from "../utils/listas";
 import { AppData, AppConfig, PaymentMethod } from "../types/models";
 
 // ─── DEFAULTS ────────────────────────────────────────────────────────────────
@@ -29,7 +30,7 @@ function migrateData(data: any): { data: AppData; changed: boolean } {
   const d = { ...data };
 
   if (!d.mercado || !d.mercado.items || d.mercado.items.length === 0) {
-    d.mercado = { items: SEED_MARKET_ITEMS, compras: d.mercado?.compras || [] };
+    d.mercado = { ...d.mercado, items: SEED_MARKET_ITEMS, compras: d.mercado?.compras || [] };
     changed = true;
   }
   if (!d.config) {
@@ -60,6 +61,15 @@ function migrateData(data: any): { data: AppData; changed: boolean } {
       d.mercado = { ...d.mercado, compras };
       changed = true;
     }
+  }
+
+  if (d.mercado && d.mercado.lista !== undefined) {
+    const { mercado } = migrarListaUnica(
+      d.mercado,
+      d.currentKey || getMonthKey(new Date().getFullYear(), new Date().getMonth() + 1)
+    );
+    d.mercado = mercado;
+    changed = true;
   }
 
   if (d.months) {

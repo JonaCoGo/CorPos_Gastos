@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { parseFlexibleNumber, convertQty, fechaLocalISO, itemsActivos } from '../../utils/finanzas';
 import { Mercado, ItemMercado, Compra } from '../../types/models';
+import { listasDelMes, quitarComprados } from '../../utils/listas';
 import { Pagador } from './useMercadoConfig';
 
 export interface CartEntry {
@@ -19,13 +20,13 @@ export interface CartEntry {
 export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, defaultSupermarket: string, monthKey: string) {
   const items = mercado?.items || [];
   const compras = mercado?.compras || [];
-  const lista = mercado?.lista || [];
+  const listas = mercado?.listas || [];
 
   const [supermarket,  setSupermarket]  = useState(defaultSupermarket);
   const [tripPaidBy,   setTripPaidBy]   = useState<Pagador>('conjunto');
   const [cart,         setCart]         = useState<Record<string, CartEntry>>({});
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
-  const [listaLoaded,  setListaLoaded]  = useState(false);
+  const [listaId,      setListaId]      = useState<string | null>(null);
 
   const inCart = (id: string) => !!cart[id];
 
@@ -63,16 +64,23 @@ export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, 
   }, 0), [cart, items]);
   const cartCount = Object.keys(cart).length;
 
-  const cargarLista = () => {
+  // Solo cuenta si es del mes activo: si se cambia de mes, la lista deja de estar cargada.
+  const listaCargada = listasDelMes(listas, monthKey).find((l) => l.id === listaId) ?? null;
+
+  // Reemplaza el carrito con los productos pendientes de la lista y fija su lugar de compra.
+  const cargarLista = (id: string) => {
+    const lista = listas.find((l) => l.id === id);
+    if (!lista) return false;
     const activos = new Set(itemsActivos(items).map((i) => i.id));
-    const pendientes = lista.filter((li) => activos.has(li.itemId));
+    const pendientes = lista.items.filter((li) => activos.has(li.itemId));
     if (pendientes.length === 0) return false;
     const newCart: Record<string, CartEntry> = {};
     pendientes.forEach((li) => {
       newCart[li.itemId] = { itemId: li.itemId, qty: String(li.qty), pricePer: String(li.pricePer), unit: li.unit, paidBy: tripPaidBy, paymentMethodId: "" };
     });
     setCart(newCart);
-    setListaLoaded(true);
+    setListaId(lista.id);
+    if (lista.supermarket) setSupermarket(lista.supermarket);
     return true;
   };
 
@@ -112,10 +120,14 @@ export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, 
         return { ...item, pricePer: parseFlexibleNumber(e.pricePer) };
       return item;
     });
-    onUpdate({ ...mercado, items: updatedItems, compras: [...nuevasCompras, ...compras], lista: [] });
+    const compradosIds = Object.keys(cart);
+    const listasActualizadas = listaCargada
+      ? listas.map((l) => l.id === listaCargada.id ? quitarComprados(l, compradosIds) : l)
+      : listas;
+    onUpdate({ ...mercado, items: updatedItems, compras: [...nuevasCompras, ...compras], listas: listasActualizadas });
     setCart({});
     setExpandedItem(null);
-    setListaLoaded(false);
+    setListaId(null);
     return true;
   };
 
@@ -124,7 +136,7 @@ export function useCarrito(mercado: Mercado, onUpdate: (data: Mercado) => void, 
     tripPaidBy, setTripPayer,
     cart, inCart, toggleCart, updateCartEntry, cartTotal, cartCount,
     expandedItem, setExpandedItem,
-    listaLoaded,
+    listaCargada,
     cargarLista, registrarViaje,
   };
 }

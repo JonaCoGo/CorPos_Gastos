@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Mercado } from '../../types/models';
+import { listasDelMes } from '../../utils/listas';
 import { useAppStore } from '../../store/useAppStore';
 import { useMercadoConfig } from './useMercadoConfig';
 import { useCarrito } from './useCarrito';
@@ -24,12 +25,18 @@ const VISTAS: { id: Vista; label: string }[] = [
 
 export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
   const { supermarkets } = useMercadoConfig();
-  const lista = mercado?.lista || [];
   const [view, setView] = useState<Vista>("lista");
   const monthKey = useAppStore((s) => s.data.currentKey);
   const carrito = useCarrito(mercado, onUpdate, supermarkets[0], monthKey);
 
-  const cargarLista = () => { if (carrito.cargarLista()) setView("hacer"); };
+  const pendientes = listasDelMes(mercado?.listas, monthKey).reduce((s, l) => s + l.items.length, 0);
+
+  const cargarLista = (listaId: string) => {
+    const reemplaza = carrito.cartCount > 0 && carrito.listaCargada?.id !== listaId;
+    if (reemplaza && !window.confirm("Ya tienes productos en el carrito. ¿Reemplazarlos por esta lista? Se pierden los precios y cantidades que digitaste.")) return;
+    if (carrito.listaCargada?.id === listaId && carrito.cartCount > 0) { setView("hacer"); return; }
+    if (carrito.cargarLista(listaId)) setView("hacer");
+  };
   const registrar   = () => { if (carrito.registrarViaje()) setView("historial"); };
 
   return (
@@ -45,16 +52,16 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
             position: "relative",
           }}>
             {v.label}
-            {v.id === "lista" && lista.length > 0 && (
+            {v.id === "lista" && pendientes > 0 && (
               <span style={{ position: "absolute", top: 2, right: 4, background: "var(--accent)", color: "#fff", borderRadius: 99, fontSize: 9, fontWeight: 900, padding: "1px 5px", lineHeight: 1.4 }}>
-                {lista.length}
+                {pendientes}
               </span>
             )}
           </button>
         ))}
       </div>
 
-      {view === "lista"     && <VistaLista mercado={mercado} onUpdate={onUpdate} onIrAlMercado={cargarLista} />}
+      {view === "lista"     && <VistaLista mercado={mercado} onUpdate={onUpdate} monthKey={monthKey} onIrAlMercado={cargarLista} />}
       {view === "hacer"     && <VistaHacer mercado={mercado} carrito={carrito} onCargarLista={cargarLista} onRegistrar={registrar} onIrAItems={() => setView("productos")} monthKey={monthKey} />}
       {view === "historial" && <VistaHistorial mercado={mercado} onUpdate={onUpdate} monthKey={monthKey} />}
       {view === "productos" && <VistaItems mercado={mercado} onUpdate={onUpdate} />}

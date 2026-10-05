@@ -1,11 +1,11 @@
 # Plan de mejoras — Mercado
 
-> Creado: 2026-10-05 · Estado: **M1 implementada (2026-10-05)** · M2–M4 pendientes
+> Creado: 2026-10-05 · Estado: **M1 y M2 implementadas (2026-10-05)** · M3–M4 pendientes
 
 | Fase | Estado |
 |---|---|
 | M1 — Compras por mes | ✅ Implementada |
-| M2 — Varias listas | ⬜ Pendiente (falta D4) |
+| M2 — Varias listas | ✅ Implementada |
 | M3 — Informe | ⬜ Pendiente |
 | M4 — Sugerido | ⬜ Pendiente |
 
@@ -126,6 +126,15 @@ Mercado { ...; listas: ListaMercado[] }
 - Fixes B2 (`fechaLocalISO`) y B3 (`checkAndAdvanceMonth` arrastra el mes previo). B4 queda para M2.
 - Vitest + `src/utils/finanzas.test.ts` (13 pruebas).
 
+**Implementado en M2 (2026-10-05):**
+- `Mercado.listas: ListaMercado[]` (`name`, `supermarket`, `monthKey`, `items` = pendientes, `comprados` = ya comprados este mes). Lógica pura en `src/utils/listas.ts` + `listas.test.ts`.
+- Vista Lista: chips con las listas del mes, crear / eliminar, supermercado por lista, total estimado, aviso "en <otra lista>" en el catálogo, "Copiar listas de <mes anterior>" (no duplica nombres existentes).
+- Vista Hacer: "¿Qué lista vas a usar?" carga la lista al carrito y fija su supermercado.
+- Registrar viaje quita de la lista solo lo comprado (fix B4); lo demás queda pendiente.
+- Migración `migrarListaUnica`: la lista única vieja pasa a ser "Lista" del mes activo.
+- Sin campo `done`: una lista sin pendientes y con comprados se muestra como ✅.
+- Revisión QA (2026-10-05): copiar ahora trae la lista completa (pendientes + comprados; antes copiaba listas vacías a fin de mes), la migración fusiona en vez de duplicar si un celular desactualizado reescribe la lista vieja, confirmación antes de reemplazar un carrito con otra lista, selector de lista visible con carrito vacío, la lista cargada deja de contar al cambiar de mes, botón de copiar oculto si no hay nada por copiar.
+
 ### Orden y dependencias
 
 ```
@@ -150,7 +159,7 @@ Respondidas el 2026-10-05:
 - **D2:** Frutas y Verduras se mantienen como categorías separadas (ya lo están en el catálogo). ✅
 - **D3:** eliminar "Reiniciar compras". ✅
 - **D5:** partir `TabMercado.tsx` en `features/mercado/`. ✅ (se hizo antes de M1)
-- **D4:** pendiente — se pregunta al arrancar M2.
+- **D4:** listas **por mes**, con "Copiar listas del mes anterior". ✅
 
 Tabla original:
 

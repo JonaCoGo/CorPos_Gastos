@@ -28,6 +28,7 @@ App web de gestión financiera familiar para parejas. Cubre salarios, gastos del
 |---|---|
 | `constants.ts` | Constantes globales, supermercados, unidades, 70 semillas de productos (`SEED_MARKET_ITEMS`) |
 | `types/models.ts` | Interfaces TypeScript (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Mercado`, `Compra`, `AppConfig`, `AppData`, etc.) |
+| `utils/listas.ts` | Lógica pura de listas de mercado (por mes, copiar, quitar comprados, migración). Pruebas en `listas.test.ts` |
 | `utils/finanzas.ts` | Lógica de negocio pura (sin dependencias React/Firebase). Reutilizable en React Native. Pruebas en `finanzas.test.ts` (Vitest, `npm test`) |
 | `components/ui/` | Primitivas UI: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Toast`, `PaymentChips` |
 | `features/` | Vistas por pestaña (lazy-loaded) |
@@ -66,9 +67,10 @@ families/{familyId}
 {
   months: Record<string, MonthData>;    // ej: { "2026-06": MonthData, "2026-07": MonthData }
   currentKey: string;                    // mes activo
-  mercado: { items: ItemMercado[]; compras: Compra[]; lista?: ListaItem[] };
+  mercado: { items: ItemMercado[]; compras: Compra[]; listas?: ListaMercado[] };
   // Cada Compra lleva monthKey (mes al que pertenece) y category (snapshot).
   // Los totales de mercado de un mes solo cuentan las compras con su monthKey.
+  // Cada ListaMercado pertenece a un mes y a un supermercado (ej. "OR", "D1").
   config: {
     marcelaName: string;
     jonatanName: string;
@@ -128,7 +130,8 @@ families/{familyId}
 
 ### Mercado
 - **Compras por mes**: cada compra pertenece al mes activo al registrarla; cada mes muestra y suma solo su mercado
-- **Hacer mercado**: supermercado, quién paga, medio de pago, selección de productos
+- **Listas por mes**: varias listas (una por lugar de compra), copiar las del mes anterior; al registrar solo salen de la lista los productos comprados
+- **Hacer mercado**: escoger lista, supermercado, quién paga, medio de pago, selección de productos
 - Panel por producto: cantidad, precio, unidad (con conversión kg/lb)
 - **Historial**: por mes (selector), agrupado por viaje, expandible, con total y desglose
 - Editar viaje completo (incluido moverlo a otro mes) o item individual

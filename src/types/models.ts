@@ -111,9 +111,20 @@ export interface ListaItem {
   supermarket: string;
 }
 
+export interface ListaMercado {
+  id: string;
+  name: string;             // ej. "OR", "D1 quincena", "Plaza"
+  supermarket: string;      // lugar de compra de la lista
+  monthKey: string;         // mes al que pertenece
+  items: ListaItem[];       // productos pendientes de comprar
+  comprados?: ListaItem[];  // ya comprados este mes: junto con `items` es la lista completa (se usa al copiarla)
+}
+
 export interface Mercado {
   items: ItemMercado[];
   compras: Compra[];
+  listas?: ListaMercado[];
+  /** @deprecated lista única anterior a M2; se migra a `listas` al cargar */
   lista?: ListaItem[];
 }
 
