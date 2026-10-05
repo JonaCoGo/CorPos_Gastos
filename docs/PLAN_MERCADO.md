@@ -1,12 +1,12 @@
 # Plan de mejoras — Mercado
 
-> Creado: 2026-10-05 · Estado: **M1 y M2 implementadas (2026-10-05)** · M3–M4 pendientes
+> Creado: 2026-10-05 · Estado: **M1, M2 y M3 implementadas (2026-10-05)** · M4 pendiente
 
 | Fase | Estado |
 |---|---|
 | M1 — Compras por mes | ✅ Implementada |
 | M2 — Varias listas | ✅ Implementada |
-| M3 — Informe | ⬜ Pendiente |
+| M3 — Informe | ✅ Implementada |
 | M4 — Sugerido | ⬜ Pendiente |
 
 Origen: reporte de Jonatan sobre el uso real del módulo Mercado (compras que se arrastran entre meses, borrado que afecta todos los meses, una sola lista para varios lugares, sin informe por categoría, sin sugerencias).
@@ -134,6 +134,14 @@ Mercado { ...; listas: ListaMercado[] }
 - Migración `migrarListaUnica`: la lista única vieja pasa a ser "Lista" del mes activo.
 - Sin campo `done`: una lista sin pendientes y con comprados se muestra como ✅.
 - Revisión QA (2026-10-05): copiar ahora trae la lista completa (pendientes + comprados; antes copiaba listas vacías a fin de mes), la migración fusiona en vez de duplicar si un celular desactualizado reescribe la lista vieja, confirmación antes de reemplazar un carrito con otra lista, selector de lista visible con carrito vacío, la lista cargada deja de contar al cambiar de mes, botón de copiar oculto si no hay nada por copiar.
+
+**Implementado en M3 (2026-10-05):**
+- Pestaña **📊 Informe** en Mercado, con selector de mes (compartido con Historial: `useMesConsultado` + `SelectorMes`).
+- Total del mes como cifra principal + viajes y categorías + variación vs. el promedio de los últimos 3 meses con compras (o "primer mes" si no hay base).
+- Barras por categoría y por lugar de compra: una sola serie → un solo color (`--accent`), ordenadas de mayor a menor, valor y % en texto; debajo, variación vs. promedio con flecha + texto ("Nuevo" si antes no se compraba).
+- Top 5 productos por gasto y top 5 cambios de precio (último precio del mes vs. la compra anterior, solo en la misma unidad; ▲/▼ + texto, no solo color).
+- Lógica pura en `src/utils/informe.ts` + `informe.test.ts` (9 pruebas). Las categorías salen del snapshot `Compra.category` (M1), así recategorizar un producto no reescribe meses pasados.
+- Revisado visualmente con datos de ejemplo a 375 px, en modo claro y oscuro.
 
 ### Orden y dependencias
 

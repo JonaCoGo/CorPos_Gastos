@@ -1,10 +1,40 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { ALL_CATS, MONTH_NAMES } from '../../constants';
 import { sanitizeDecimalInput, parseFlexibleNumber } from '../../utils/finanzas';
+import { useAppStore } from '../../store/useAppStore';
+import { Compra } from '../../types/models';
 
 export function etiquetaMes(monthKey: string): string {
   const [y, m] = monthKey.split("-").map(Number);
   return MONTH_NAMES[m] ? `${MONTH_NAMES[m]} ${y}` : monthKey;
+}
+
+// Mes que se está consultando (arranca en el mes activo y lo sigue si cambia) y
+// los meses que se pueden escoger: creados en la app o con compras.
+export function useMesConsultado(compras: Compra[], monthKey: string) {
+  const months = useAppStore((s) => s.data.months);
+  const [mes, setMes] = useState(monthKey);
+  useEffect(() => { setMes(monthKey); }, [monthKey]);
+  const opciones = useMemo(
+    () => Array.from(new Set([...Object.keys(months), ...compras.map((c) => c.monthKey), monthKey, mes])).filter(Boolean).sort().reverse(),
+    [months, compras, monthKey, mes]
+  );
+  return { mes, setMes, opciones };
+}
+
+export function SelectorMes({ value, onChange, opciones, monthKey, ariaLabel }: {
+  value: string;
+  onChange: (k: string) => void;
+  opciones: string[];
+  monthKey: string;
+  ariaLabel: string;
+}) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={ariaLabel}
+      style={{ padding: "7px 10px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text1)", fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)" }}>
+      {opciones.map((k) => <option key={k} value={k}>{etiquetaMes(k)}{k === monthKey ? " (activo)" : ""}</option>)}
+    </select>
+  );
 }
 
 export const sectionTitleStyle: React.CSSProperties = {

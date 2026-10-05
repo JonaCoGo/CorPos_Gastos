@@ -28,11 +28,12 @@ App web de gestión financiera familiar para parejas. Cubre salarios, gastos del
 |---|---|
 | `constants.ts` | Constantes globales, supermercados, unidades, 70 semillas de productos (`SEED_MARKET_ITEMS`) |
 | `types/models.ts` | Interfaces TypeScript (`MonthData`, `FamilyExpense`, `PersonalExpense`, `Mercado`, `Compra`, `AppConfig`, `AppData`, etc.) |
+| `utils/informe.ts` | Lógica pura del informe de mercado (por categoría, por lugar, comparación con meses anteriores, cambios de precio). Pruebas en `informe.test.ts` |
 | `utils/listas.ts` | Lógica pura de listas de mercado (por mes, copiar, quitar comprados, migración). Pruebas en `listas.test.ts` |
 | `utils/finanzas.ts` | Lógica de negocio pura (sin dependencias React/Firebase). Reutilizable en React Native. Pruebas en `finanzas.test.ts` (Vitest, `npm test`) |
 | `components/ui/` | Primitivas UI: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Toast`, `PaymentChips` |
 | `features/` | Vistas por pestaña (lazy-loaded) |
-| `features/mercado/` | Módulo Mercado: `TabMercado` (contenedor) + `VistaLista`, `VistaHacer`, `VistaHistorial`, `VistaItems`, hooks `useCarrito` y `useMercadoConfig` |
+| `features/mercado/` | Módulo Mercado: `TabMercado` (contenedor) + `VistaLista`, `VistaHacer`, `VistaHistorial`, `VistaInforme`, `VistaItems`, hooks `useCarrito` y `useMercadoConfig` |
 | `services/auth.ts` | Login/logout con Google (popup en browser, redirect en Capacitor) |
 | `services/familyService.ts` | Crear familia, unirse con código, regenerar código |
 | `services/firestore.ts` | Carga/migración de datos, save (localStorage + Firestore), suscripción en tiempo real, `createInitialData` |
@@ -134,6 +135,7 @@ families/{familyId}
 - **Hacer mercado**: escoger lista, supermercado, quién paga, medio de pago, selección de productos
 - Panel por producto: cantidad, precio, unidad (con conversión kg/lb)
 - **Historial**: por mes (selector), agrupado por viaje, expandible, con total y desglose
+- **Informe** (por mes): total vs. promedio de 3 meses, gasto por categoría y por lugar de compra, productos que más pesaron y cambios de precio
 - Editar viaje completo (incluido moverlo a otro mes) o item individual
 - **Productos**: catálogo editable con precios auto-actualizados; eliminar archiva el producto sin borrar su historial
 

@@ -8,18 +8,20 @@ import { VistaLista } from './VistaLista';
 import { VistaHacer } from './VistaHacer';
 import { VistaHistorial } from './VistaHistorial';
 import { VistaItems } from './VistaItems';
+import { VistaInforme } from './VistaInforme';
 
 interface TabMercadoProps {
   mercado: Mercado;
   onUpdate: (data: Mercado) => void;
 }
 
-type Vista = "lista" | "hacer" | "historial" | "productos";
+type Vista = "lista" | "hacer" | "historial" | "informe" | "productos";
 
 const VISTAS: { id: Vista; label: string }[] = [
   { id: "lista",     label: "📋 Lista" },
   { id: "hacer",     label: "🛒 Hacer" },
   { id: "historial", label: "🧾 Historial" },
+  { id: "informe",   label: "📊 Informe" },
   { id: "productos", label: "🧺 Items" },
 ];
 
@@ -64,6 +66,7 @@ export function TabMercado({ mercado, onUpdate }: TabMercadoProps) {
       {view === "lista"     && <VistaLista mercado={mercado} onUpdate={onUpdate} monthKey={monthKey} onIrAlMercado={cargarLista} />}
       {view === "hacer"     && <VistaHacer mercado={mercado} carrito={carrito} onCargarLista={cargarLista} onRegistrar={registrar} onIrAItems={() => setView("productos")} monthKey={monthKey} />}
       {view === "historial" && <VistaHistorial mercado={mercado} onUpdate={onUpdate} monthKey={monthKey} />}
+      {view === "informe"   && <VistaInforme mercado={mercado} monthKey={monthKey} />}
       {view === "productos" && <VistaItems mercado={mercado} onUpdate={onUpdate} />}
     </div>
   );

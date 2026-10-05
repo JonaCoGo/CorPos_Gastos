@@ -1,12 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, Btn, Field, Modal, Label, PaymentChips } from '../../components/ui';
 import { UNITS } from '../../constants';
 import { COP, parseFlexibleNumber, convertQty, comprasDelMes } from '../../utils/finanzas';
 import { Mercado, Compra } from '../../types/models';
 import { Pagador, useMercadoConfig } from './useMercadoConfig';
-import { useAppStore } from '../../store/useAppStore';
-import { etiquetaMes, sectionTitleStyle } from './componentes';
+import { SelectorMes, etiquetaMes, sectionTitleStyle, useMesConsultado } from './componentes';
 
 interface VistaHistorialProps {
   mercado: Mercado;
@@ -18,16 +17,8 @@ export function VistaHistorial({ mercado, onUpdate, monthKey }: VistaHistorialPr
   const { names, paymentMethods, supermarkets, methodsFor } = useMercadoConfig();
   const items   = mercado?.items   || [];
   const compras = mercado?.compras || [];
-  const months = useAppStore((s) => s.data.months);
-
-  const [mesVisto, setMesVisto] = useState(monthKey);
-  useEffect(() => { setMesVisto(monthKey); }, [monthKey]);
+  const { mes: mesVisto, setMes: setMesVisto, opciones: mesesDisponibles } = useMesConsultado(compras, monthKey);
   const comprasMes = useMemo(() => comprasDelMes(compras, mesVisto), [compras, mesVisto]);
-  // Meses con compras o creados en la app, del más reciente al más viejo
-  const mesesDisponibles = useMemo(
-    () => Array.from(new Set([...Object.keys(months), ...compras.map((c) => c.monthKey), monthKey, mesVisto])).filter(Boolean).sort().reverse(),
-    [months, compras, monthKey, mesVisto]
-  );
 
   const [confirmDelCompra,  setConfirmDelCompra]  = useState<Compra | null>(null);
   const [confirmDelTrip,    setConfirmDelTrip]    = useState<string | null>(null);
@@ -88,10 +79,7 @@ export function VistaHistorial({ mercado, onUpdate, monthKey }: VistaHistorialPr
         <div style={sectionTitleStyle}>
           {trips.length} viaje{trips.length !== 1 ? "s" : ""} · {COP(totalCompras)}
         </div>
-        <select value={mesVisto} onChange={(e) => { setMesVisto(e.target.value); setExpandedTrip(null); }} aria-label="Mes del historial"
-          style={{ padding: "7px 10px", borderRadius: 10, border: "1.5px solid var(--border)", background: "var(--surface)", color: "var(--text1)", fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)" }}>
-          {mesesDisponibles.map((k) => <option key={k} value={k}>{etiquetaMes(k)}{k === monthKey ? " (activo)" : ""}</option>)}
-        </select>
+        <SelectorMes value={mesVisto} onChange={(k) => { setMesVisto(k); setExpandedTrip(null); }} opciones={mesesDisponibles} monthKey={monthKey} ariaLabel="Mes del historial" />
       </div>
       {trips.length === 0 ? (
         <Card style={{ textAlign: "center", padding: "36px 20px" }}>
