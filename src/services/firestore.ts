@@ -234,6 +234,34 @@ export function saveData(d: AppData, familyId?: string | null): Promise<void> {
   return Promise.resolve();
 }
 
+// ─── IMPORTAR BACKUP (JSON exportado desde Ajustes) ──────────────────────────
+
+/**
+ * Reemplaza los datos de la familia con un backup. Antes guarda el estado
+ * actual en families/{id}/data/backup_pre_import para poder deshacerlo a mano.
+ * El backup pasa por migrateData, así un JSON de una versión vieja de la app
+ * (ej. compras sin monthKey, lista única) queda en el modelo actual.
+ * Espera a que Firestore confirme antes de resolver: si se recarga antes, la
+ * suscripción entrega los datos viejos y el import parece no funcionar.
+ */
+export async function importarBackup(parsed: unknown, familyId: string, actual: AppData): Promise<void> {
+  const p = parsed as any;
+  if (!p || typeof p !== "object" || !p.months || typeof p.months !== "object" || !p.currentKey) {
+    throw new Error("Formato inválido");
+  }
+  const { data } = migrateData(JSON.parse(JSON.stringify(p)));
+  // Sin saveData a propósito: ese se traga los errores de Firestore, y aquí un
+  // fallo debe llegar a la pantalla en vez de reportar un import exitoso.
+  if (db) {
+    await setDoc(
+      doc(db, "families", familyId, "data", "backup_pre_import"),
+      { ...JSON.parse(JSON.stringify(actual)), backupAt: new Date().toISOString() }
+    );
+    await setDoc(doc(db, "families", familyId, "data", "current"), JSON.parse(JSON.stringify(data)));
+  }
+  localStorage.setItem(familyStorageKey(familyId), JSON.stringify(data));
+}
+
 // ─── SUBSCRIBE TO FIRESTORE (por familia) ────────────────────────────────────
 
 function firestoreIsEmpty(data: AppData): boolean {

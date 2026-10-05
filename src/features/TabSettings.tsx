@@ -5,7 +5,8 @@ import { MONTH_NAMES } from '../constants';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, PaymentMethodType } from '../types/models';
 import { requestNotifPermission, getNotifEnabled, setNotifEnabled } from '../hooks/useNotifications';
-import { saveData } from '../services/firestore';
+import { importarBackup } from '../services/firestore';
+import { fechaLocalISO } from '../utils/finanzas';
 import { logout } from '../services/auth';
 import { getInviteCode, regenerateInviteCode } from '../services/familyService';
 import { SW_LAST_CHECK_KEY } from '../constants';
@@ -43,21 +44,32 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
-  const [importSuccess] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
+      let parsed: unknown;
       try {
-        const parsed = JSON.parse(ev.target?.result as string);
-        if (!parsed.months || !parsed.currentKey) throw new Error("Formato inválido");
-        saveData(parsed);
-        window.location.reload();
+        parsed = JSON.parse(ev.target?.result as string);
       } catch {
         setImportError("El archivo no es válido. Asegúrate de usar un backup exportado desde esta app.");
         setTimeout(() => setImportError(null), 4000);
+        return;
+      }
+      if (!familyId) return;
+      setImporting(true);
+      try {
+        await importarBackup(parsed, familyId, data);
+        window.location.reload();
+      } catch (err) {
+        setImporting(false);
+        setImportError(err instanceof Error && err.message === "Formato inválido"
+          ? "El archivo no es válido. Asegúrate de usar un backup exportado desde esta app."
+          : "No se pudo restaurar el backup. Revisa la conexión e inténtalo de nuevo.");
+        setTimeout(() => setImportError(null), 5000);
       }
     };
     reader.readAsText(file);
@@ -70,7 +82,7 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `corpos_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `corpos_backup_${fechaLocalISO()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -467,23 +479,18 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
           Copia de seguridad
         </div>
         <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 14 }}>
-          Descarga todos tus datos en un archivo JSON. Guárdalo en un lugar seguro como respaldo.
+          Descarga todos tus datos en un archivo JSON. Guárdalo en un lugar seguro como respaldo. Al restaurar, los datos actuales se reemplazan por los del archivo (antes se guarda una copia de los actuales).
         </div>
         <Btn variant="secondary" onClick={handleExportBackup} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
           <Download size={16} /> Descargar backup
         </Btn>
         <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportBackup} style={{ display: "none" }} />
-        <Btn variant="secondary" onClick={() => fileInputRef.current?.click()} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <Upload size={16} /> Restaurar desde backup
+        <Btn variant="secondary" onClick={() => fileInputRef.current?.click()} disabled={importing} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Upload size={16} /> {importing ? "Restaurando…" : "Restaurar desde backup"}
         </Btn>
         {importError && (
           <div style={{ marginTop: 10, padding: "10px 12px", background: "rgba(220,38,38,0.1)", borderRadius: 8, fontSize: 13, color: "var(--danger)" }}>
             {importError}
-          </div>
-        )}
-        {importSuccess && (
-          <div style={{ marginTop: 10, padding: "10px 12px", background: "rgba(5,150,105,0.1)", borderRadius: 8, fontSize: 13, color: "var(--success)" }}>
-            ✅ Backup restaurado correctamente
           </div>
         )}
       </Card>

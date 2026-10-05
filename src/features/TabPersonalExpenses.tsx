@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Trash2, Pause, Play, Undo2 } from 'lucide-react';
 import { Avatar, Card, Btn, Field, Modal, Label, ProgressBar, PaymentChips } from '../components/ui';
 import { ICONS } from '../constants';
-import { COP } from '../utils/finanzas';
+import { COP, fechaLocalISO } from '../utils/finanzas';
 import { MonthData, PersonalExpense, TransferenciaFondo } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
@@ -34,7 +34,7 @@ export function TabPersonalExpenses({ monthData, onUpdate }: TabPersonalExpenses
       id: `tf_${Date.now()}`,
       persona: fondoForm.persona,
       monto: Number(fondoForm.monto) || 0,
-      fecha: new Date().toISOString().slice(0, 10),
+      fecha: fechaLocalISO(),
     };
     onUpdate({ ...monthData, fondoConjunto: { transferencias: [...transferencias, nueva] } });
     setFondoModal(false);

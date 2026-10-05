@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { MonthData, Mercado } from '../types/models';
-import { COP, calculateMercadoTotals } from '../utils/finanzas';
+import { COP, calculateMercadoTotals, fechaLocalISO } from '../utils/finanzas';
 
 const STORAGE_KEY = 'corpos_notif_last_check';
 const NOTIF_ENABLED_KEY = 'corpos_notif_enabled';
@@ -27,7 +27,7 @@ function notify(title: string, body: string, tag: string) {
 }
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return fechaLocalISO();
 }
 
 type FamilyExpense = MonthData['familyExpenses'][number];

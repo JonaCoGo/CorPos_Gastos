@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Trash2 } from 'lucide-react';
 import { Avatar, Card, Btn, Field, Modal, Label, Select, PaymentChips } from '../components/ui';
 import { EXTRA_CATS } from '../constants';
-import { COP } from '../utils/finanzas';
+import { COP, fechaLocalISO } from '../utils/finanzas';
 import { MonthData, Extra, Persona } from '../types/models';
 import { useAppStore } from '../store/useAppStore';
 
@@ -19,13 +19,13 @@ export function TabExtras({ monthData, onUpdate }: TabExtrasProps) {
   const extras = monthData.extras || [];
   const [showAdd, setShowAdd]   = useState(false);
   const [confirmDel, setConfirmDel] = useState<Extra | null>(null);
-  const [form, setForm] = useState<{ person: Persona; amount: string; category: string; desc: string; date: string; paymentMethodId: string }>({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10), paymentMethodId: "" });
+  const [form, setForm] = useState<{ person: Persona; amount: string; category: string; desc: string; date: string; paymentMethodId: string }>({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: fechaLocalISO(), paymentMethodId: "" });
 
   const addExtra = () => {
     if (!form.amount) return;
     const newE = { id: `ex_${Date.now()}`, person: form.person, amount: Number(form.amount), category: form.category, desc: form.desc, date: form.date, paymentMethodId: form.paymentMethodId || undefined };
     setShowAdd(false);
-    setForm({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: new Date().toISOString().slice(0, 10), paymentMethodId: "" });
+    setForm({ person: "jonatan", amount: "", category: "Comida rápida", desc: "", date: fechaLocalISO(), paymentMethodId: "" });
     onUpdate({ ...monthData, extras: [...extras, newE] });
   };
 
