@@ -9,6 +9,7 @@ import { saveData } from '../services/firestore';
 import { logout } from '../services/auth';
 import { getInviteCode, regenerateInviteCode } from '../services/familyService';
 import { SW_LAST_CHECK_KEY } from '../constants';
+import { useActualizacionStore } from '../hooks/useActualizacion';
 import { COP } from '../utils/finanzas';
 
 const formatDateTime = (iso: string) =>
@@ -164,20 +165,18 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
   }, []);
   const lastCheck = localStorage.getItem(SW_LAST_CHECK_KEY);
   void now; // fuerza re-render periódico para que "hace X min" se mantenga actualizado
-  const [justChecked, setJustChecked] = useState(false);
+  const publicada        = useActualizacionStore((s) => s.publicada);
+  const hayNueva         = useActualizacionStore((s) => s.hayNueva);
+  const actualizando     = useActualizacionStore((s) => s.actualizando);
+  const revisarVersion   = useActualizacionStore((s) => s.revisar);
+  const actualizarApp    = useActualizacionStore((s) => s.actualizar);
+  const [revisando, setRevisando] = useState(false);
 
-  const checkNow = () => {
-    // Actualizamos el timestamp y el feedback visual de inmediato — no depende
-    // de que la promesa de abajo resuelva ni de que haya un SW registrado.
-    localStorage.setItem(SW_LAST_CHECK_KEY, new Date().toISOString());
+  const checkNow = async () => {
+    setRevisando(true);
+    await revisarVersion();
     setNow(Date.now());
-    setJustChecked(true);
-    setTimeout(() => setJustChecked(false), 2000);
-
-    // Best-effort: si hay un service worker registrado, pedirle que revise si hay versión nueva.
-    navigator.serviceWorker?.getRegistration()
-      .then((reg) => reg?.update())
-      .catch(() => {});
+    setRevisando(false);
   };
 
   const addMethod = () => {
@@ -532,13 +531,29 @@ export function TabSettings({ onPermissionGranted }: { onPermissionGranted?: () 
             <span style={{ fontWeight: 700 }}>{formatDateTime(__BUILD_TIME__)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+            <span style={{ color: "var(--text2)" }}>Versión publicada</span>
+            <span style={{ fontWeight: 700 }}>{publicada ? formatDateTime(publicada) : "sin consultar"}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+            <span style={{ color: "var(--text2)" }}>Estado</span>
+            <span style={{ fontWeight: 700, color: hayNueva ? "var(--danger)" : publicada ? "var(--success)" : "var(--text2)" }}>
+              {hayNueva ? "Desactualizada" : publicada ? "✅ Al día" : "—"}
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
             <span style={{ color: "var(--text2)" }}>Última revisión de actualización</span>
             <span style={{ fontWeight: 700 }}>{lastCheck ? formatRelative(lastCheck) : "aún no revisada"}</span>
           </div>
         </div>
-        <Btn variant="secondary" onClick={checkNow} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          {justChecked ? <>✅ Revisado</> : <><RefreshCw size={16} /> Revisar ahora</>}
-        </Btn>
+        {hayNueva ? (
+          <Btn variant="primary" onClick={actualizarApp} disabled={actualizando} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <RefreshCw size={16} /> {actualizando ? "Actualizando…" : "Actualizar ahora"}
+          </Btn>
+        ) : (
+          <Btn variant="secondary" onClick={checkNow} disabled={revisando} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <RefreshCw size={16} /> {revisando ? "Revisando…" : "Revisar ahora"}
+          </Btn>
+        )}
       </Card>
 
       {/* Zona de peligro */}

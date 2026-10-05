@@ -2,12 +2,26 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Identificador único del build: lo ve la app (__BUILD_TIME__) y lo publica
+// scripts/build-ota-bundle.mjs en /updates/version.json. Si no coinciden, la app
+// sabe con certeza que está corriendo una versión vieja.
+const BUILD_TIME = new Date().toISOString()
+
+const buildIdPlugin = {
+  name: 'corpos-build-id',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'build-id.json', source: JSON.stringify({ buildTime: BUILD_TIME }) })
+  },
+}
+
 export default defineConfig(({ mode }) => ({
   define: {
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
   },
   plugins: [
     react(),
+    buildIdPlugin,
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
@@ -28,13 +42,9 @@ export default defineConfig(({ mode }) => ({
         clientsClaim: true,
         skipWaiting: true,
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'firestore-cache', networkTimeoutSeconds: 5 }
-          }
-        ]
+        cleanupOutdatedCaches: true,
+        // /updates/ (version.json y bundles OTA) nunca debe salir del service worker
+        navigateFallbackDenylist: [/^\/updates\//],
       }
     })
   ],

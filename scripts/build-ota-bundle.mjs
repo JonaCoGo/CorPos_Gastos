@@ -5,7 +5,7 @@
 // Zippea el dist/ recién construido y escribe dist/updates/version.json con
 // {version, url}. Como dist/ se despliega tal cual a Vercel, este manifest
 // queda accesible en producción sin pasos manuales adicionales.
-import { createWriteStream, existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { ZipArchive } from "archiver";
 
@@ -22,7 +22,8 @@ async function main() {
 
   mkdirSync(UPDATES_DIR, { recursive: true });
 
-  const version = new Date().toISOString();
+  // Misma marca que la app tiene compilada en __BUILD_TIME__ (ver vite.config.js)
+  const { buildTime: version } = JSON.parse(readFileSync(path.join(DIST_DIR, "build-id.json"), "utf8"));
   const zipName = `bundle-${version.replace(/[:.]/g, "-")}.zip`;
   const zipPath = path.join(UPDATES_DIR, zipName);
 

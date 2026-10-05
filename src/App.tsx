@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef, Suspense, lazy } fro
 import { Capacitor } from "@capacitor/core";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { db } from "./firebase";
-import { MONTH_NAMES, SW_LAST_CHECK_KEY } from "./constants";
+import { MONTH_NAMES } from "./constants";
 import { computeSummary } from "./utils/finanzas";
 import { useAppStore } from "./store/useAppStore";
 import { onAuthChange, handleRedirectResult } from "./services/auth";
@@ -13,38 +13,41 @@ import { LoginScreen } from "./features/LoginScreen";
 import { OnboardingScreen } from "./features/OnboardingScreen";
 import { TabMore } from "./features/TabMore";
 import { useNotifications } from "./hooks/useNotifications";
-import { useOtaUpdate } from "./hooks/useOtaUpdate";
+import { useActualizacion } from "./hooks/useActualizacion";
+import { BannerActualizacion } from "./components/BannerActualizacion";
 
-const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
-
+// Solo registra el service worker (autoUpdate). Cuándo revisar y cómo forzar
+// una actualización atascada vive en hooks/useActualizacion.ts.
 function PwaUpdater() {
-  useRegisterSW({
-    onRegisteredSW(_swUrl, registration) {
-      if (!registration) return;
-      const checkForUpdate = () => {
-        localStorage.setItem(SW_LAST_CHECK_KEY, new Date().toISOString());
-        registration.update().catch(() => {});
-      };
-      checkForUpdate();
-      setInterval(checkForUpdate, SW_UPDATE_CHECK_INTERVAL_MS);
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") checkForUpdate();
-      });
-    },
-  });
+  useRegisterSW();
   return null;
 }
 
-const TabDashboard        = lazy(() => import("./features/TabDashboard").then((m) => ({ default: m.TabDashboard })));
-const TabFamilyExpenses   = lazy(() => import("./features/TabFamilyExpenses").then((m) => ({ default: m.TabFamilyExpenses })));
-const TabPersonalExpenses = lazy(() => import("./features/TabPersonalExpenses").then((m) => ({ default: m.TabPersonalExpenses })));
-const TabHistory          = lazy(() => import("./features/TabHistory").then((m) => ({ default: m.TabHistory })));
-const TabExtras           = lazy(() => import("./features/TabExtras").then((m) => ({ default: m.TabExtras })));
-const TabMercado          = lazy(() => import("./features/mercado/TabMercado").then((m) => ({ default: m.TabMercado })));
-const TabSettings         = lazy(() => import("./features/TabSettings").then((m) => ({ default: m.TabSettings })));
+// Tras un deploy, una pestaña abierta con la versión vieja pide chunks que ya no
+// existen en el servidor → la pantalla queda en blanco. Se recarga una sola vez
+// para traer la versión nueva; si vuelve a fallar, el error sube normalmente.
+const RELOAD_FLAG = "corpos_chunk_reload";
+function lazyConReintento<T>(factory: () => Promise<T>) {
+  return factory()
+    .then((m) => { sessionStorage.removeItem(RELOAD_FLAG); return m; })
+    .catch((err) => {
+      if (sessionStorage.getItem(RELOAD_FLAG)) throw err;
+      sessionStorage.setItem(RELOAD_FLAG, "1");
+      window.location.reload();
+      return new Promise<T>(() => {});
+    });
+}
+
+const TabDashboard        = lazy(() => lazyConReintento(() => import("./features/TabDashboard")).then((m) => ({ default: m.TabDashboard })));
+const TabFamilyExpenses   = lazy(() => lazyConReintento(() => import("./features/TabFamilyExpenses")).then((m) => ({ default: m.TabFamilyExpenses })));
+const TabPersonalExpenses = lazy(() => lazyConReintento(() => import("./features/TabPersonalExpenses")).then((m) => ({ default: m.TabPersonalExpenses })));
+const TabHistory          = lazy(() => lazyConReintento(() => import("./features/TabHistory")).then((m) => ({ default: m.TabHistory })));
+const TabExtras           = lazy(() => lazyConReintento(() => import("./features/TabExtras")).then((m) => ({ default: m.TabExtras })));
+const TabMercado          = lazy(() => lazyConReintento(() => import("./features/mercado/TabMercado")).then((m) => ({ default: m.TabMercado })));
+const TabSettings         = lazy(() => lazyConReintento(() => import("./features/TabSettings")).then((m) => ({ default: m.TabSettings })));
 
 export default function App() {
-  useOtaUpdate();
+  useActualizacion();
 
   const data   = useAppStore((s) => s.data);
   const tab    = useAppStore((s) => s.tab);
@@ -244,6 +247,7 @@ export default function App() {
     <>
       {!isNative && <PwaUpdater />}
       <MainLayout tab={tab} setTab={setTab} syncStatus={syncStatus} monthLabel={monthLabel}>
+        <BannerActualizacion />
         <Suspense fallback={<AppSkeleton />}>{renderTab()}</Suspense>
         {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       </MainLayout>

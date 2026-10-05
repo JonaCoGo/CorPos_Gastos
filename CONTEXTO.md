@@ -37,7 +37,7 @@ App web de gestión financiera familiar para parejas. Cubre salarios, gastos del
 | `services/firestore.ts` | Carga/migración de datos, save (localStorage + Firestore), suscripción en tiempo real, `createInitialData` |
 | `store/useAppStore.ts` | Store Zustand con estado global (user, familyId, data) |
 | `hooks/useNotifications.ts` | Notificaciones push (Web Notifications API) |
-| `hooks/useOtaUpdate.ts` | Actualización en caliente para Capacitor |
+| `hooks/useActualizacion.ts` | Detecta versión nueva comparando `__BUILD_TIME__` con `/updates/version.json`. Android: OTA (Capacitor). Navegador/PWA: el SW se actualiza solo; si se atasca, el aviso "Actualizar" quita SW + caché y recarga sin tocar los datos |
 | `App.tsx` | Wrapper auth + enrutador de pestañas + PWA updater |
 | `layouts/MainLayout.tsx` | Layout con header y bottom nav |
 
@@ -142,7 +142,8 @@ families/{familyId}
 - **12 primitivas UI** reutilizables con barrel export
 - **Migraciones inline**: cuando cambia un modelo (ej. `paymentMethodId` → `paymentMethodByPerson`), se detecta al cargar y se transforma automáticamente
 - **Doble persistencia**: localStorage (offline + inmediato) + Firestore (sync en tiempo real por familia)
-- **OTA updates**: el build genera un bundle zip que se sirve desde Vercel; Capacitor lo descarga y aplica sin reinstalar
+- **OTA updates**: el build genera un bundle zip que se sirve desde Vercel; Capacitor lo descarga y aplica sin reinstalar. `version.json` lleva la misma marca que el build (`build-id.json`), así la app sabe con certeza si está vieja
+- **Aviso de actualización**: banner "Hay una versión nueva" + estado real en Ajustes → Versión de la app. Reemplaza el desinstalar/borrar historial de Chrome
 
 - **2026-08-20**: Consolidado tab de Salarios en Configuración — ahora la pantalla inicial para familias nuevas es Ajustes con nombres + salarios + medios de pago. Eliminados fallbacks hardcodeados de "Marcela"/"Jonatan" en toda la UI (ahora muestran "Persona 1"/"Persona 2").
 - **2026-08-20**: Corregido bug crítico de fuga de datos entre familias — `loadData(familyId)` caía en un fallback que retornaba la semilla de datos reales de Jonatan (salarios, nombres, gastos) cuando no encontraba datos en localStorage para una familia nueva. Esto provocaba que `subscribeToFirestore`, al detectar Firestore "vacío" (datos iniciales con todo en cero), subiera los datos reales de Jonatan al Firestore de la nueva familia. Fix: cuando `familyId` está presente y no hay datos en localStorage, `loadData` ahora retorna `createInitialData()` (datos vacíos) en vez de la semilla. También se eliminó el `localStorage.removeItem` del flujo de reset (era contraproducente) y se agregó redirección automática a Ajustes después del onboarding.
