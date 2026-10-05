@@ -40,7 +40,7 @@ const TabFamilyExpenses   = lazy(() => import("./features/TabFamilyExpenses").th
 const TabPersonalExpenses = lazy(() => import("./features/TabPersonalExpenses").then((m) => ({ default: m.TabPersonalExpenses })));
 const TabHistory          = lazy(() => import("./features/TabHistory").then((m) => ({ default: m.TabHistory })));
 const TabExtras           = lazy(() => import("./features/TabExtras").then((m) => ({ default: m.TabExtras })));
-const TabMercado          = lazy(() => import("./features/TabMercado").then((m) => ({ default: m.TabMercado })));
+const TabMercado          = lazy(() => import("./features/mercado/TabMercado").then((m) => ({ default: m.TabMercado })));
 const TabSettings         = lazy(() => import("./features/TabSettings").then((m) => ({ default: m.TabSettings })));
 
 export default function App() {

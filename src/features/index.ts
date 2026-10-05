@@ -3,5 +3,5 @@ export { TabFamilyExpenses } from './TabFamilyExpenses';
 export { TabPersonalExpenses } from './TabPersonalExpenses';
 export { TabHistory } from './TabHistory';
 export { TabExtras } from './TabExtras';
-export { TabMercado } from './TabMercado';
+export { TabMercado } from './mercado/TabMercado';
 export { TabSettings } from './TabSettings';
