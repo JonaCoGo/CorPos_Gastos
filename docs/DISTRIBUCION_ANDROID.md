@@ -1,16 +1,6 @@
 # App Android (Capacitor) — build, firma y distribución
 
-Reemplaza el intento de PWA instalable. Mismo código React/Vite, envuelto con [Capacitor](https://capacitorjs.com/) como app Android real. Las actualizaciones de código llegan solas (ver más abajo) — no hace falta Play Store ni que nadie reinstale nada, salvo en casos puntuales.
-
-## Qué se agregó
-
-- `@capacitor/core`, `@capacitor/cli`, `@capacitor/android` — el wrapper nativo.
-- `capacitor.config.ts` — `appId: com.corpos.gastos`, `webDir: dist`.
-- `android/` — proyecto nativo Android generado por `npx cap add android`. Se commitea a git (es el proyecto fuente), salvo carpetas de build (`android/app/build/`, `android/.gradle/`, etc. — ver `.gitignore`).
-- `@capgo/capacitor-updater` — actualización en caliente del código web (JS/CSS/HTML) sin pasar por Play Store. Ver `src/hooks/useActualizacion.ts`.
-- `scripts/build-ota-bundle.mjs` — corre automático después de cada `npm run build` (`postbuild`). Empaqueta el `dist/` recién construido en un zip versionado + `dist/updates/version.json`, y como `dist/` se despliega tal cual a Vercel, ese manifest queda accesible en producción sin ningún paso manual.
-
-**Importante:** el service worker/PWA (`vite-plugin-pwa`) sigue existiendo para quien use la app desde el navegador normal (`corpos-gastos.vercel.app`), pero se desactiva por código dentro de la app Android (`App.tsx`, componente `PwaUpdater` solo se monta si `!Capacitor.isNativePlatform()`) — un service worker registrado ahí interceptaría los archivos viejos por encima de las actualizaciones en caliente.
+Mismo código React/Vite, envuelto con [Capacitor](https://capacitorjs.com/) como app Android real. Las actualizaciones de código llegan solas (ver más abajo) — no hace falta Play Store ni que nadie reinstale nada, salvo en casos puntuales.
 
 ## Auth en Capacitor
 

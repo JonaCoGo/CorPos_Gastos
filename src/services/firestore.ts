@@ -184,7 +184,7 @@ export function loadData(familyId?: string): AppData {
   // Si hay familyId pero no hay datos en localStorage, retorna datos vacíos.
   // La suscripción a Firestore se encargará de cargar los datos remotos.
   // NUNCA usar la semilla de datos reales aquí — causaría fuga de datos
-  // entre familias (ver changelog 2026-08-20).
+  // entre familias (ver docs/adr/0002-aislamiento-por-familia.md).
   if (familyId) {
     return createInitialData();
   }

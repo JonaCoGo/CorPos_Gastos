@@ -1,6 +1,6 @@
 # CONTEXTO: APP CorPos Gastos
 
-> Última actualización: 2026-10-05
+> Foto del sistema al 2026-10-08
 
 ## Propósito
 
@@ -32,7 +32,7 @@ App web de gestión financiera familiar para parejas. Cubre salarios, gastos del
 | `utils/sugerencias.ts` | Lógica pura del mercado sugerido y de pasarlo a las listas. Pruebas en `sugerencias.test.ts` |
 | `utils/listas.ts` | Lógica pura de listas de mercado (por mes, copiar, quitar comprados, migración). Pruebas en `listas.test.ts` |
 | `utils/finanzas.ts` | Lógica de negocio pura (sin dependencias React/Firebase). Reutilizable en React Native. Pruebas en `finanzas.test.ts` (Vitest, `npm test`) |
-| `components/ui/` | Primitivas UI: `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Toast`, `PaymentChips` |
+| `components/ui/` | Primitivas UI con barrel export (`index.ts`): `Avatar`, `Btn`, `Card`, `Field`, `Label`, `Modal`, `ProgressBar`, `Select`, `Skeleton` / `AppSkeleton`, `Toast`, `PaymentChips` |
 | `features/` | Vistas por pestaña (lazy-loaded) |
 | `features/mercado/` | Módulo Mercado: `TabMercado` (contenedor) + `VistaLista`, `VistaHacer`, `VistaHistorial`, `VistaInforme`, `VistaItems`, hooks `useCarrito` y `useMercadoConfig` |
 | `services/auth.ts` | Login/logout con Google (popup en browser, redirect en Capacitor) |
@@ -57,7 +57,7 @@ families/{familyId}
     → { role: 'admin' | 'member', displayName, joinedAt }
 
   data/current
-    → AppData completa (mismo modelo que localStorage)
+    → AppData completa (mismo modelo que localStorage, clave `corpos_budget_v6_{familyId}`)
 
   data/backup_pre_mercado_por_mes
     → copia intacta de data/current tomada antes de migrar las compras a monthKey
@@ -97,8 +97,9 @@ families/{familyId}
 - `users/{uid}`: cada usuario lee/escribe solo su documento
 - `families/{familyId}`: cualquier usuario autenticado puede leer (necesario para buscar por inviteCode); solo miembros pueden actualizar
 - `families/{familyId}/members/{uid}`: cualquier autenticado puede crear su propio doc de miembro; admin puede eliminar miembros
-- `families/{familyId}/data/current`: solo miembros pueden leer/escribir
-- `corpos/{docId}`: bloqueado por completo (`allow read, write: if false`) — backup legacy de la migración a familias, ya completada. Ver Changelog 2026-08-19.
+- `families/{familyId}/data/{docId}` (`current` y el respaldo): solo miembros pueden leer/escribir
+- `corpos/{docId}`: bloqueado por completo (`allow read, write: if false`) — documento legacy previo a los datos por familia (ADR 0002)
+- Las reglas viven en `firestore.rules` y se publican aparte del deploy (`docs/firebase.md`).
 
 ## Funcionalidades
 
@@ -120,7 +121,9 @@ families/{familyId}
 - **Salarios** del mes con cálculo de neto y distribución de aportes
 - Medios de pago (CRUD con color, tipo y titular)
 - Supermercados (CRUD + quick-add desde Mercado)
-- Notificaciones, reset, compartir familia, cerrar sesión
+- Backup: exportar a `.json` y restaurar desde ese archivo
+- Notificaciones, reiniciar todos los datos de la familia, compartir familia (código de invitación), cerrar sesión
+- Versión de la app con su estado real de actualización
 
 ### Gastos del hogar
 - Lista de categorías con presupuesto, pagado, barra de progreso
@@ -147,31 +150,40 @@ families/{familyId}
 - Editar viaje completo (incluido moverlo a otro mes) o item individual
 - **Productos**: catálogo editable con precios auto-actualizados; eliminar archiva el producto sin borrar su historial
 
-
-
 ## Arquitectura técnica
 
-- **8 módulos lazy-loaded**: Dashboard, Gastos del hogar, Personales, Extras, Mercado, Historial, Ajustes, Más
-- **12 primitivas UI** reutilizables con barrel export
+- **Pestañas:** Dashboard, Gastos del hogar, Personales, Extras, Mercado, Historial, Ajustes y Más. Todas menos Más se cargan lazy (`App.tsx`).
 - **Migraciones inline**: cuando cambia un modelo (ej. `paymentMethodId` → `paymentMethodByPerson`), se detecta al cargar y se transforma automáticamente
 - **Doble persistencia**: localStorage (offline + inmediato) + Firestore (sync en tiempo real por familia)
-- **OTA updates**: el build genera un bundle zip que se sirve desde Vercel; Capacitor lo descarga y aplica sin reinstalar. `version.json` lleva la misma marca que el build (`build-id.json`), así la app sabe con certeza si está vieja
-- **Aviso de actualización**: banner "Hay una versión nueva" + estado real en Ajustes → Versión de la app. Reemplaza el desinstalar/borrar historial de Chrome
+- **Aislamiento por familia**: con `familyId`, la carga nunca devuelve datos de otro origen; una familia nueva arranca vacía (ADR 0002)
+- **OTA updates** (Android): el build genera un bundle zip que se sirve desde Vercel; Capacitor lo descarga y aplica sin reinstalar, sin el servicio de Capgo (`autoUpdate: false`). `version.json` lleva la misma marca que el build (`build-id.json`), así la app sabe con certeza si está vieja. La app revisa al abrirse y cada hora.
+- **Service worker solo en navegador**: `PwaUpdater` no se monta dentro de la app Android, porque el SW interceptaría los archivos viejos por encima de la OTA.
+- **Aviso de actualización**: banner "Hay una versión nueva de la app" + estado real en Ajustes → Versión de la app
 
-- **2026-08-20**: Consolidado tab de Salarios en Configuración — ahora la pantalla inicial para familias nuevas es Ajustes con nombres + salarios + medios de pago. Eliminados fallbacks hardcodeados de "Marcela"/"Jonatan" en toda la UI (ahora muestran "Persona 1"/"Persona 2").
-- **2026-08-20**: Corregido bug crítico de fuga de datos entre familias — `loadData(familyId)` caía en un fallback que retornaba la semilla de datos reales de Jonatan (salarios, nombres, gastos) cuando no encontraba datos en localStorage para una familia nueva. Esto provocaba que `subscribeToFirestore`, al detectar Firestore "vacío" (datos iniciales con todo en cero), subiera los datos reales de Jonatan al Firestore de la nueva familia. Fix: cuando `familyId` está presente y no hay datos en localStorage, `loadData` ahora retorna `createInitialData()` (datos vacíos) en vez de la semilla. También se eliminó el `localStorage.removeItem` del flujo de reset (era contraproducente) y se agregó redirección automática a Ajustes después del onboarding.
+## Comandos y entornos
 
-## Changelog reciente
+| Para qué | Comando |
+|---|---|
+| Desarrollo | `npm run dev` (puerto 3000) |
+| Pruebas | `npm test` (Vitest, `*.test.ts` junto al código) |
+| Tipos | `npx tsc --noEmit` |
+| Build | `npm run build` (el `postbuild` genera el bundle OTA y `dist/updates/version.json`) |
+| Copiar el build al proyecto Android | `npx cap sync android` |
 
-- **2026-08-18**: Corregido bug de unión a familia — reglas Firestore permitían leer `families` solo a miembros, bloqueando el lookup por `inviteCode` para nuevos usuarios. Ahora cualquier autenticado puede leer la colección `families`.
-- **2026-08-19**: Corregido bug crítico de aislamiento — localStorage usaba una sola clave (`corpos_budget_v6`) para todas las familias, permitiendo que datos de una familia se sincronizaran al Firestore de otra. Ahora cada familia tiene su propio espacio de localStorage (`corpos_budget_v6_{familyId}`).
-- **2026-08-19**: Corregido bug crítico de fuga de datos — cualquier usuario nuevo sin familia disparaba `loadLegacyData()` en el onboarding, que leía el documento único `corpos/shared` (backup de la migración inicial de Jonatan, legible por cualquier autenticado según las reglas de Firestore). Al crear familia, esos datos se ofrecían como "datos existentes" y se copiaban tal cual a la familia nueva — pasó con el hermano de Jonatan, que terminó con los salarios y gastos reales de Jonatan en su propia familia. Fix: se eliminó por completo el flujo de migración legacy (ya había cumplido su propósito) — `createFamily` ahora siempre arranca con datos vacíos, y las reglas de Firestore bloquean `corpos/{docId}` sin excepción. Se agregó además "Reiniciar todos mis datos" en Ajustes para que cualquier familia pueda autolimpiarse sin intervención manual en Firestore.
-- **2026-08-19**: Corregido bug de "Reiniciar todos mis datos" — el botón recargaba la página antes de que la escritura a Firestore completara (race condition). Al recargar, la suscripción `onSnapshot` entregaba los datos viejos del servidor y sobreescribía el estado local, haciendo que el reset pareciera no funcionar. Fix: `resetAllData` ahora es async y espera a que `setDoc` termine; luego limpia localStorage de la familia y recarga. `saveData` ahora retorna `Promise<void>`.
+- Antes de cada commit: `tsc --noEmit`, `npm test` y `npm run build` sin errores.
+- **Producción:** push a `main` → Vercel despliega. Variables `VITE_FIREBASE_*` según `.env.example` (local en `.env`, producción en Vercel).
+- **App Android:** `versionCode 1` / `versionName "1.0"` (`android/app/build.gradle`); los cambios de código llegan por OTA, solo un cambio nativo exige APK nuevo.
+- **Scope de commits:** `app-gastos\<modulo>` (ej. `feat(app-gastos\mercado): ...`), con el formato de `CLAUDE.md`.
 
-## Reglas de trabajo
+## Documentación
 
-1. Escribir código real, no describirlo
-2. Actualizar este `CONTEXTO.md` al terminar cada sesión
-3. No exponer credenciales ni rutas internas
-4. Commits con formato `tipo(app-gastos): descripción`
-5. Verificar `tsc --noEmit`, `npm test` y `npm run build` antes de cada commit
+| Pregunta | Dónde |
+|---|---|
+| ¿Qué es y qué hace hoy? | este archivo |
+| ¿Qué falta, qué está abierto o sin validar? | `docs/hoja_de_ruta.md` |
+| ¿Por qué se decidió así? | `docs/adr/` (0001 mercado por mes · 0002 aislamiento por familia) |
+| ¿Cómo se configuran Firebase, Google Cloud y Vercel? | `docs/firebase.md` |
+| ¿Cómo se compila, firma y distribuye el APK? | `docs/DISTRIBUCION_ANDROID.md` |
+| ¿Qué encontró la auditoría de código de junio? | `docs/2026-06-30_auditoria_codigo.md` |
+| ¿Cómo arranco en local? | `README.md` |
+| ¿Qué se hizo y cuándo? | `git log --oneline` |
